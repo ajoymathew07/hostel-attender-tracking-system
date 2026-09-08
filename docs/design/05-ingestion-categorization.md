@@ -57,59 +57,62 @@ Splitting identity from change-detection is what makes all three failure modes a
 | Observation | Meaning | Action |
 |---|---|---|
 | `response_key` unseen | New submission | Insert `source_row`, create complaint (T1) |
-| Known key, same `content_hash` | Unchanged | Touch `last_seen_*`, nothing else |
-| Known key, different `content_hash` | Response was edited | Insert `source_row_revision`, state → `AMENDED`, **re-classify**, raise `ComplaintAmended` for the manager. Never create a second complaint. |
-| Known key absent from a **full** scan | Row deleted from the sheet | State → `VANISHED`. **The complaint is not deleted** — it is flagged for manager review |
+| Known key, same `content_hash` | Already ingested | Skip. Touch `last_seen_*`, nothing else |
+| Known key, different `content_hash` | Response was edited | **Phase 5 feature.** For now: skip and log. See below |
 | Duplicate `response_key` within one batch | Two submissions in the same second by the same person | Disambiguate by appending the in-batch ordinal before hashing |
 
-Marking a vanished row rather than deleting the complaint is deliberate: work may already have been
-done and points credited against it. Cascading a spreadsheet deletion into our operational record
-would corrupt the ledger.
+**Deletions are not tracked.** Once a complaint is ingested it is ours; the sheet is an *inbox*, not
+a continuing source of truth. An earlier draft detected removed rows (a `VANISHED` state plus a
+nightly full-sheet reconcile pass) so the manager could be told a row had disappeared. That bought
+one notification at the cost of a second scan mode, an extra state and a manager review path
+(ADR-012). Work may already have been done and points credited against a complaint, so we would
+never have deleted it anyway.
+
+**Amendments are deferred to Phase 5.** They only occur if the Google Form has "edit response"
+enabled, which is off by default. Until that is confirmed and the feature is built, an edited row is
+skipped with a log line — the complaint keeps its original text, which is the safe behaviour. The
+schema already reserves the `AMENDED` state so adding it later is additive.
 
 ### Scan strategy
 
-Fetching every row on every poll is wasteful at a year's volume, but a tail-only fetch cannot see
-edits to older rows. We therefore run two modes:
+With deletions ignored and amendments deferred, the sheet is append-only from our point of view, so
+**one fetch mode suffices**:
 
-| Mode | Range fetched | When | Detects |
-|---|---|---|---|
-| **Incremental** | Last `N = 300` rows | Every poll (3 min) | New submissions, recent edits |
-| **Full reconcile** | Entire sheet | Nightly, and on manual "Sync Now" | Old edits, deletions (`VANISHED`) |
+```
+from = max(1, lastRowSeen − OVERLAP)      OVERLAP = 50
+fetch rows [from .. end]
+```
 
-`VANISHED` is only ever concluded from a **full** scan, never an incremental one — an incremental
-window naturally "misses" older rows and must not mistake that for deletion. This is the single
-most important guard in the algorithm.
+The overlap absorbs row-index drift if someone does delete a row, and `response_key` makes
+re-reading rows we already have a no-op regardless. A long gap — the instance slept for six hours,
+or a manual "Sync Now" after a week — is handled by the same code path: `lastRowSeen` has not moved,
+so the fetch simply covers more rows. **There is no separate catch-up mode to get wrong.**
 
 ### Pseudocode
 
 ```
-function reconcile(rows, run, isFullScan):
+function reconcile(rows, run):
     seen = {}
     for (i, row) in rows:
-        key  = responseKey(row); hash = contentHash(row)
+        key = responseKey(row)
         if key in seen: key = responseKey(row, disambiguator = ++seen[key])
         seen[key] = 0
-        existing = sourceRowRepo.find(sourceRef, key)
 
-        if existing == null:
-            sr = sourceRow(key, hash, rowIndex = i, state = ACTIVE, run)
-            complaint = normalizeToComplaint(row)          # 5.4
-            classify(complaint)                            # 5.5
-            workflow.transition(complaint, INGEST)         # T1
-            run.rowsCreated++
-        else if existing.contentHash != hash:
-            existing.addRevision(hash, row, run)
-            existing.state = AMENDED
-            reclassifyAndFlag(existing.complaint)
-            run.rowsAmended++
-        else:
-            existing.touch(run)
+        if sourceRowRepo.exists(sourceRef, key):
+            run.rowsSkipped++                              # already ingested
+            continue
 
-    if isFullScan:
-        for sr in sourceRowRepo.activeNotSeenIn(run):
-            sr.state = VANISHED                            # complaint survives
-            run.rowsVanished++
+        sourceRowRepo.save(sourceRow(key, contentHash(row), rowIndex = i, run))
+        complaint = normalizeToComplaint(row)              # 5.4
+        classify(complaint)                                # 5.5
+        workflow.transition(complaint, INGEST)             # T1
+        run.rowsCreated++
+    run.lastRowSeen = max(rowIndex)
 ```
+
+Fifteen lines, one branch. That is the entire delta-detection algorithm, and it is worth noting how
+much of the original complexity came from *features* (amendment tracking, deletion detection) rather
+than from the hard part — which is identity, and is handled by one `UNIQUE` constraint.
 
 Each row is processed in its **own transaction**. One malformed response therefore cannot abort the
 whole run; it is recorded on `ingestion_run.error_detail` and the run continues. Given that this

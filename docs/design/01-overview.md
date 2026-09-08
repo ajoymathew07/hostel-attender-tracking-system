@@ -37,6 +37,9 @@ Explicitly **out of scope** for this project, to keep the solo build tractable:
 - **Payroll or bonus disbursement.** We compute points; money is handled outside the system.
 - **A native mobile app store presence.** Push reaches attenders through the installable web app
   (Web Push), not a Play Store binary.
+- **Operating without internet.** The stakeholder confirmed that internet at the hostel office is
+  reliable; the outage we design for is the **cloud platform** being unavailable, not the network.
+  This assumption is load-bearing for §2.6 and ADR-001.
 
 ## 1.4 Actors
 
@@ -71,7 +74,7 @@ Explicitly **out of scope** for this project, to keep the solo build tractable:
 | NFR-3 | Interactive response time | p95 < 500 ms for queue and dashboard reads | Attenders on mobile data in hostel corridors |
 | NFR-4 | Mobile payload | Attender queue initial load < 150 KB | Low-end phones, patchy connectivity |
 | NFR-5 | Correctness under concurrency | Zero double-credits, zero lost updates | Core integrity guarantee; see §7 |
-| NFR-6 | Availability | Best-effort. Offline fallback jar must run with **no internet at all** | Free-tier PaaS; outage plan B from proposal §10 |
+| NFR-6 | Availability | Best-effort. A **cloud app-tier outage** is survivable: the manager runs the same jar on their desktop against the same managed database. Internet is assumed available | Free-tier PaaS sleeps and occasionally fails; outage plan B from proposal §10 |
 | NFR-10 | Push delivery | P1 assignment push dispatched within **30 s** of assignment; delivery itself is best-effort | The push service is outside our control, so the in-app queue stays the source of truth |
 | NFR-7 | Timezone | All business dates in **Asia/Kolkata**; all timestamps stored UTC | Month boundaries for the bonus cycle must be unambiguous |
 | NFR-8 | Auditability | Every state change and point movement is reconstructible | Bonus disputes must be resolvable from the log |
@@ -92,7 +95,11 @@ Pending confirmation from the stakeholder. Each has a working default so no desi
 
 ## 1.8 Constraints
 
-- **Solo developer**, roughly nine weeks, alongside coursework. Scope is tagged Core/Extended in §13.
+- **Solo developer**, roughly nine weeks, alongside coursework. Work is sliced into five delivery
+  phases (§13), the first of which is a walking skeleton that runs end to end.
+- **Every line must be explainable in a viva.** This is a real design constraint, not a formality:
+  where a simpler mechanism gives the same user-visible behaviour, we take the simpler one and
+  record why (ADR-012). Framework features are preferred over hand-rolled equivalents.
 - **Free-tier hosting.** Instances sleep when idle; this shapes the scheduler design (§2.5).
 - **No CMS API.** Docket numbers are entered by hand — the system cannot verify them upstream.
 - **Low-tech end users.** Attenders may have limited literacy in English and low-end phones. UI

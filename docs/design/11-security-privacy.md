@@ -11,7 +11,7 @@ Naming what we are and are not defending against keeps the controls proportionat
 | A student discovering the URL and trying to log in | ✅ | Rate limiting, lockout, no self-registration |
 | An attender viewing or altering another attender's points | ✅ | Role + ownership checks on every action |
 | An attender gaming the point system | ✅ | Docket gate on credit, append-only ledger, audit |
-| A lost or shared attender phone | ✅ | Device-token revocation, PIN reset, push subscription revocation |
+| A lost or shared attender phone | ✅ | Remember-me token revocation, PIN reset, push subscription revocation |
 | Resident PII exposure | ✅ | Minimisation, retention limits (§11.4) |
 | Targeted attack by a skilled adversary | ❌ | Out of scope; no assets justify it |
 | DDoS | ❌ | Free-tier platform's problem |
@@ -52,10 +52,15 @@ the manager can revoke devices and rotate PINs at will, and why the audit log re
 
 ### Device tokens
 
-Split-token scheme (§3.3): a public `selector` for indexed lookup and a `validator` stored only as
-SHA-256. Cookie is `HttpOnly; Secure; SameSite=Lax`, 90-day expiry, **rotated on every use** — so a
-stolen cookie that is used after the legitimate holder next authenticates fails, and the mismatch
-is itself a detectable signal. Manager can revoke all of one user's devices in one click.
+Spring Security's **`PersistentTokenBasedRememberMeServices`** backed by `JdbcTokenRepositoryImpl`,
+using the framework's own `persistent_logins` table (§3.3). It implements the series/token scheme:
+an indexed series identifier plus a single-use token **rotated on every request**, so a stolen
+cookie stops working as soon as the legitimate device authenticates again, and the mismatch is
+itself detectable. Cookie is `HttpOnly; Secure; SameSite=Lax` with a 90-day expiry.
+
+An earlier draft hand-rolled the identical design. Using the framework's implementation deletes that
+code, removes a class of subtle mistakes from a security-critical path, and gives a reviewer a
+mechanism they already know (ADR-012). Revoking a lost phone is a single `DELETE` by username.
 
 ## 11.3 Authorization
 

@@ -5,59 +5,83 @@ decided, what it cost, and what would make us revisit it.
 
 ---
 
-## ADR-001 · PostgreSQL everywhere, not SQLite/H2 for development
+## ADR-001 · One PostgreSQL database; the standby runs against it too
 
-**Status:** Accepted · 8 Sep 2026
+**Status:** Accepted · 8 Sep 2026 · **Revised** 8 Sep 2026 after clarifying what "outage" means
 
 **Context.** The proposal specified SQLite or embedded H2 for local development with PostgreSQL in
-production. That is a common and convenient split.
+production, plus a local fallback server for outages. The original decision kept H2 for the fallback
+and constrained the schema to the SQL subset both engines accept.
 
-**Decision.** PostgreSQL in development (Docker Compose), test (Testcontainers) and production. H2
-is retained *only* for the offline fallback jar (§2.6).
+The stakeholder then clarified that **the outage being designed for is the cloud platform being
+unavailable, not the internet.** Office internet is reliable.
+
+**Decision.** PostgreSQL everywhere and only: development (Docker Compose), test (Testcontainers),
+production, and the standby. The standby is **the same jar with the same `DATABASE_URL`**, started
+on the manager's desktop when Render or Railway is down. H2 and SQLite are dropped entirely.
 
 **Rationale.**
-- SQLite serialises writers. The shared-task concurrency control (§7) is a headline feature of this
-  project; on SQLite the tests would pass for the wrong reason and prove nothing about production.
+- SQLite serialises writers, so the shared-task concurrency control (§7) would pass its tests for
+  the wrong reason and prove nothing about production.
 - H2 and Postgres diverge on constraint-violation behaviour, isolation semantics and locking —
   exactly the surface our correctness argument (§7.3) rests on.
-- Dialect drift in JPA surfaces late and expensively.
+- **Decisively:** an H2 standby seeded from a nightly dump left work done during an outage with **no
+  path back into the cloud database**. Two diverging copies of the ledger is the precise failure this
+  system exists to prevent. Pointing both jars at one database does not solve that problem — it
+  means it cannot occur.
+- It also deletes the portable-SQL constraint from every future migration, a second dialect to test,
+  and a Spring profile.
 
-**Consequences.** Requires Docker locally. Schema is constrained to the portable SQL subset (§3.8)
-so the fallback jar still runs. Accepted: the constraint costs a few Postgres-only conveniences and
-buys tests that mean what they say.
+**Consequences.** Requires Docker locally for development. Attenders cannot reach the standby
+(it is on `localhost`), so during a platform outage the manager works alone — acceptable, since that
+is strictly better than today's all-manual process. The residual risk is the managed database itself
+failing, which no application design fixes; nightly dumps bound the loss and the manager falls back
+to pen and paper for those hours, as they do today.
 
-**Revisit if:** the offline fallback becomes the primary deployment.
+**Revisit if:** office internet stops being reliable, or the managed database's availability proves
+inadequate.
 
 ---
 
 ## ADR-002 · Local credentials, invite-only; no Google OAuth
 
-**Status:** Accepted · 8 Sep 2026
+**Status:** Accepted · 8 Sep 2026 · **Rationale revised** 8 Sep 2026
 
-**Context.** Users are one manager and ~4 attenders. Requirements: people without institute
-accounts must be able to use the system, but only a specific pre-registered set may have access.
+**Context.** Users are one manager and ~4 attenders. Requirements: people without institute accounts
+must be able to use the system, but only a specific pre-registered set may have access.
 
 **Decision.** No self-registration. Every principal is a pre-provisioned `app_user` row. Manager
-authenticates with username + password; attenders with a **per-user** 6-digit PIN plus a
-device-bound persistent token. No OAuth of any kind.
+authenticates with username + password; attenders with a **per-user** 6-digit PIN plus Spring
+Security's persistent remember-me. No OAuth of any kind.
 
-**Rationale.**
-- **Decisive:** the proposal requires an offline local-server fallback for outages (§2.6). Google
-  OAuth cannot complete a redirect flow without internet — it would fail during precisely the
-  outage the fallback exists for.
-- Local credentials require no institute account, so "non-institute people must have access" is met
-  by *removing* an external dependency rather than adding one.
-- "Only a specific set registered" is really the invariant *no self-registration*, which holds
-  independently of credential type.
-- OAuth would add a consent screen, a public redirect URI, extra secrets and a second login path to
-  test — for one user's convenience.
+**The original decisive argument was wrong and has been withdrawn.** This ADR previously claimed
+OAuth could not work on the local fallback because a redirect flow needs internet. Once "outage" was
+clarified to mean *the cloud platform*, not the network, that argument collapsed — Google permits
+`http://localhost` redirect URIs, so OAuth would in fact work there. The decision survives on
+weaker but real grounds, and it is worth being explicit that it is now a closer call:
 
-**Consequences.** We store password and PIN hashes, so we own credential hygiene: BCrypt cost 12,
-lockout, rate limiting, audited attempts (§11.2). A 6-digit PIN is weak in isolation; the design
-states this openly and compensates with lockout, no username enumeration, a small blast radius per
-attender, and one-click device revocation.
+**Rationale (revised).**
+- Local credentials require no Google account at all, so "non-institute people must have access" is
+  met by *removing* an external dependency rather than adding one. Whether every attender reliably
+  has and can use a Google account is an assumption we would rather not take.
+- OAuth would add a consent screen, a client ID and secret, redirect URIs for two environments, and
+  a second login path to build and test — for a five-account system.
+- **Explainability.** Every line must be defensible in a viva. "BCrypt-compare a PIN, count
+  failures, lock the account" is code that can be explained end to end; "Spring handles the OAuth2
+  authorization-code flow" is less code but more of it is framework behaviour rather than something
+  the author implemented.
 
-**Revisit if:** the user population grows beyond ~20, or the institute mandates SSO.
+**The honest counter-argument**, recorded because it is a good one: OAuth would delete *all*
+credential-handling code — PIN hashing, lockout, rate limiting, reset flow, remember-me — and on an
+Android phone where the Google account is already signed in, sign-in is genuinely one tap with no
+typing. If the PIN mechanism causes friction in the field, this is the first thing to revisit.
+
+**Consequences.** We own credential hygiene: BCrypt cost 12, lockout, rate limiting, audited
+attempts (§11.2). A 6-digit PIN is weak in isolation and the design says so openly, compensating
+with lockout, no username enumeration, a small per-attender blast radius, and one-click revocation.
+
+**Revisit if:** attenders find the PIN flow awkward in practice, or the user population grows past
+~20.
 
 ---
 
@@ -69,15 +93,19 @@ attender, and one-click device revocation.
 
 **Decision.** Server-Sent Events, with a transactional outbox for replay.
 
-**Rationale.** The requirement is strictly one-directional — server pushes duty updates to one
-manager dashboard. SSE is plain HTTP: it traverses PaaS proxies cleanly, reconnects automatically,
-and needs no STOMP broker or fallback negotiation. Its native `Last-Event-ID` mechanism pairs
-exactly with an outbox table (§3.7) to give gap-free replay after the free tier drops an idle
-connection.
+**Decision (revised).** Server-Sent Events, published on `AFTER_COMMIT`, with **no replay
+machinery** — a client that reconnects refetches current state.
+
+**Rationale.** The requirement is strictly one-directional: the server pushes duty updates to one
+manager dashboard. SSE is plain HTTP, traverses PaaS proxies cleanly, and reconnects automatically
+with no STOMP broker or fallback negotiation. Treating it as a *latency optimisation over polling*
+rather than a delivery guarantee is what lets the outbox and `Last-Event-ID` replay go: a refetch
+after reconnect renders the identical screen (ADR-012).
 
 **Consequences.** No client→server push channel; state changes go over normal HTTP POSTs, which is
-what we wanted anyway since they must pass through the state machine. SSE is limited to ~6
-concurrent connections per browser origin — irrelevant at one manager.
+what we wanted anyway since they must pass through the state machine. An event emitted while the
+dashboard is disconnected is lost — harmless, because the refetch on reconnect shows the resulting
+state. SSE is limited to ~6 concurrent connections per browser origin, irrelevant at one manager.
 
 **Revisit if:** bidirectional realtime is ever needed (e.g. live attender-to-manager chat).
 
@@ -119,8 +147,8 @@ that would make stage two viable later, so nothing is foreclosed.
 **Context.** Assignment could be formulated as a global optimisation (Hungarian algorithm, min-cost
 flow) over a batch of complaints and attenders.
 
-**Decision.** Greedy `argmax` of a weighted score, per complaint, with a deterministic tie-break
-chain (§6.2).
+**Decision.** Greedy `argmax` of a two-term weighted score (floor proximity, workload), per
+complaint, with a deterministic tie-break chain (§6.2).
 
 **Rationale.** Complaints arrive one at a time from a 3-minute poll; a typical batch is 1–3 items,
 and the optimal assignment of a 1-item batch *is* the greedy one. With |A| = 4 the theoretical gain
@@ -278,12 +306,55 @@ Library: `nl.martijndwars:web-push`.
 - Attenders must grant browser notification permission, and a denial is not recoverable from inside
   the app. Mitigation: ask only *after* first successful login, once the app has shown its value
   (§10.2), and expose a settings toggle so people dial alerts down rather than revoking them.
-- Push **cannot work on the offline fallback jar** (§2.6) — there is no internet to reach a push
-  service. Acceptable: during an outage the manager is running roll-call in person anyway, which is
-  the assisted-admin path (§9.4).
+- Push works from the standby deployment too, since internet is available and the standby talks to
+  the same database (§2.6). The only loss during a platform outage is that attenders cannot reach
+  the app on `localhost` to act on an alert.
 - iOS would require an installed PWA on Safari 16.4+. Out of scope; attenders are on Android.
 - Delivery is best-effort and no state transition depends on it (NFR-10). The in-app queue stays the
   source of truth, so a missed push degrades convenience, never correctness.
 
 **Revisit if:** attenders move to iOS in numbers, or delivery reliability proves inadequate in the
 field — at which point FCM's data channel would be the next step, not a native app.
+
+
+---
+
+## ADR-012 · Deliberate simplification pass; ship a working system first
+
+**Status:** Accepted · 8 Sep 2026
+
+**Context.** The design as first written was sized for a production system with many users. The real
+system has **fewer than ten users**, one hostel, and one hard constraint that outweighs elegance:
+every line must be explainable in a viva. A review against that constraint found several mechanisms
+that added implementation complexity without adding user-visible capability.
+
+**Decision.** Remove them, and reorganise delivery so a **working end-to-end system exists early**
+(§13) with optional capability layered on afterwards rather than everything built in parallel.
+
+| Removed | Replaced by | Why it was not carrying its weight |
+|---|---|---|
+| Skill + Continuity dispatch terms | Floor + Load only | Skill was a constant `0.5` for every candidate, so it *mathematically could not* change the ranking. Continuity cost a per-candidate lookback query for a 10% nudge |
+| Transactional outbox + `Last-Event-ID` replay | Refetch current state on reconnect | Identical screen for one manager, minus a table, a poller and replay bookkeeping |
+| `push_delivery` table | `fail_count` + a log line | A per-attempt audit table for four phones |
+| Hand-rolled device tokens | Spring Security `persistent_logins` | The framework already implements the exact same series/token design |
+| `cms_docket` table + 5-state docket machine | Three columns on `complaint` | The history duplicated `audit_event`; the `VERIFIED` state gated nothing by its own definition |
+| `VANISHED` state + nightly full-sheet scan | Ignore deletions | Bought one notification, cost a second scan mode and a review path |
+| Temporal `floor_assignment` | Current coverage only | Date-filtered every dispatch query to serve rotation that does not happen; `score_snapshot` already explains past decisions |
+| H2 standby database | Same managed Postgres (ADR-001) | Removed the portable-SQL constraint *and* an unsolved data-divergence problem |
+
+**Deferred rather than deleted:** amendment tracking for edited Form responses (§5.3) is a Phase 5
+feature. It only applies if the Form enables response editing, and the schema already reserves the
+`AMENDED` state, so adding it later is additive.
+
+**What was explicitly kept**, because it is the difference between this and a CRUD app: the
+append-only ledger with work-derived idempotency keys, the state machine and its transition table,
+content-derived ingestion identity, optimistic locking, and confidence-gated classification with a
+triage fallback. Every one of these prevents a specific, nameable failure.
+
+**Consequences.** Roughly a third less code to write, test and explain. Two schema decisions
+(dockets, coverage) trade a small amount of future flexibility for present clarity; both are
+additive to reverse. The guiding rule going forward: **prefer more capability over more mechanism**,
+and where a framework already solves something, use its solution.
+
+**Revisit if:** user count grows past ~20, or a removed mechanism turns out to be load-bearing for
+a requirement we have not anticipated.

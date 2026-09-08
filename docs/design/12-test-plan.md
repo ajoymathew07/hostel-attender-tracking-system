@@ -2,6 +2,11 @@
 
 ## 12.1 Strategy
 
+Tests are written **with the phase that introduces the behaviour** (§13), not batched at the end.
+Phase 1 ships with the ledger and auth tests; the concurrency suite lands with Phase 4's shared
+tasks. A phase is not complete until its tests are green.
+
+
 | Level | Tool | Scope | Target |
 |---|---|---|---|
 | **Unit** | JUnit 5, AssertJ | Pure domain logic — scoring, classification, state machine, statistics | ~70% of tests; no Spring context |
@@ -75,15 +80,15 @@ Every case named in the proposal's verification plan, plus what the design surfa
 | E6 | All attenders marked unavailable | `TRIAGE` / `NO_AVAILABLE_ATTENDER`, nothing lost |
 | E7 | Floor exists, nobody covers it | Assigned to least-loaded, `UNCOVERED_FLOOR` warning |
 | E8 | Every attender over `L_cap` | Assigned to best, `CapacityExceeded` notification |
-| E9 | Sheet row deleted mid-month | `VANISHED`, complaint survives, manager flagged |
-| E10 | Sheet row edited after ingestion | Amended in place, re-classified, no duplicate |
+| E9 | Sheet row deleted mid-month | Ignored; the complaint is unaffected (§5.3) |
+| E10 | Sheet row edited after ingestion | Skipped and logged; original text retained. *(Amendment handling is backlog, §13.8)* |
 | E11 | Row deleted causing all indices to shift | Zero spurious amendments (§5.1) |
 | E12 | Required column renamed | Run fails loudly with `INGESTION_COLUMN_MISSING` |
 | E13 | Empty / whitespace-only complaint text | `UNCLASSIFIED` → triage |
 | E14 | Tamil-transliterated text ("thanni varala") | Fuzzy/lexicon hit or triage — never a wrong confident domain |
 | E15 | Resolve attempted with no docket | `GUARD_FAILED` 422 |
 | E16 | Docket failing the configured pattern | `INVALID_DOCKET` 422 |
-| E17 | Docket corrected after entry | Old row `SUPERSEDED`, both retained |
+| E17 | Docket corrected after entry | `docket_no` updated; `audit_event` holds the old and new values |
 | E18 | Resolve → reopen → resolve again | Credit, reversal, new credit. Net +2. Three ledger rows |
 | E19 | Penalty backdated into a closed period | Applied to correct period, manager warned |
 | E20 | Attender A acts on attender B's task | 403 `NOT_ASSIGNED` |
@@ -97,7 +102,7 @@ Every case named in the proposal's verification plan, plus what the design surfa
 | E28 | Push service returns 410 Gone | Subscription revoked; no further attempts |
 | E29 | Attender with no push subscription is assigned a task | Assignment succeeds; push skipped silently |
 | E30 | Push service unreachable for an hour | Retries then `FAILED`; **no state transition affected** |
-| E31 | Outbox poller re-runs after a crash | No duplicate push per device (`uq_push_delivery`) |
+| E31 | Notification listener throws | The originating transaction still commits (`AFTER_COMMIT`) |
 
 ## 12.5 Concurrency suite
 

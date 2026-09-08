@@ -79,7 +79,7 @@ graph TD
     AC --> WF & LED & IAM
     ING --> CAT --> DIS --> WF
     WF --> LED
-    WF --> NOT --> SSE
+    WF -->|AFTER_COMMIT| NOT --> SSE
     NOT --> PUSH --> WPS[Browser push service]
     LED --> NOT
     ANA --> REPO
@@ -97,7 +97,7 @@ graph TD
 | **workflow** | `...workflow` | Complaint/task state machine, guards, transitions | Only legal transitions occur; transitions are atomic with their side effects |
 | **ledger** | `...ledger` | Point movements, leaderboard projection | Append-only; no double-credit; balance is derived, never stored |
 | **analytics** | `...analytics` | MTTR, bottlenecks, anomaly detection | Read-only over the ledger and audit tables |
-| **notification** | `...notification` | Fan-out of domain events to manager SSE streams **and attender Web Push** | Delivery is best-effort; never blocks a transaction |
+| **notification** | `...notification` | Fan-out of domain events to manager SSE streams **and attender Web Push**, on `AFTER_COMMIT` | Delivery is best-effort; never blocks or rolls back a transaction |
 | **reporting** | `...reporting` | `.xlsx` generation via Apache POI | Reports are point-in-time snapshots, reproducible from stored data |
 | **identity** | `...identity` | Users, roles, PINs, device tokens, provisioning | No self-registration; every principal is pre-provisioned |
 | **audit** | `...audit` | Append-only event log | Written in the same transaction as the change it records |
@@ -173,43 +173,55 @@ relied on alone. Three mitigations:
 
 ```mermaid
 graph TB
-    subgraph CLOUD["Cloud — Render / Railway free tier"]
-        JAR[app.jar<br/>embedded Tomcat :8080]
-        PGC[(Managed PostgreSQL)]
-        JAR --> PGC
-    end
-
-    subgraph LOCAL["Fallback — manager's desktop, offline capable"]
-        JARL[app.jar<br/>localhost:8080]
-        H2[(H2 file DB)]
-        JARL --> H2
-    end
-
     PHONE[Attender phones] -->|HTTPS| JAR
     DESK[Manager desktop] -->|HTTPS| JAR
-    DESK -.->|during outage| JARL
-    PGC -.->|nightly dump| BAK[Backup .sql]
-    BAK -.->|seed| H2
+
+    subgraph CLOUD["Cloud — Render / Railway"]
+        JAR[app.jar<br/>embedded Tomcat :8080]
+    end
+
+    subgraph STANDBY["Standby — manager's desktop"]
+        JARL[app.jar<br/>localhost:8080]
+    end
+
+    JAR --> PGC[(Managed PostgreSQL<br/>single source of truth)]
+    JARL -.->|same database,<br/>over the internet| PGC
+    DESK -.->|when the cloud<br/>app tier is down| JARL
+    PGC -.->|nightly| BAK[Backup dump]
 ```
 
-| Concern | Cloud (primary) | Local (fallback) |
-|---|---|---|
-| Database | Managed PostgreSQL | H2 file mode |
-| Sheets ingestion | Active, polled | Disabled — CSV upload only |
-| Authentication | Local credentials | Local credentials — **works with no internet**, which is why OAuth was rejected (ADR-002) |
-| Purpose | Day-to-day operation | Business continuity during an outage |
+**One database, two places the application can run.** The standby is the *same jar* with the same
+`DATABASE_URL`, started on the manager's desktop when Render or Railway is unavailable. Attenders
+lose access during such an outage — they cannot reach `localhost` — but the manager keeps working,
+and everything they do lands in the one real database.
 
-The fallback profile is why D1 keeps H2 in the picture at all. The schema is deliberately
-constrained to the **portable subset** of SQL that both engines support (§3.7), and Flyway
-migrations carry no vendor-specific DDL.
+| Concern | Cloud (primary) | Standby (manager's desktop) |
+|---|---|---|
+| Database | Managed PostgreSQL | **The same** managed PostgreSQL |
+| Reached by | Attenders and manager, over HTTPS | Manager only, on `localhost` |
+| Sheets ingestion | Active, polled | Active — internet is available |
+| Notifications | SSE + Web Push | SSE to the manager; push still delivered |
+| Authentication | Local credentials | Local credentials, unchanged |
+| Purpose | Day-to-day operation | Continuity when the app tier is down |
+
+This is deliberately the *boring* answer, and it is boring in a useful way. An earlier draft ran the
+standby on an embedded H2 database seeded from a nightly dump. That required constraining every
+migration to the SQL subset both engines accept, testing two dialects — and it left an unsolved
+problem: **work done in the standby had no path back into the cloud database.** Two diverging copies
+of the ledger is precisely the kind of bug this system exists to eliminate. Pointing both jars at
+one database does not solve that problem; it means the problem cannot arise (ADR-001).
+
+The residual risk is the managed database itself going down, which no amount of application design
+fixes. Nightly dumps bound the data loss; for the few hours such an outage lasts the manager falls
+back to pen and paper, exactly as they do today, and enters the backlog afterwards.
 
 ## 2.7 Cross-cutting concerns
 
 | Concern | Approach |
 |---|---|
-| **Configuration** | Spring profiles: `local`, `cloud`, `offline`. All tunables (dispatch weights, thresholds, SLA table, poll interval, CMS regex) are `@ConfigurationProperties`, never constants. |
+| **Configuration** | Spring profiles: `local` (dev) and `cloud` (production and standby — identical config bar the bind address). All tunables (dispatch weights, thresholds, SLA table, poll interval, CMS regex) are `@ConfigurationProperties`, never constants. |
 | **Secrets** | Environment variables only. The Google service-account JSON is supplied as a base64 env var, never a committed file. `.gitignore` blocks the obvious filenames (§11.5). |
-| **Migrations** | Flyway, forward-only, versioned. Schema changes never hand-edited. |
+| **Migrations** | Flyway, forward-only, versioned, PostgreSQL-only. Schema changes never hand-edited. |
 | **Errors** | `@ControllerAdvice` maps domain exceptions to the RFC 7807 problem envelope (§9.7). |
 | **Observability** | Spring Actuator health/metrics; structured logging with a correlation ID per request and per ingestion run. |
 | **Idempotency** | Every state-changing attender action carries a client-generated request key (§7.4). |

@@ -28,7 +28,7 @@ Do not edit either PDF by hand.
 | 10 | [Frontend Design](10-frontend.md) | Manager desktop and attender mobile layouts |
 | 11 | [Security & Privacy](11-security-privacy.md) | AuthN/AuthZ, threat model, PII handling |
 | 12 | [Test Plan](12-test-plan.md) | Fixtures, gold set, concurrency stress, traceability |
-| 13 | [Revised Timeline](13-timeline.md) | Re-baselined milestones and cut lines |
+| 13 | [Delivery Plan](13-timeline.md) | Five phases, walking skeleton first, backlog and cut line |
 | 14 | [Decision Record](14-decisions.md) | ADRs for the choices that shaped this design |
 
 ## Building the PDF

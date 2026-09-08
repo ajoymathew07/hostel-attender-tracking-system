@@ -38,19 +38,13 @@ construction rather than by a special branch.
 ### Stage 2 — score the eligible set
 
 ```
-Score(a, c) = w_f · Floor(a, c)
-            + w_l · Load(a)
-            + w_s · Skill(a, c.domain)
-            + w_c · Continuity(a, c)
+Score(a, c) = w_f · Floor(a, c)  +  w_l · Load(a)
 ```
 
-Every component is normalised to **[0, 1]** and weights sum to 1, so `Score ∈ [0, 1]` and the
-weights are directly interpretable as "how much does this factor matter".
+Two terms, each normalised to **[0, 1]**, weights summing to 1, so `Score ∈ [0, 1]` and each weight
+reads directly as "how much does this factor matter".
 
 #### Floor proximity — `Floor(a, c)`
-
-Uses the coverage in force *at the complaint's report time*, not today's (§3.4), so historical
-decisions stay explainable.
 
 | Situation | Value |
 |---|---|
@@ -84,37 +78,31 @@ Weighting by priority rather than counting tickets reflects reality: three P1 el
 not the same workload as three P3 cosmetic complaints. `ON_HOLD` work is excluded because the
 attender is genuinely not blocked by it (§4.2, T12).
 
-#### Domain skill — `Skill(a, d)`
-
-Defaults to a neutral **0.5** for every attender/domain pair, because we do not yet know whether
-attenders specialise (OQ-5). If specialisations exist the manager sets them; if historical data
-accumulates, the value can be derived from that attender's resolution rate and relative MTTR in
-that domain. Neutral defaults mean the term contributes nothing until we have real information —
-the heuristic never invents a preference it has no evidence for.
-
-#### Continuity — `Continuity(a, c)`
-
-```
-1.0  if a resolved a complaint in the same room within 14 days
-0.5  if a resolved a complaint on the same floor within 14 days
-0.0  otherwise
-```
-
-A recurring fixture fault is faster to fix for whoever saw it last, and — usefully — it is also the
-same signal §8.3 uses to detect chronic defects and band-aid repairs.
-
 #### Default weights
 
 | Weight | Value | Rationale |
 |---|---|---|
-| `w_f` floor | **0.45** | The stakeholder's stated primary criterion |
-| `w_l` load | **0.30** | Strong enough to override floor when someone is badly overloaded |
-| `w_s` skill | **0.15** | Inert until specialisations are known |
-| `w_c` continuity | **0.10** | A tiebreak-scale nudge, not a driver |
+| `w_f` floor | **0.60** | The stakeholder's stated primary criterion |
+| `w_l` load | **0.40** | Strong enough to override floor when someone is badly overloaded |
 
-All five values, plus `L_cap`, `τ`, and the proximity table, are `@ConfigurationProperties`
-(R5). §12 pins their behaviour with tests that assert *relationships* ("an overloaded primary
-loses to an idle secondary") rather than exact float outputs, so tuning does not break the suite.
+Both, plus `L_cap` and the proximity table, are `@ConfigurationProperties` (R5). §12 pins their
+behaviour with tests that assert *relationships* ("an overloaded primary loses to an idle
+secondary") rather than exact float outputs, so tuning does not break the suite.
+
+#### Two terms that were cut
+
+An earlier draft added a **domain skill** term and a **continuity** term. Both were removed
+(ADR-012), and the reasoning is worth keeping because it generalises:
+
+- **Skill** defaulted to a neutral `0.5` for every attender, because we do not know whether
+  attenders specialise (OQ-5). A constant added identically to every candidate **cannot change the
+  ranking** — it was arithmetic that looked like intelligence. If specialisations are ever
+  confirmed, reintroducing the term is a one-line addition to the formula.
+- **Continuity** (has this attender worked this room recently?) carried 10% weight and required a
+  14-day lookback query per candidate. The signal it captures is real, but it is better used where
+  it is actually actionable: §8.3's chronic-defect detector already flags repeat faults at the same
+  location, which tells the manager to *replace the fixture* rather than merely routing the next
+  complaint to the same person.
 
 ### Stage 3 — select
 
@@ -133,10 +121,10 @@ Then: create `task`, create `task_assignment` with `assign_method = AUTO`, and p
 score breakdown into `task_assignment.score_snapshot` as JSON (R3):
 
 ```json
-{"chosen": 7, "score": 0.781,
- "components": {"floor": 1.0, "load": 0.625, "skill": 0.5, "continuity": 0.0},
- "weights": {"floor":0.45,"load":0.30,"skill":0.15,"continuity":0.10},
- "runnersUp": [{"attenderId": 9, "score": 0.503}],
+{"chosen": 7, "score": 0.850,
+ "components": {"floor": 1.0, "load": 0.625},
+ "weights": {"floor": 0.60, "load": 0.40},
+ "runnersUp": [{"attenderId": 9, "score": 0.460}],
  "tieBreak": null}
 ```
 
@@ -186,3 +174,6 @@ A global optimum over a batch (Hungarian algorithm, min-cost flow) is the textbo
 
 Complexity is `O(|A| · log|A|)` per complaint — trivially within NFR-3. This trade-off is recorded
 as ADR-005.
+
+With two terms and four candidates the whole heuristic is a dozen lines of pure Java with no
+framework involvement — which is exactly what makes it easy to unit-test and to defend.

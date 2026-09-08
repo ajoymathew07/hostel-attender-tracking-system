@@ -25,8 +25,9 @@ Design rules, all driven by the table above:
    reading.
 4. **Minimal typing.** The only free-text entries in the whole flow are the CMS docket number and an
    optional resolution note.
-5. **Optimistic UI with an offline queue.** Actions apply locally, queue when offline, replay with
-   their idempotency key (§7.4).
+5. **Optimistic UI.** Actions apply locally and show immediately. A failed send is retried with the
+   same idempotency key (§7.4), so a retry on poor signal is always safe. Full offline queuing
+   (IndexedDB replay) is backlog, §13.8 — the idempotency guarantee it relies on ships in Phase 1.
 6. **Push alerts for new work.** The attender should not have to poll the app to find out a P1 was
    assigned to them (§9.6). Permission is requested *after* the first successful login, never on a
    cold first visit — a permission prompt before any value is shown is the reliable way to get it
@@ -85,10 +86,13 @@ nagging.
 
 ### Offline behaviour
 
-A service worker caches the shell and the current queue. Actions taken offline show a **"⏳ will
-sync"** badge, are stored in IndexedDB with their idempotency key, and replay on reconnect. Because
-replay is idempotent (§7.3), the failure mode "attender resolved three tasks in the basement with
-no signal" resolves itself correctly and silently.
+A service worker caches the shell and the current queue, so the app opens and shows the last known
+queue even on a bad connection. Actions that fail to send are retried with the same idempotency key
+and show a **"⏳ retrying"** badge.
+
+Full offline queuing — storing actions in IndexedDB and replaying them on reconnect — is backlog
+(§13.8). It is a small addition precisely because the hard part is already done: replay is safe at
+any distance in time because the ledger key is derived from the work, not the request (§7.3).
 
 The **same service worker** receives Web Push (§9.6), which is why the app is a PWA at all: one
 registration serves both offline replay and notifications. Tapping a notification deep-links

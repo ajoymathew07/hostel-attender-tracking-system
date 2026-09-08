@@ -63,7 +63,8 @@ The guarantee does not rest on transaction ordering, isolation level, retry logi
 application checking-then-inserting (which is itself a race). It rests on a **database uniqueness
 constraint**, which the database enforces atomically no matter how many concurrent transactions
 attempt the insert. Whether the duplicate arrives 20 milliseconds later on a retried HTTP request
-or 20 minutes later from a queued offline action, the outcome is identical: one credit.
+or 20 minutes later from a queued action replayed after a signal drop, the outcome is identical:
+one credit.
 
 The `:r{n}` suffix handles the reopen cycle (T17). After a reopen the reopen counter increments, so
 a legitimate re-resolution produces a *different* key and is correctly credited again — the

@@ -1,167 +1,195 @@
-# 13. Revised Timeline
+# 13. Delivery Plan
 
-## 13.1 Fixed dates
+## 13.1 Strategy: a working system first, capability layered on top
 
-| Milestone | Date | Days from 8 Sep |
+The organising principle is **vertical slices, not horizontal layers**. Each phase ends with
+something the stakeholder could actually use, not a tier that does nothing until the next tier
+arrives. Building ingestion, dispatch, ledger and analytics in parallel and integrating at the end
+is how a solo project arrives at the demo with four half-finished subsystems and nothing to show.
+
+Two consequences shape everything below:
+
+1. **Phase 1 is a walking skeleton.** It deliberately does the *least interesting* version of every
+   step — CSV upload instead of the Sheets API, manual assignment instead of the heuristic — so that
+   a complaint can travel the entire path in the deployed application within the first sprint.
+   Every later phase then replaces one segment of a working pipeline rather than adding an
+   unproven one.
+2. **Phase 2 is the one that matters.** At the end of it the stakeholder's 30–45 minutes a day are
+   gone. Everything after that improves a system that already solves the problem.
+
+Priority is decided by one question: *does the Hostel Manager's daily workload drop without this?*
+If no, it waits.
+
+## 13.2 Fixed dates
+
+| Milestone | Date | Requires |
 |---|---|---|
-| Design document | **11 Sep 2026** | 3 |
-| Mid-demo | **9 Oct 2026** | 31 |
-| Final submission | **6 Nov 2026** | 59 |
+| Design document | **11 Sep 2026** | This document |
+| Mid-demo | **9 Oct 2026** | Phases 1–2 complete and deployed |
+| Final submission | **6 Nov 2026** | Phases 3–4 complete, Phase 5 as time allows |
 
-Solo developer, alongside coursework. Planned capacity **~15 hours/week**, so roughly 130 hours
-total across the build. Every estimate below is sized against that, not against a full-time week.
-
-## 13.2 Sprint plan
+Solo developer alongside coursework, planned capacity **~15 h/week** — roughly 130 hours total.
 
 ```mermaid
 gantt
-    title Build plan — 8 Sep to 6 Nov 2026
+    title Phased delivery — 8 Sep to 6 Nov 2026
     dateFormat YYYY-MM-DD
     axisFormat %d %b
 
-    section Design
-    Design doc + repo scaffold      :done, s0, 2026-09-08, 4d
+    section Foundation
+    Design doc + repo scaffold        :done, p0, 2026-09-08, 4d
+    P1 Walking skeleton               :p1, 2026-09-12, 10d
 
-    section Core pipeline
-    Foundation, schema, auth        :s1, 2026-09-12, 7d
-    Ingestion + categorization      :s2, 2026-09-19, 7d
-    Dispatch + workflow + ledger    :s3, 2026-09-26, 7d
-    Mobile + dashboard + deploy     :s4, 2026-10-03, 7d
-    MID-DEMO                        :milestone, m1, 2026-10-09, 0d
+    section Solving the problem
+    P2 Automate the daily work        :p2, 2026-09-22, 14d
+    Demo polish + deploy hardening    :pd, 2026-10-06, 3d
+    MID-DEMO                          :milestone, m1, 2026-10-09, 0d
 
-    section Full system
-    Duties, penalties, concurrency  :s5, 2026-10-10, 7d
-    Analytics + anomaly detection   :s6, 2026-10-17, 7d
-    Excel, SSE, offline, polish     :s7, 2026-10-24, 7d
-    Hardening + UAT + sign-off      :s8, 2026-10-31, 7d
-    FINAL                           :milestone, m2, 2026-11-06, 0d
+    section Completing the system
+    P3 Points, penalties, reporting   :p3, 2026-10-10, 11d
+    P4 Oversight + notifications      :p4, 2026-10-21, 10d
+    P5 Hardening, tests, sign-off     :p5, 2026-10-31, 7d
+    FINAL                             :milestone, m2, 2026-11-06, 0d
 ```
 
-## 13.3 Sprint detail
+---
 
-Each item is tagged **[C] Core** (must ship) or **[E] Extended** (first to be cut).
+## 13.3 Phase 1 — Walking skeleton · 12–21 Sep
 
-### S0 · 8–11 Sep · Design & scaffold
-- [C] This design document, §1–14
-- [C] Repo scaffold, CI skeleton, PR workflow, branch protection
-- [C] Email stakeholder with OQ-1 (docket format) and OQ-2 (SLA targets)
+> **Goal:** one complaint travels the whole path, in the deployed app. Nothing clever.
 
-**Exit:** design doc merged via PR; CI green.
+| # | Item | Why it is in Phase 1 |
+|---|---|---|
+| 1.1 | Maven project, package layout (§2.3), ArchUnit rules | Structure is cheapest to establish before there is code |
+| 1.2 | Flyway migrations: `app_user`, `floor`, `floor_assignment`, `complaint`, `task`, `task_assignment`, `point_ledger`, `audit_event` | The spine of the schema |
+| 1.3 | Auth: manager password, attender PIN, Spring remember-me, provisioning screen | Nothing is usable without login |
+| 1.4 | **CSV upload** → complaint created | Proves ingestion *without* depending on Google API credentials arriving on time |
+| 1.5 | Manager list view + **manual assign** to an attender | The heuristic can wait; the assignment concept cannot |
+| 1.6 | Attender mobile queue → *Resolve* → **+2 ledger row** | Proves the ledger and the idempotency key end to end |
+| 1.7 | Leaderboard (`SUM` over the ledger) | The stakeholder's second-biggest pain, and nearly free once the ledger exists |
+| 1.8 | Deploy to Render + managed Postgres; CI green with Testcontainers | Deploying on day 10 rather than day 40 is where deployment surprises are cheap |
 
-### S1 · 12–18 Sep · Foundation
-- [C] Maven project, Spring Boot 3.x, package layout per §2.3
-- [C] Flyway migrations for the full §3 schema
-- [C] JPA entities with `@Version`; repositories
-- [C] Spring Security: roles, password + PIN, device tokens, lockout (§11.2)
-- [C] Manager provisioning screen
-- [C] Testcontainers Postgres in CI; ArchUnit layering rules
+**Exit criterion:** on the deployed URL, the manager uploads a CSV, assigns a complaint to Ravi;
+Ravi opens it on his phone, taps Resolve; the leaderboard shows +2. **That is a working system** —
+thin, but real.
 
-**Exit:** manager and 4 attenders can log in; schema migrates clean; CI runs integration tests.
+**Explicitly not in Phase 1:** Google Sheets, categorization, the dispatch heuristic, dockets, SLA,
+push, analytics, Excel.
 
-### S2 · 19–25 Sep · Ingestion & categorization
-- [C] `ComplaintSource` port; Google Sheets adapter; header mapping (§5.2)
-- [C] Reconciliation algorithm with `response_key` / `content_hash` (§5.3)
-- [C] CSV upload adapter (Risk 1 Plan B)
-- [C] Lexicon classifier with fuzzy matching; `category_term` seeding
-- [C] Gold set F1 built, labelled, split; first accuracy measurement
-- [C] Corner cases E1–E14
-- [E] Manager lexicon editor UI
+---
 
-**Exit:** live sheet ingests with zero duplicates; holdout accuracy measured and reported.
+## 13.4 Phase 2 — Automate the daily work · 22 Sep – 5 Oct
 
-### S3 · 26 Sep – 2 Oct · Dispatch, workflow, ledger
-- [C] Dispatch scoring, tie-breaks, degenerate cases, score snapshot (§6)
-- [C] Workflow state machine + full transition table (§4)
-- [C] Append-only ledger with idempotency keys (§7.3)
-- [C] Audit event writing on every transition
-- [C] Priority aging + SLA computation
-- [C] Concurrency tests X1, X2, X3
+> **Goal:** the manager stops touching the spreadsheet. This is the phase that solves the problem.
 
-**Exit:** ingest → classify → dispatch → resolve → +2 credited, end to end, provably once.
+| # | Item | Replaces |
+|---|---|---|
+| 2.1 | `ComplaintSource` port; Google Sheets adapter with header mapping (§5.2) | 1.4's CSV-only input (CSV stays as the fallback adapter) |
+| 2.2 | `response_key` dedupe + single-mode scan (§5.3); scheduled poll + **Sync Now** | Manual copy-paste |
+| 2.3 | Rule + fuzzy lexicon classifier with confidence gate (§5.5) | Manual sorting into domains |
+| 2.4 | **Triage queue** — one-click domain + assign for low-confidence items | The safety net that makes 2.3 trustworthy |
+| 2.5 | Auto-dispatch: Floor + Load scoring, tie-breaks, `score_snapshot` (§6) | 1.5's manual assignment |
+| 2.6 | Full state machine + transition table (§4), replacing ad-hoc status writes | Ad-hoc updates |
+| 2.7 | Docket entry + the `mark_resolved` guard (T11, T14) | Verbal chasing of inspection IDs |
+| 2.8 | Priority assignment, SLA due dates, aging job (§4.5) | Required for the mid-demo commitment |
+| 2.9 | Gold set built and labelled; first accuracy + coverage measurement (§12.3) | The 90% acceptance criterion becomes measurable |
 
-### S4 · 3–9 Oct · Interfaces & deployment → **MID-DEMO**
-- [C] Attender mobile queue and 4-screen resolution flow (§10.2)
-- [C] Manager dashboard: counters, triage queue, complaint list
-- [C] Docket entry and validation
-- [C] Cloud deploy (.jar on Render/Railway) + managed Postgres
-- [E] Offline service worker
+**Exit criterion — the important one:** a complaint submitted to the Google Form appears
+categorized and assigned, on the right attender's phone, **with no human action in between**. The
+manager's daily 30–45 minutes is gone.
 
-**Exit / mid-demo deliverable:** automated ingestion with CSV fallback, rule-based categorization,
-priority aging, floor dispatch, attender mobile with docket + points, live manager task lists,
-deployed to cloud. **Matches the proposal's mid-demo commitment exactly.**
+---
 
-### S5 · 10–16 Oct · Duties, penalties, concurrency
-- [C] Special duties: post, claim, complete (§4.4)
-- [C] Penalty interface (−1) with mandatory notes
-- [C] Manual adjustments and reversals
-- [C] Shared-task concurrency (§7.5), pessimistic claim (§7.6)
-- [C] Leaderboard (§7.8)
-- [C] Concurrency suite X4–X9 complete
+## 13.5 Phase 3 — Complete the points story · 10–20 Oct
 
-**Exit:** full point lifecycle correct under concurrent load; X9 passes.
+> **Goal:** the manual month-end tally disappears too.
 
-### S6 · 17–23 Oct · Analytics
-- [C] Stage-duration extraction from audit log
-- [C] MTTR / median / p90, bottleneck identification (§8.2)
-- [C] Detectors A1 (MAD outlier), A2 (chronic location), A3 (Poisson surge)
-- [C] Chart.js visualizations
-- [E] Detectors A4 (SLA cluster), A5 (workload imbalance)
+| # | Item |
+|---|---|
+| 3.1 | Penalty interface (−1) with mandatory notes; manual adjustments and reversals |
+| 3.2 | Special duties: manager posts with custom points, attender claims and completes (§4.4) |
+| 3.3 | Monthly period handling, `effective_date`, backdating into a closed period with a warning (§7.9) |
+| 3.4 | Apache POI daily + weekly `.xlsx` export |
+| 3.5 | Complaint detail screen: full audit timeline, score breakdown, docket history |
+| 3.6 | **Assisted admin log** (`act-as`) — manager records progress during roll-call (Risk 3 Plan B) |
 
-**Exit:** dashboard shows real analytics over F4; detectors respect their `n` gates.
+**Exit criterion:** the manager can run a full month — points, penalties, duties, export — without
+opening a spreadsheet.
 
-### S7 · 24–30 Oct · Export, real-time, polish
-- [C] Apache POI multi-tab `.xlsx` daily + weekly export
-- [C] SSE with outbox replay (§9.5)
-- [C] Assisted admin log / `act-as` (Risk 3 Plan B)
-- [C] Accessibility and mobile performance pass (§10.5–10.6)
-- [C] **Web Push to attender phones** (§9.6): VAPID setup, subscription endpoints, service-worker
-  handler, notification settings, delivery-failure handling
-- [E] Offline queue if deferred from S4
-- [E] OpenNLP second stage (§5.7)
+---
 
-**Exit:** one-click export produces a clean workbook; dashboard updates live; a P1 assignment buzzes
-the attender's phone within 30 s.
+## 13.6 Phase 4 — Oversight and reach · 21–30 Oct
 
-### S8 · 31 Oct – 6 Nov · Hardening & sign-off
-- [C] Full test pass; coverage gates met
-- [C] Final gold-set evaluation on holdout
-- [C] Security review (§11 checklist), Gitleaks + Dependency-Check clean
-- [C] Stakeholder UAT session against §12.6
-- [C] README, runbook, viva preparation notes
-- [C] **Stakeholder sign-off**
+> **Goal:** things the manager could never do before, and reaching attenders without them looking.
 
-## 13.4 Change from the original proposal
+| # | Item |
+|---|---|
+| 4.1 | **Web Push** to attender phones: VAPID, subscription endpoints, service worker, settings (§9.6) |
+| 4.2 | SSE live dashboard: activity feed, live counters, live leaderboard (§9.5) |
+| 4.3 | **Shared-task concurrency**: multi-assignee duties, per-assignee credit, OCC completion (§7.5) |
+| 4.4 | Analytics: stage durations from the audit log, MTTR / median / p90, bottleneck identification |
+| 4.5 | Anomaly detectors A1 (MAD outlier), A2 (chronic location), A3 (Poisson surge) with their `n` gates |
+| 4.6 | Chart.js dashboard visualizations, each showing its sample size |
+
+**Exit criterion:** a P1 assignment buzzes the attender's phone within 30 s, and the dashboard shows
+real MTTR and anomaly alerts over accumulated data.
+
+---
+
+## 13.7 Phase 5 — Hardening and sign-off · 31 Oct – 6 Nov
+
+| # | Item |
+|---|---|
+| 5.1 | Full test pass; coverage gates; the complete concurrency suite (X1–X9) |
+| 5.2 | Final gold-set evaluation on the holdout |
+| 5.3 | Security review (§11), Gitleaks and Dependency-Check clean |
+| 5.4 | Accessibility and mobile performance pass (§10.5–10.6) |
+| 5.5 | Standby deployment runbook (§2.6) and a rehearsed failover |
+| 5.6 | **Stakeholder UAT** against §12.6; README, runbook, viva notes |
+| 5.7 | **Sign-off** |
+
+---
+
+## 13.8 Backlog — deliberately not scheduled
+
+Genuinely optional. Each is additive, and none is required by an acceptance criterion. They are
+listed so the decision to skip them is visible rather than silent.
+
+| Item | Condition for building it |
+|---|---|
+| **Amendment tracking** for edited Form responses (§5.3) | Only if the Form has "edit response" enabled. Schema already reserves the `AMENDED` state |
+| **Offline replay queue** (IndexedDB + service worker) | If attenders report losing actions in poor signal. Push already needs the service worker; this is the replay half only |
+| **OpenNLP second stage** (§5.7) | Once enough triage corrections have accumulated to train on |
+| Detectors **A4** (SLA cluster) and **A5** (workload imbalance) | Both need ≥4 weeks of history to emit anything, so neither can be demonstrated before 6 Nov anyway |
+| Manager-editable lexicon UI | If the manager wants to tune categorization without a redeploy. Seeded by migration until then |
+| Deletion detection (`VANISHED`) | Only if the manager reports deleting rows and wanting to know |
+
+## 13.9 Changes from the original proposal
 
 | Change | Reason |
 |---|---|
-| Postgres everywhere; SQLite dropped | SQLite serialises writers and cannot demonstrate the concurrency control that is a headline feature (ADR-001) |
-| OpenNLP moved to Extended, rules promoted to primary | Training data availability is unproven; rules need none and are explainable (ADR-004) |
-| Auth added as explicit S1 scope | Absent from the proposal, but the schema, role matrix and deployment all depend on it |
-| SSE chosen over WebSocket | One-directional need; simpler; survives PaaS proxies (ADR-003) |
-| A4/A5 detectors marked Extended | Both need ≥4 weeks of history to emit anything, so they cannot be demonstrated before the final date anyway |
-| **Push notifications to attenders added** (G8, §9.6) | Stakeholder requirement added after the proposal. Delivered via Web Push on the service worker the offline queue already needs, so the marginal cost is small |
+| Delivery reorganised into vertical phases | A solo project integrating four subsystems at the end is the main schedule risk; a thin working system by 21 Sep removes it |
+| One PostgreSQL everywhere; SQLite and H2 dropped | SQLite cannot demonstrate the concurrency control; the H2 standby left work with no path back to the cloud database (ADR-001) |
+| Auth added as explicit Phase 1 scope | Absent from the proposal, but the schema, role matrix and deployment all depend on it |
+| Rules-first classification; OpenNLP to backlog | Training-data availability is unproven; rules need none and are explainable (ADR-004) |
+| SSE over WebSocket, without replay machinery | One-directional need; a refetch on reconnect gives the same screen (ADR-003) |
+| **Push notifications to attenders added** | Stakeholder requirement after the proposal; reuses the service worker (ADR-011) |
+| Eight mechanisms simplified or removed | Sized for a system with <10 users, and for a viva where every line must be explainable (ADR-012) |
 
-## 13.5 Risk buffer and cut lines
+## 13.10 Risk and the cut line
 
-There is **no slack** in the schedule; a lost week must come out of scope, not out of quality. The
-cut order is fixed in advance so the decision is not made under pressure:
-
-1. OpenNLP second stage (§5.7)
-2. Detectors A4, A5
-3. Offline service worker *replay* (degrades to online-only; idempotency keys still protect
-   retries). The service-worker **registration** stays, because push depends on it.
-4. Manager lexicon editor UI (seed via migration instead)
-5. Weekly export (keep daily)
-
-**Never cut**, because each is load-bearing for a stakeholder acceptance criterion or a core
-integrity guarantee: ingestion idempotency, the ledger and its constraints, the state machine,
-dispatch, the attender mobile flow, push notification of new assignments, penalties, the
-leaderboard, daily Excel export.
+There is **no slack**; a lost week comes out of scope, not quality. Because the phases are ordered
+by value, the cut line is simply *how far down §13.6 and §13.7 we get* — and the system remains
+useful at every point, which is the whole reason for slicing it this way.
 
 | Risk | Trigger | Response |
 |---|---|---|
-| Sheets API access not granted in time | No credentials by 19 Sep | Build against a fixture sheet on a personal account; CSV path is unaffected |
-| Real complaint data unavailable for F1 | Nothing by 19 Sep | Generate F2-style synthetic corpus; report gold-set results with that caveat stated |
-| Categorization misses 90% | Holdout below target at S2 exit | Expand lexicon from misses; raise τ (trading coverage for accuracy — accuracy is the stated criterion) |
-| Free-tier deploy proves unusable | Failure during S4 | Local-server fallback (§2.6) is already a designed deliverable, not a new build |
-| Coursework crunch | Any sprint slips >3 days | Apply the cut list above, in order |
+| Sheets API credentials not granted in time | Nothing by 22 Sep | Phase 1 already ships on CSV; build 2.1 against a personal test sheet |
+| Real complaint data unavailable for the gold set | Nothing by 22 Sep | Use a synthetic corpus and state that caveat with the accuracy figure |
+| Categorization misses 90% | Holdout below target at Phase 2 exit | Expand the lexicon from observed misses; raise τ, trading coverage for accuracy since accuracy is the stated criterion |
+| Free-tier deploy proves unusable | Failure during Phase 1 | Found on day 10 rather than day 40 — that is why 1.8 is in Phase 1 |
+| Coursework crunch | Any phase slips >3 days | Drop from the bottom of Phase 4, then Phase 5.5. Never cut Phases 1–3 |
+
+**Never cut**, because each is load-bearing for a stakeholder acceptance criterion or a core
+integrity guarantee: ingestion idempotency, the ledger and its constraints, the state machine,
+dispatch, the attender mobile flow, penalties, the leaderboard, and the daily Excel export.

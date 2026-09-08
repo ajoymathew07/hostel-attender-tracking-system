@@ -163,15 +163,12 @@ unexplained one is indefensible in a dispute, which is precisely when the record
 ```
 GET /api/manager/stream
 Accept: text/event-stream
-Last-Event-ID: 88213
 ```
 
 ```
-id: 88214
 event: ComplaintCreated
 data: {"complaintId":903,"ref":"CAU-2026-0418","domain":"CIVIL","priority":"P2","room":"310"}
 
-id: 88215
 event: TaskResolved
 data: {"taskId":412,"attenderId":7,"attenderName":"Ravi","points":2,"periodTotal":34}
 ```
@@ -179,7 +176,6 @@ data: {"taskId":412,"attenderId":7,"attenderName":"Ravi","points":2,"periodTotal
 | Event | Fired when |
 |---|---|
 | `ComplaintCreated` | Ingestion creates a complaint (T1) |
-| `ComplaintAmended` | Source row edited (§5.3) |
 | `TriageRequired` | Complaint needs manager attention (T3) |
 | `TaskAssigned` | Dispatch assigns (T2) |
 | `TaskStarted` / `TaskResolved` | Attender progress (T7 / T14) |
@@ -190,11 +186,18 @@ data: {"taskId":412,"attenderId":7,"attenderName":"Ravi","points":2,"periodTotal
 | `IngestionDegraded` | Poll failing repeatedly (§5.3) |
 | `PushDeliveryFailed` | An attender's device stopped accepting push (§9.6) |
 
-Event `id` is `outbox_event.id`. On reconnect the browser automatically sends `Last-Event-ID` and
-the server replays everything after it from the outbox. This is what makes the free-tier proxy
-dropping an idle connection (NFR-6) a non-event rather than a silent gap in the manager's view.
-Heartbeat comment every 20 s keeps the connection from being reaped in the first place. Replay is
-capped at 500 events; beyond that the client is told to refresh outright.
+Events are published from an `@TransactionalEventListener(AFTER_COMMIT)` handler, so a notification
+can never describe a transaction that rolled back, and a slow subscriber can never hold a database
+transaction open. A heartbeat comment every 20 s keeps free-tier proxies from reaping an idle
+connection.
+
+**On reconnect the client refetches current state** (`/api/manager/summary` plus the visible lists)
+rather than replaying missed events. An earlier draft wrote every event to a transactional outbox
+table and replayed by `Last-Event-ID` after a dropped connection. For one manager watching one
+dashboard, a refetch produces the identical screen — and it removes a table, a publisher poller,
+event-id bookkeeping and a replay cap from the system (ADR-012). SSE here is a *latency
+optimisation over polling*, not a delivery guarantee, and the design is much easier to reason about
+once that is stated plainly.
 
 ## 9.6 Push notification contract
 
@@ -268,8 +271,9 @@ alert rather than stacking on it.
 
 Push is **best-effort and advisory** (NFR-10). The in-app queue remains the source of truth — an
 attender who never enables notifications loses nothing but convenience, and no state transition
-depends on a push being delivered. Push sends therefore happen **after commit**, from the outbox
-poller, never inside the transaction that caused them.
+depends on a push being delivered. Push sends therefore happen from an
+`@TransactionalEventListener(AFTER_COMMIT)` handler — never inside the transaction that caused them,
+so a slow push service can never hold a database transaction open or roll one back.
 
 | Response from push service | Meaning | Action |
 |---|---|---|
@@ -277,8 +281,9 @@ poller, never inside the transaction that caused them.
 | `404` / `410` | Subscription expired | Revoke the row permanently |
 | `429` | Rate limited | Back off, retry per `Retry-After` |
 | `413` | Payload too large | Truncate body, retry once |
-| `5xx` | Push service down | Retry ×3 with backoff, then `FAILED` |
+| `5xx` | Push service down | Retry ×3 with backoff, then give up |
 
+Outcomes are logged and counted on `push_subscription.fail_count`; there is no per-attempt table.
 Three consecutive failures revoke the subscription and surface a "notifications not reaching this
 device" note on the manager's attender-admin screen — a phone that silently stopped receiving alerts
 is exactly the failure the manager needs told about, not one to discover during a P1.

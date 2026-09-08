@@ -12,8 +12,8 @@ We therefore define an explicit machine with a **guarded transition table**. The
 1. Loads the aggregate with its `version` (optimistic lock).
 2. Looks up `(currentState, event)` in the table; an absent pair throws `IllegalTransition`.
 3. Evaluates the guard; failure throws `GuardFailed` with a human-readable reason.
-4. Applies the state change, runs the side effects, writes the audit row and the outbox row — all
-   in **one transaction**.
+4. Applies the state change, runs the side effects and writes the audit row — all in **one
+   transaction**. Notifications fire separately, on `AFTER_COMMIT` (§9.5).
 
 There is no other write path. Controllers, the scheduler and the CSV importer all funnel here.
 
@@ -58,10 +58,10 @@ stateDiagram-v2
 | T8 | `ASSIGNED` | `attender_release` | `TRIAGE` | Assigned attender | Reason mandatory | Release assignment, back to triage |
 | T9 | `INSPECTING` | `defect_confirmed` | `AWAITING_CMS` | Assigned attender | — | Prompt for docket on mobile UI |
 | T10 | `INSPECTING` | `no_defect_found` | `REJECTED` | Assigned attender | Note mandatory | Close; **no points credited** |
-| T11 | `AWAITING_CMS` | `docket_recorded` | `IN_PROGRESS` | Assigned attender | Docket matches configured pattern (OQ-1) and is non-blank | Insert `cms_docket`, docket sub-state → `FILED` |
+| T11 | `AWAITING_CMS` | `docket_recorded` | `IN_PROGRESS` | Assigned attender | Docket matches configured pattern (OQ-1) and is non-blank | Set `docket_no`, `docket_filed_at`, `docket_filed_by` |
 | T12 | `IN_PROGRESS` | `block` | `ON_HOLD` | Assigned attender / Manager | Reason mandatory | Pause SLA clock |
 | T13 | `ON_HOLD` | `unblock` | `IN_PROGRESS` | Assigned attender / Manager | — | Resume SLA clock, extend due date by hold duration |
-| T14 | `IN_PROGRESS` | `mark_resolved` | `RESOLVED` | Assigned attender | Current docket exists **and** caller assignment is `ACTIVE` | **Credit points** via ledger (idempotent, §7.3); mark assignment `COMPLETED`; emit `ComplaintResolved` |
+| T14 | `IN_PROGRESS` | `mark_resolved` | `RESOLVED` | Assigned attender | `docket_no` is set **and** caller assignment is `ACTIVE` | **Credit points** via ledger (idempotent, §7.3); mark assignment `COMPLETED`; emit `ComplaintResolved` |
 | T15 | `RESOLVED` | `manager_close` | `CLOSED` | Manager | — | Stamp `closed_at` |
 | T16 | `RESOLVED` | `auto_close` | `CLOSED` | System | 7 days elapsed since resolution | Stamp `closed_at` |
 | T17 | `RESOLVED` | `manager_reopen` | `IN_PROGRESS` | Manager | Reason mandatory | **Reverse the credit** (new `REVERSAL` ledger row, never a delete) |
@@ -84,34 +84,23 @@ idempotency guarantee survives the reopen cycle without ever blocking a legitima
 for the Engineering Unit to send a plumber" would be recorded as attender slowness and would
 poison the bottleneck analysis in §8.
 
-## 4.3 CMS docket sub-state
+## 4.3 The CMS docket
 
-The docket has its own small lifecycle, tracked independently because it advances on the *CMS
-side*, outside our control, and is only reflected here when a human tells us.
+The docket is **three columns on `complaint`**, not a state machine of its own. Its lifecycle is
+already implied by the complaint's:
 
-```mermaid
-stateDiagram-v2
-    [*] --> NOT_REQUIRED : complaint rejected before inspection
-    [*] --> PENDING : defect confirmed
-    PENDING --> FILED : attender enters docket no.
-    FILED --> SUPERSEDED : corrected entry
-    SUPERSEDED --> FILED : replacement recorded
-    FILED --> VERIFIED : manager confirms against CMS portal
-    NOT_REQUIRED --> [*]
-    VERIFIED --> [*]
-```
+| Complaint state | Docket meaning |
+|---|---|
+| Before `AWAITING_CMS` | Not required — the defect has not been confirmed yet |
+| `AWAITING_CMS` | Confirmed on site, not yet filed with the Engineering Unit |
+| `IN_PROGRESS` onward | `docket_no` is set; the complaint has been filed |
 
-| Sub-state | Meaning | Who advances it |
-|---|---|---|
-| `NOT_REQUIRED` | Complaint closed before it ever needed filing | System |
-| `PENDING` | Defect confirmed on site, not yet filed with the EU | System (T9) |
-| `FILED` | A docket number has been recorded in our system | Attender (T11) |
-| `SUPERSEDED` | An earlier docket entry was corrected; the old row is retained | Attender / Manager |
-| `VERIFIED` | Manager has eyeballed it against the actual CMS portal | Manager |
-
-`VERIFIED` is deliberately **not** a precondition for anything. It is a bookkeeping convenience for
-the manager's periodic reconciliation, because making the attender's point credit depend on a
-manual manager check would reintroduce exactly the daily bottleneck this project exists to remove.
+Corrections overwrite `docket_no`, and `audit_event` records the old and new values, who changed it
+and when. An earlier draft gave the docket its own five-state machine and a history table with a
+`superseded_at` column. Both were dropped (ADR-012): the history duplicated the audit log, and the
+`VERIFIED` state gated nothing by its own definition — it existed only as a bookkeeping convenience
+for the manager's periodic reconciliation against the CMS portal, which is now simply a filter on
+the complaint list.
 
 ## 4.4 Task lifecycle (special duties)
 
