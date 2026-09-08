@@ -27,6 +27,10 @@ Design rules, all driven by the table above:
    optional resolution note.
 5. **Optimistic UI with an offline queue.** Actions apply locally, queue when offline, replay with
    their idempotency key (§7.4).
+6. **Push alerts for new work.** The attender should not have to poll the app to find out a P1 was
+   assigned to them (§9.6). Permission is requested *after* the first successful login, never on a
+   cold first visit — a permission prompt before any value is shown is the reliable way to get it
+   denied forever.
 
 ```
 ┌──────────────────────────────┐
@@ -85,6 +89,16 @@ A service worker caches the shell and the current queue. Actions taken offline s
 sync"** badge, are stored in IndexedDB with their idempotency key, and replay on reconnect. Because
 replay is idempotent (§7.3), the failure mode "attender resolved three tasks in the basement with
 no signal" resolves itself correctly and silently.
+
+The **same service worker** receives Web Push (§9.6), which is why the app is a PWA at all: one
+registration serves both offline replay and notifications. Tapping a notification deep-links
+straight to `/m/tasks/{id}`, so the path from buzz to action is a single tap.
+
+### Notification settings
+
+`/m/me` carries a simple toggle set — all alerts, urgent (P1) only, or off — plus a "send test
+notification" button. Attenders who find alerts intrusive can dial them down rather than revoking
+browser permission entirely, which would be irreversible from inside the app.
 
 ## 10.3 Manager desktop
 
@@ -150,7 +164,7 @@ makes the one-click correction feel like collaboration rather than cleanup after
 | Attender queue | `/m` | Attender |
 | Task detail / flow | `/m/tasks/{id}` | Attender |
 | Special duties | `/m/duties` | Attender |
-| My standing | `/m/me` | Attender — point history, month rank |
+| My standing | `/m/me` | Attender — point history, month rank, notification settings |
 | Attender admin | `/admin/attenders` | Manager — provisioning, PIN reset, leave, floor coverage |
 | Reports | `/reports` | Manager — date range, export |
 | Settings | `/settings` | Manager — lexicon, weights, thresholds, SLA table |

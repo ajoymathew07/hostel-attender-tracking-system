@@ -250,3 +250,40 @@ problem. Module boundaries are drawn so a component *could* be extracted if that
 boundaries that would otherwise erode (§2.4).
 
 **Revisit if:** the system is ever extended to multiple hostels with independent operations.
+
+---
+
+## ADR-011 · Web Push with VAPID for attender notifications, not FCM or a native app
+
+**Status:** Accepted · 8 Sep 2026
+
+**Context.** Attenders must be alerted on their phone when work is assigned, without having to open
+the app and look (G8). This was added after the proposal, which had listed manager-side SSE only.
+
+**Decision.** The **Web Push protocol with VAPID**, delivered to the service worker the PWA already
+registers for offline replay. No Firebase project, no Google Play binary, no third-party push SDK.
+Library: `nl.martijndwars:web-push`.
+
+**Rationale.**
+- The service worker is **already required** for the offline action queue (§10.2). Push reuses that
+  registration, so the marginal cost is a subscription table, an endpoint pair and a message handler
+  — not a new client platform.
+- VAPID needs only a self-generated key pair. FCM would mean a Firebase project, a Google account
+  dependency and an SDK, to reach the same Android Chrome that speaks Web Push natively.
+- A native app would need Play Store distribution, signing keys and an update path for four people
+  who already use the web app — plainly disproportionate.
+- Payloads are end-to-end encrypted, so the relaying push service sees only ciphertext.
+
+**Consequences.**
+- Attenders must grant browser notification permission, and a denial is not recoverable from inside
+  the app. Mitigation: ask only *after* first successful login, once the app has shown its value
+  (§10.2), and expose a settings toggle so people dial alerts down rather than revoking them.
+- Push **cannot work on the offline fallback jar** (§2.6) — there is no internet to reach a push
+  service. Acceptable: during an outage the manager is running roll-call in person anyway, which is
+  the assisted-admin path (§9.4).
+- iOS would require an installed PWA on Safari 16.4+. Out of scope; attenders are on Android.
+- Delivery is best-effort and no state transition depends on it (NFR-10). The in-app queue stays the
+  source of truth, so a missed push degrades convenience, never correctness.
+
+**Revisit if:** attenders move to iOS in numbers, or delivery reliability proves inadequate in the
+field — at which point FCM's data channel would be the next step, not a native app.

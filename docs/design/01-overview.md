@@ -23,6 +23,7 @@ spreadsheet that is easily corrupted when edited from mobile devices.
 | G5 | Make point accounting correct and auditable | No double-credit under concurrent updates; every point movement traceable to an actor and a cause |
 | G6 | Replace the end-of-month manual tally | One-click `.xlsx` export; leaderboard always live |
 | G7 | Surface operational insight the manager cannot currently see | MTTR per category, bottleneck stage, anomaly alerts |
+| G8 | Reach an attender when work is assigned, without them opening the app | Push notification delivered to the attender's phone for new and escalated assignments |
 
 ## 1.3 Non-goals
 
@@ -34,14 +35,15 @@ Explicitly **out of scope** for this project, to keep the solo build tractable:
 - **Native mobile applications.** The attender interface is a responsive web view.
 - **Multi-hostel tenancy.** Single-hostel deployment. The schema does not model a hostel dimension.
 - **Payroll or bonus disbursement.** We compute points; money is handled outside the system.
-- **Push notifications to attender phones.** Manager-side live updates only (SSE).
+- **A native mobile app store presence.** Push reaches attenders through the installable web app
+  (Web Push), not a Play Store binary.
 
 ## 1.4 Actors
 
 | Actor | Count | Device | Authenticated | Responsibilities |
 |---|---|---|---|---|
 | **Hostel Manager** | 1 | Desktop (office), occasionally mobile | Yes — username + password | Oversight, triage of unclassified complaints, reassignment, penalties, special duties, exports, account provisioning |
-| **Attender** | ~4 | Personal Android phone, hostel Wi-Fi / mobile data | Yes — per-user PIN + device token | View assigned queue, record CMS docket, mark resolved, claim special duties, view own standing |
+| **Attender** | ~4 | Personal Android phone, hostel Wi-Fi / mobile data | Yes — per-user PIN + device token | Receive push alerts, view assigned queue, record CMS docket, mark resolved, claim special duties, view own standing |
 | **Resident** | ~hundreds | Any | **No** | Submits the Google Form. Never touches this system directly. |
 | **Scheduler** | — | — | System | Polls the sheet, ages priorities, runs telemetry scans |
 
@@ -70,6 +72,7 @@ Explicitly **out of scope** for this project, to keep the solo build tractable:
 | NFR-4 | Mobile payload | Attender queue initial load < 150 KB | Low-end phones, patchy connectivity |
 | NFR-5 | Correctness under concurrency | Zero double-credits, zero lost updates | Core integrity guarantee; see §7 |
 | NFR-6 | Availability | Best-effort. Offline fallback jar must run with **no internet at all** | Free-tier PaaS; outage plan B from proposal §10 |
+| NFR-10 | Push delivery | P1 assignment push dispatched within **30 s** of assignment; delivery itself is best-effort | The push service is outside our control, so the in-app queue stays the source of truth |
 | NFR-7 | Timezone | All business dates in **Asia/Kolkata**; all timestamps stored UTC | Month boundaries for the bonus cycle must be unambiguous |
 | NFR-8 | Auditability | Every state change and point movement is reconstructible | Bonus disputes must be resolvable from the log |
 | NFR-9 | Data retention | Complaint text retained 1 year; resident contact detail retained 90 days | Minimize PII exposure (§11.4) |

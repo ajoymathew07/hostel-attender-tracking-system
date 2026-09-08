@@ -93,6 +93,11 @@ Every case named in the proposal's verification plan, plus what the design surfa
 | E24 | `MAD = 0` in A1 | Falls back to `3 × median`, no divide-by-zero |
 | E25 | Attender queue with 0 tasks | Empty state, not an error |
 | E26 | Leaderboard with an attender at 0 points | Appears, ranked last (`LEFT JOIN`, §7.8) |
+| E27 | Same browser re-subscribes to push | Existing row updated, not duplicated (`uq_push_endpoint`) |
+| E28 | Push service returns 410 Gone | Subscription revoked; no further attempts |
+| E29 | Attender with no push subscription is assigned a task | Assignment succeeds; push skipped silently |
+| E30 | Push service unreachable for an hour | Retries then `FAILED`; **no state transition affected** |
+| E31 | Outbox poller re-runs after a crash | No duplicate push per device (`uq_push_delivery`) |
 
 ## 12.5 Concurrency suite
 
@@ -129,6 +134,7 @@ Each stakeholder-facing criterion from proposal §8, mapped to what proves it:
 | Real-time leaderboard | §7.8 tests, X7, SSE integration test | Final |
 | One-click clean `.xlsx` export | POI tests, manual inspection | Final |
 | Anomaly detection, bottlenecks, visualizations | §8 detector tests on F4, E23, E24 | Final |
+| Attenders alerted on their phone when work is assigned (G8) | E27–E31 + device walkthrough on a real Android phone | Final |
 
 ## 12.7 What we are not testing
 
@@ -139,5 +145,8 @@ Stated to keep the plan honest:
   users, because there will never be five.
 - **Google Sheets API itself** — mocked at the port boundary (§5.8). We test our reconciliation
   logic, not Google's service.
+- **Browser push services themselves** (FCM, Mozilla autopush) — mocked at the HTTP boundary. We
+  test our subscription handling, payload construction and failure responses, not Google's delivery.
+- **iOS Safari push** — attenders are on Android (§10.1).
 - **The IITM EU CMS app** — no integration exists to test (§1.8).
 - **Penetration testing** — out of scope per §11.1.

@@ -114,10 +114,13 @@ deployed to cloud. **Matches the proposal's mid-demo commitment exactly.**
 - [C] SSE with outbox replay (§9.5)
 - [C] Assisted admin log / `act-as` (Risk 3 Plan B)
 - [C] Accessibility and mobile performance pass (§10.5–10.6)
+- [C] **Web Push to attender phones** (§9.6): VAPID setup, subscription endpoints, service-worker
+  handler, notification settings, delivery-failure handling
 - [E] Offline queue if deferred from S4
 - [E] OpenNLP second stage (§5.7)
 
-**Exit:** one-click export produces a clean workbook; dashboard updates live.
+**Exit:** one-click export produces a clean workbook; dashboard updates live; a P1 assignment buzzes
+the attender's phone within 30 s.
 
 ### S8 · 31 Oct – 6 Nov · Hardening & sign-off
 - [C] Full test pass; coverage gates met
@@ -136,6 +139,7 @@ deployed to cloud. **Matches the proposal's mid-demo commitment exactly.**
 | Auth added as explicit S1 scope | Absent from the proposal, but the schema, role matrix and deployment all depend on it |
 | SSE chosen over WebSocket | One-directional need; simpler; survives PaaS proxies (ADR-003) |
 | A4/A5 detectors marked Extended | Both need ≥4 weeks of history to emit anything, so they cannot be demonstrated before the final date anyway |
+| **Push notifications to attenders added** (G8, §9.6) | Stakeholder requirement added after the proposal. Delivered via Web Push on the service worker the offline queue already needs, so the marginal cost is small |
 
 ## 13.5 Risk buffer and cut lines
 
@@ -144,13 +148,15 @@ cut order is fixed in advance so the decision is not made under pressure:
 
 1. OpenNLP second stage (§5.7)
 2. Detectors A4, A5
-3. Offline service worker (degrades to online-only; idempotency keys still protect retries)
+3. Offline service worker *replay* (degrades to online-only; idempotency keys still protect
+   retries). The service-worker **registration** stays, because push depends on it.
 4. Manager lexicon editor UI (seed via migration instead)
 5. Weekly export (keep daily)
 
 **Never cut**, because each is load-bearing for a stakeholder acceptance criterion or a core
 integrity guarantee: ingestion idempotency, the ledger and its constraints, the state machine,
-dispatch, the attender mobile flow, penalties, the leaderboard, daily Excel export.
+dispatch, the attender mobile flow, push notification of new assignments, penalties, the
+leaderboard, daily Excel export.
 
 | Risk | Trigger | Response |
 |---|---|---|

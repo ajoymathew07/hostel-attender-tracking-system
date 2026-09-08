@@ -52,6 +52,7 @@ graph TD
         MC[Manager controllers]
         AC[Attender controllers]
         SSE[SSE broadcaster]
+        PUSH[Web Push sender]
     end
 
     subgraph CORE["Domain modules"]
@@ -79,6 +80,7 @@ graph TD
     ING --> CAT --> DIS --> WF
     WF --> LED
     WF --> NOT --> SSE
+    NOT --> PUSH --> WPS[Browser push service]
     LED --> NOT
     ANA --> REPO
     RPT --> POI
@@ -95,7 +97,7 @@ graph TD
 | **workflow** | `...workflow` | Complaint/task state machine, guards, transitions | Only legal transitions occur; transitions are atomic with their side effects |
 | **ledger** | `...ledger` | Point movements, leaderboard projection | Append-only; no double-credit; balance is derived, never stored |
 | **analytics** | `...analytics` | MTTR, bottlenecks, anomaly detection | Read-only over the ledger and audit tables |
-| **notification** | `...notification` | Fan-out of domain events to SSE subscribers | Delivery is best-effort; never blocks a transaction |
+| **notification** | `...notification` | Fan-out of domain events to manager SSE streams **and attender Web Push** | Delivery is best-effort; never blocks a transaction |
 | **reporting** | `...reporting` | `.xlsx` generation via Apache POI | Reports are point-in-time snapshots, reproducible from stored data |
 | **identity** | `...identity` | Users, roles, PINs, device tokens, provisioning | No self-registration; every principal is pre-provisioned |
 | **audit** | `...audit` | Append-only event log | Written in the same transaction as the change it records |
@@ -208,6 +210,6 @@ migrations carry no vendor-specific DDL.
 | **Configuration** | Spring profiles: `local`, `cloud`, `offline`. All tunables (dispatch weights, thresholds, SLA table, poll interval, CMS regex) are `@ConfigurationProperties`, never constants. |
 | **Secrets** | Environment variables only. The Google service-account JSON is supplied as a base64 env var, never a committed file. `.gitignore` blocks the obvious filenames (§11.5). |
 | **Migrations** | Flyway, forward-only, versioned. Schema changes never hand-edited. |
-| **Errors** | `@ControllerAdvice` maps domain exceptions to the RFC 7807 problem envelope (§9.6). |
+| **Errors** | `@ControllerAdvice` maps domain exceptions to the RFC 7807 problem envelope (§9.7). |
 | **Observability** | Spring Actuator health/metrics; structured logging with a correlation ID per request and per ingestion run. |
 | **Idempotency** | Every state-changing attender action carries a client-generated request key (§7.4). |

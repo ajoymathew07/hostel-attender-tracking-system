@@ -11,7 +11,7 @@ Naming what we are and are not defending against keeps the controls proportionat
 | A student discovering the URL and trying to log in | ✅ | Rate limiting, lockout, no self-registration |
 | An attender viewing or altering another attender's points | ✅ | Role + ownership checks on every action |
 | An attender gaming the point system | ✅ | Docket gate on credit, append-only ledger, audit |
-| A lost or shared attender phone | ✅ | Device-token revocation, PIN reset |
+| A lost or shared attender phone | ✅ | Device-token revocation, PIN reset, push subscription revocation |
 | Resident PII exposure | ✅ | Minimisation, retention limits (§11.4) |
 | Targeted attack by a skilled adversary | ❌ | Out of scope; no assets justify it |
 | DDoS | ❌ | Free-tier platform's problem |
@@ -88,6 +88,7 @@ otherwise any attender could resolve any other attender's work and collect the p
 | Complaint text | Diagnosis, classification, chronic-defect detection | 1 year, then `[purged]` |
 | Attender name | Assignment, leaderboard | Life of employment |
 | Attender PIN | Authentication | Hash only, never plaintext |
+| Push endpoint + keys | Delivering assignment alerts | Until revoked or 3 failures; a device identifier, so treated as personal data |
 
 We **do not** collect resident names or phone numbers even when the Form offers them — the mapped
 column set (§5.2) simply omits them. The cheapest way to protect data is not to hold it.
@@ -103,6 +104,7 @@ what the resident wrote.
 | Google service-account JSON | Base64 in `GOOGLE_SA_KEY` env var. **Never a file in the repo.** |
 | Database credentials | `DATABASE_URL` env var, injected by the platform |
 | Session signing key | `APP_SECRET` env var, generated per environment |
+| VAPID key pair | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` env vars. The private key authenticates us to push services; rotating it invalidates every subscription, so it is generated once per environment |
 
 `.gitignore` blocks `**/google-service-account*.json`, `**/credentials.json`, `.env*` and
 `application-local.yml` (§ repo root). CI runs **Gitleaks** on every PR so a committed secret fails
@@ -120,6 +122,7 @@ to the single response sheet — if it leaks, the blast radius is reading compla
 | Transport | HTTPS enforced (`Strict-Transport-Security`); platform-terminated TLS |
 | Headers | CSP, `X-Content-Type-Options: nosniff`, `Referrer-Policy` |
 | Upload safety | CSV only, ≤5 MB, ≤5000 rows, content-type and header validated before parsing |
+| Push payload privacy | Payloads are end-to-end encrypted (`aes128gcm`) per the Web Push spec, so Google's or Mozilla's push service relays ciphertext it cannot read. Bodies still avoid resident identifiers — a lock-screen preview is visible to anyone holding the phone, so notifications name a room, never a person |
 | Dependencies | OWASP Dependency-Check in CI; Dependabot enabled |
 | Error leakage | RFC 7807 responses only; stack traces never returned to a client |
 

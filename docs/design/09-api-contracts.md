@@ -10,6 +10,7 @@ A hybrid, chosen to match the two very different clients:
 - **JSON endpoints under `/api/**`** serve dynamic data: chart series, live queue refreshes, and
   every state-changing action.
 - **SSE at `/api/manager/stream`** pushes live updates to the manager dashboard.
+- **Web Push** delivers assignment alerts to attender phones even when the app is closed (§9.6).
 
 All JSON endpoints are versionless (`/api/...`) — this is a single-deployment internal tool with no
 third-party consumers, so a version prefix would be ceremony without a payer.
@@ -45,6 +46,10 @@ third-party consumers, so a version prefix would be ceremony without a payer.
 | `POST` | `/api/attender/duties/{id}/claim` | Claim a slot | §7.6 |
 | `POST` | `/api/attender/duties/{id}/complete` | Mark my part done | §7.5 |
 | `GET` | `/api/attender/standing` | Point history, this period | — |
+| `GET` | `/api/attender/push/key` | VAPID public key for subscription | — |
+| `POST` | `/api/attender/push/subscribe` | Register this device for push | — |
+| `POST` | `/api/attender/push/unsubscribe` | Stop push on this device | — |
+| `POST` | `/api/attender/push/test` | Send a test notification to self | — |
 
 ### `GET /api/attender/queue`
 
@@ -183,6 +188,7 @@ data: {"taskId":412,"attenderId":7,"attenderName":"Ravi","points":2,"periodTotal
 | `PenaltyLogged` | Manager logs an infraction |
 | `AlertRaised` | Anomaly detector fires |
 | `IngestionDegraded` | Poll failing repeatedly (§5.3) |
+| `PushDeliveryFailed` | An attender's device stopped accepting push (§9.6) |
 
 Event `id` is `outbox_event.id`. On reconnect the browser automatically sends `Last-Event-ID` and
 the server replays everything after it from the outbox. This is what makes the free-tier proxy
@@ -190,7 +196,94 @@ dropping an idle connection (NFR-6) a non-event rather than a silent gap in the 
 Heartbeat comment every 20 s keeps the connection from being reaped in the first place. Replay is
 capped at 500 events; beyond that the client is told to refresh outright.
 
-## 9.6 Error model
+## 9.6 Push notification contract
+
+Attenders receive alerts on their phone even when the app is closed, using the **Web Push protocol
+with VAPID** (ADR-011). The same service worker that backs the offline queue (§10.2) receives them,
+so no second client-side runtime is introduced.
+
+### Subscription flow
+
+```
+1. Attender logs in on their phone, taps "Enable alerts"
+2. Browser asks for notification permission        (one-time, OS-level)
+3. Client GETs /api/attender/push/key              → VAPID public key
+4. Client calls pushManager.subscribe(...)         → endpoint + p256dh + auth
+5. Client POSTs those to /api/attender/push/subscribe
+6. Server stores a push_subscription row keyed on the endpoint
+```
+
+```http
+POST /api/attender/push/subscribe
+Content-Type: application/json
+
+{
+  "endpoint": "https://fcm.googleapis.com/fcm/send/dQw4w9...",
+  "keys": {"p256dh": "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM=",
+           "auth":   "tBHItJI5svbpez7KI4CCXg=="},
+  "deviceLabel": "Ravi's phone"
+}
+```
+
+`endpoint` is unique (§3.7), so re-subscribing the same browser updates rather than duplicates the
+row — a browser reissues its endpoint periodically, and without that constraint an attender would
+accumulate stale subscriptions and receive the same alert several times.
+
+### Notification types
+
+Only events an attender must **act on** are pushed. Everything else stays in the app.
+
+| Trigger | Title | Body | Priority |
+|---|---|---|---|
+| `TaskAssigned` (P1) | 🔴 Urgent: Room 214 | Electrical — sparking sound. Due in 4h | high |
+| `TaskAssigned` (P2/P3) | New task: Room 118 | Civil — door latch broken | normal |
+| Priority escalated to P1 | ⏰ Now urgent: Room 305 | RO Plant — overdue | high |
+| `SpecialDutyPosted` | New duty available (+5) | Hostel night preparation | normal |
+| `TaskReassigned` away | Task reassigned | Room 118 moved to Kumar | normal |
+| SLA breach imminent (30 min) | ⏱ Due soon: Room 214 | Not yet resolved | high |
+
+**Deliberately not pushed:** point credits, leaderboard changes, manager dashboard activity, anomaly
+alerts. Notifying someone that they earned the points they just earned is noise, and an attender who
+learns to swipe our notifications away will miss the P1 that matters.
+
+### Payload
+
+Encrypted per the Web Push spec (`aes128gcm`); the push service never sees the plaintext.
+
+```json
+{
+  "title": "🔴 Urgent: Room 214",
+  "body": "Electrical — sparking sound. Due in 4h",
+  "tag": "task-412",
+  "data": {"taskId": 412, "url": "/m/tasks/412"},
+  "actions": [{"action": "open", "title": "Open"}],
+  "renotify": false
+}
+```
+
+`tag` collapses repeat notifications for the same task, so an escalation replaces the original
+alert rather than stacking on it.
+
+### Delivery semantics
+
+Push is **best-effort and advisory** (NFR-10). The in-app queue remains the source of truth — an
+attender who never enables notifications loses nothing but convenience, and no state transition
+depends on a push being delivered. Push sends therefore happen **after commit**, from the outbox
+poller, never inside the transaction that caused them.
+
+| Response from push service | Meaning | Action |
+|---|---|---|
+| `201` / `200` | Accepted for delivery | Record `SENT` |
+| `404` / `410` | Subscription expired | Revoke the row permanently |
+| `429` | Rate limited | Back off, retry per `Retry-After` |
+| `413` | Payload too large | Truncate body, retry once |
+| `5xx` | Push service down | Retry ×3 with backoff, then `FAILED` |
+
+Three consecutive failures revoke the subscription and surface a "notifications not reaching this
+device" note on the manager's attender-admin screen — a phone that silently stopped receiving alerts
+is exactly the failure the manager needs told about, not one to discover during a P1.
+
+## 9.7 Error model
 
 RFC 7807 problem details:
 

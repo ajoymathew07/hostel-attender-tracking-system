@@ -3,8 +3,14 @@
 **Hostel Complaint & Attender Duty Tracking System**
 CS5013 Programming with AI · Ajoy Mathew (CS23B101) · 11 September 2026
 
-This directory is the source of truth for the Phase 1 design. The submission PDF
-(`design-doc.pdf`) is generated from these files; do not edit the PDF by hand.
+This directory is the source of truth for the Phase 1 design. Two PDFs are generated from it:
+
+| Artifact | Audience | Build |
+|---|---|---|
+| **[`submission/design-summary.pdf`](submission/)** — 12 pages, LaTeX + TikZ diagrams | **Course submission** | `make -C docs/design/submission` |
+| `design-doc.pdf` — full ~50-page reference | Implementation | `make -C docs/design pdf` |
+
+Do not edit either PDF by hand.
 
 ## Contents
 
@@ -18,7 +24,7 @@ This directory is the source of truth for the Phase 1 design. The submission PDF
 | 6 | [Dispatch Heuristic](06-dispatch.md) | Scoring formulation, weights, degenerate cases |
 | 7 | [Points Ledger & Concurrency](07-ledger-concurrency.md) | Append-only ledger, OCC, shared tasks, leaderboard |
 | 8 | [Analytics & Telemetry](08-analytics.md) | MTTR, bottlenecks, anomaly detection, small-sample caveats |
-| 9 | [API & Data Contracts](09-api-contracts.md) | REST endpoints, DTOs, SSE envelope, error model |
+| 9 | [API & Data Contracts](09-api-contracts.md) | REST endpoints, DTOs, SSE envelope, Web Push, error model |
 | 10 | [Frontend Design](10-frontend.md) | Manager desktop and attender mobile layouts |
 | 11 | [Security & Privacy](11-security-privacy.md) | AuthN/AuthZ, threat model, PII handling |
 | 12 | [Test Plan](12-test-plan.md) | Fixtures, gold set, concurrency stress, traceability |

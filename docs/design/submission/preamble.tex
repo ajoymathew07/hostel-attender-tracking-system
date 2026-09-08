@@ -1,0 +1,95 @@
+% ---------------------------------------------------------------------------
+%  Shared preamble for the CS5013 Phase 1 design summary
+% ---------------------------------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage[a4paper,margin=2.05cm,top=1.8cm,bottom=1.9cm]{geometry}
+\usepackage{microtype}
+\usepackage{booktabs,array,tabularx,multirow,longtable}
+\usepackage[table]{xcolor}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{adjustbox}
+\usepackage{tikz}
+\usepackage[hidelinks]{hyperref}
+
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,calc,fit,backgrounds,
+                shapes.multipart,decorations.pathreplacing,patterns}
+
+% ---- palette ---------------------------------------------------------------
+\definecolor{ink}{HTML}{1B2430}
+\definecolor{accent}{HTML}{2C5F94}
+\definecolor{accentlt}{HTML}{E8F0F8}
+\definecolor{warm}{HTML}{B5651D}
+\definecolor{warmlt}{HTML}{FBEFE3}
+\definecolor{greenx}{HTML}{2E6E4E}
+\definecolor{greenlt}{HTML}{E6F1EA}
+\definecolor{greyln}{HTML}{9AA5B1}
+\definecolor{greybg}{HTML}{F2F4F6}
+\definecolor{rulec}{HTML}{C9D2DA}
+
+\color{ink}
+
+% ---- headings --------------------------------------------------------------
+\titleformat{\section}{\normalfont\large\bfseries\color{accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.55em}{}
+\titlespacing*{\section}{0pt}{1.25\baselineskip}{0.45\baselineskip}
+\titlespacing*{\subsection}{0pt}{0.85\baselineskip}{0.3\baselineskip}
+
+\setlist[itemize]{leftmargin=1.1em,itemsep=1pt,topsep=2pt,parsep=0pt}
+\setlist[enumerate]{leftmargin=1.4em,itemsep=1pt,topsep=2pt,parsep=0pt}
+
+\captionsetup{font=small,labelfont={bf,color=accent},skip=4pt}
+\setlength{\parskip}{0.35\baselineskip}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.15}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{rulec}\leaders\hrule height \headrulewidth\hfill}}
+\fancyhead[L]{\small\color{greyln}Hostel Complaint \& Attender Duty Tracking System}
+\fancyhead[R]{\small\color{greyln}Phase 1 Design}
+\fancyfoot[C]{\small\color{greyln}\thepage}
+
+% ---- helpers ---------------------------------------------------------------
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\ttiny}[1]{\texttt{\footnotesize #1}}
+
+% callout box
+\newcommand{\keybox}[2]{%
+  \par\vspace{2pt}\noindent
+  \begin{tikzpicture}
+    \node[draw=accent!45,fill=accentlt,line width=0.5pt,rounded corners=2pt,
+          inner sep=6pt,text width=\dimexpr\linewidth-16pt\relax,align=left]
+      {\textbf{\color{accent}#1}\ \ #2};
+  \end{tikzpicture}\par\vspace{3pt}}
+
+% ---- tikz styles -----------------------------------------------------------
+\tikzset{
+  box/.style   = {draw=greyln,fill=white,rounded corners=2pt,line width=0.5pt,
+                  inner sep=4pt,align=center,font=\scriptsize},
+  abox/.style  = {box,draw=accent!55,fill=accentlt},
+  wbox/.style  = {box,draw=warm!55,fill=warmlt},
+  gbox/.style  = {box,draw=greenx!55,fill=greenlt},
+  ext/.style   = {box,draw=greyln,fill=greybg,dashed},
+  db/.style    = {cylinder,shape border rotate=90,aspect=0.22,draw=greenx!60,
+                  fill=greenlt,inner sep=3pt,align=center,font=\scriptsize},
+  st/.style    = {draw=accent!60,fill=accentlt,rounded corners=3pt,inner sep=3.2pt,
+                  align=center,font=\scriptsize\bfseries},
+  stend/.style = {draw=greenx!60,fill=greenlt,rounded corners=3pt,inner sep=3.2pt,
+                  align=center,font=\scriptsize\bfseries},
+  strej/.style = {draw=warm!65,fill=warmlt,rounded corners=3pt,inner sep=3.2pt,
+                  align=center,font=\scriptsize\bfseries},
+  ent/.style   = {draw=accent!50,fill=white,rounded corners=1.5pt,line width=0.5pt,
+                  inner sep=0pt,align=left,font=\scriptsize},
+  fl/.style    = {-{Stealth[length=4pt,width=3pt]},draw=ink!65,line width=0.45pt},
+  fld/.style   = {fl,dashed,draw=greyln},
+  lbl/.style   = {font=\tiny\itshape,inner sep=1.5pt,fill=white,text=ink!75},
+  grp/.style   = {draw=rulec,fill=greybg,rounded corners=3pt,inner sep=7pt,line width=0.5pt},
+}
