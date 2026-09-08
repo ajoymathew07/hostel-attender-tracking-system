@@ -1,0 +1,42 @@
+# Build
+target/
+build/
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets — NEVER commit
+*.env
+.env*
+!.env.example
+**/google-service-account*.json
+**/credentials.json
+**/application-local.yml
+**/application-secret*.yml
+
+# Logs / runtime
+logs/
+*.log
+*.db
+*.sqlite
+
+# LaTeX build artifacts
+docs/design/*.aux
+docs/design/*.out
+docs/design/*.toc
+docs/design/*.log
+docs/design/*.fls
+docs/design/*.fdb_latexmk
+docs/design/*.synctex.gz
