@@ -45,8 +45,8 @@ Explicitly **out of scope** for this project, to keep the solo build tractable:
 
 | Actor | Count | Device | Authenticated | Responsibilities |
 |---|---|---|---|---|
-| **Hostel Manager** | 1 | Desktop (office), occasionally mobile | Yes — username + password | Oversight, triage of unclassified complaints, reassignment, penalties, special duties, exports, account provisioning |
-| **Attender** | ~4 | Personal Android phone, hostel Wi-Fi / mobile data | Yes — per-user PIN + device token | Receive push alerts, view assigned queue, record CMS docket, mark resolved, claim special duties, view own standing |
+| **Hostel Manager** | 1 | Desktop (office), occasionally mobile | Yes — username + password (local) | Oversight, triage of unclassified complaints, reassignment, penalties, special duties, exports, account provisioning |
+| **Attender** | ~4 | Personal Android phone, hostel Wi-Fi / mobile data | Yes — Google sign-in, allowlisted | Receive push alerts, view assigned queue, record CMS docket, mark resolved, claim special duties, view own standing |
 | **Resident** | ~hundreds | Any | **No** | Submits the Google Form. Never touches this system directly. |
 | **Scheduler** | — | — | System | Polls the sheet, ages priorities, runs telemetry scans |
 

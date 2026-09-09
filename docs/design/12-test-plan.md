@@ -16,6 +16,13 @@ tasks. A phase is not complete until its tests are green.
 | **Architecture** | ArchUnit | Layering rules (§2.4) | Continuous |
 | **Manual/UAT** | Stakeholder | Acceptance criteria (§12.6) | Per milestone |
 
+**Authentication is tested where the logic actually is.** The OAuth2 authorization-code flow is
+Spring Security's code and is not re-tested; what *we* wrote is the allowlist decision, which is a
+plain unit test over `OidcUserService` — known email admits with the right role, unknown email
+rejects, inactive user rejects, case and whitespace variants normalise. Every other test
+authenticates with `@WithMockUser`. The manager's form login is covered end to end because it has
+no external dependency.
+
 **All database tests run against real PostgreSQL via Testcontainers**, never an in-memory
 substitute. The properties we most need to verify — unique-constraint behaviour under concurrent
 inserts, optimistic-lock failures, `SELECT ... FOR UPDATE` — are precisely the ones an H2 stand-in
@@ -92,6 +99,9 @@ Every case named in the proposal's verification plan, plus what the design surfa
 | E18 | Resolve → reopen → resolve again | Credit, reversal, new credit. Net +2. Three ledger rows |
 | E19 | Penalty backdated into a closed period | Applied to correct period, manager warned |
 | E20 | Attender A acts on attender B's task | 403 `NOT_ASSIGNED` |
+| E20a | Google sign-in by a non-allowlisted email | Rejected; no `app_user` row created |
+| E20b | Sign-in by an allowlisted but `active = false` user | Rejected |
+| E20c | Allowlisted email differing in case or surrounding space | Admitted — matching is normalised |
 | E21 | Month boundary at 02:00 IST on the 1st | Falls in the new month (NFR-7) |
 | E22 | Sheets API down for 6 hours | Backoff, degraded banner, full catch-up on recovery |
 | E23 | Anomaly detector below its `n` gate | Emits nothing (§8.3) |

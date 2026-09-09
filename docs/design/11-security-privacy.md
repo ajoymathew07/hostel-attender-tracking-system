@@ -8,63 +8,74 @@ Naming what we are and are not defending against keeps the controls proportionat
 | Threat | In scope | Response |
 |---|---|---|
 | Opportunistic internet scanning of a public URL | ✅ | Auth on everything, no anonymous endpoints |
-| A student discovering the URL and trying to log in | ✅ | Rate limiting, lockout, no self-registration |
+| A student discovering the URL and trying to log in | ✅ | Allowlist — a valid Google sign-in still fails without a provisioned row |
 | An attender viewing or altering another attender's points | ✅ | Role + ownership checks on every action |
 | An attender gaming the point system | ✅ | Docket gate on credit, append-only ledger, audit |
-| A lost or shared attender phone | ✅ | Remember-me token revocation, PIN reset, push subscription revocation |
+| A lost or shared attender phone | ✅ | `active = false` blocks the next sign-in; push subscriptions revoked at once; session expires within 12 h |
 | Resident PII exposure | ✅ | Minimisation, retention limits (§11.4) |
 | Targeted attack by a skilled adversary | ❌ | Out of scope; no assets justify it |
 | DDoS | ❌ | Free-tier platform's problem |
 
 The most *likely* real incident here is mundane: a shared or lost phone. The controls above are
-weighted accordingly.
+weighted accordingly — and note that with no attender credential stored anywhere, a lost phone
+exposes a *session*, not a secret.
 
 ## 11.2 Authentication
 
-Per ADR-002: **local credentials only, invite-only provisioning, no OAuth.**
+Per ADR-002: **Google sign-in for attenders, a local password for the manager, invite-only
+provisioning for both.**
 
 | | Manager | Attender |
 |---|---|---|
-| Credential | Username + password (min 12 chars) | 6-digit PIN, unique per user |
-| Hash | BCrypt, cost 12 | BCrypt, cost 12 |
-| Session | Standard, 12h idle timeout | Standard + 90-day device token |
-| Re-auth | Every session | Once per device |
+| Mechanism | Username + password (Spring form login) | Google OIDC (`openid, email, profile`) |
+| Credential stored | BCrypt hash, cost 12 | **None** |
+| Admission decided by | Password check | Verified email present and `active` in `app_user` |
+| Session | 12 h idle timeout | 12 h idle timeout |
+| Re-authentication | Type the password | One tap — Google account already signed in on Android |
 
-**Each attender has their own PIN.** PINs are never shared and never stored in plaintext: on
-provisioning the system generates a random 6-digit value, displays it **once** to the manager to
-hand over, and persists only the BCrypt hash. Neither the manager nor the database can recover it
-afterwards — a forgotten PIN is reset, not looked up.
+### Why the split
 
-**A 6-digit PIN is weak on its own** (10⁶ space) and the design says so explicitly rather than
-implying otherwise. It is acceptable here only because of the surrounding controls:
+Attenders get the mechanism with **no credential to lose, forget, or leak**, and re-entry costs a
+single tap on a phone where the Google account is already active. The manager gets the mechanism
+with **no external dependency**, which matters for three separate reasons: they are the only person
+who can reach the standby deployment during a cloud outage, they are the account that must work
+during a demo regardless of network conditions, and they are the support desk that fixes everyone
+else's access.
 
-- Lockout after **5** failed attempts, 15-minute cooldown, escalating on repeat
-- Global rate limit of 10 login attempts/minute/IP
-- Attender identity is selected from a 4-name list, so there is no username to enumerate
-- Every attempt, successful or not, is written to `audit_event`
-- Manager is notified in-app on any lockout
-- An attender's blast radius is small: they can see their own queue and their own points, and can
-  neither view nor alter anyone else's
+### The allowlist is the access-control boundary
 
-Sustained brute force would need ~10⁵ attempts against a 5-per-15-minutes lockout — decades. The
-realistic attack is a **shoulder-surfed or shared PIN**, which lockouts cannot prevent; that is why
-the manager can revoke devices and rotate PINs at will, and why the audit log records who did what.
+Google establishes *who someone is*; it has no opinion on whether they may use this system. That
+decision is ours and is made in one place — a custom `OidcUserService` that resolves the verified
+email against `app_user` and throws if there is no matching active row. A sign-in from any other
+Google account, institute or personal, is rejected without creating anything.
 
-### Device tokens
+Emails are normalised (trimmed, lower-cased) before comparison, and matched only against the
+`email_verified` claim — never a self-asserted address.
 
-Spring Security's **`PersistentTokenBasedRememberMeServices`** backed by `JdbcTokenRepositoryImpl`,
-using the framework's own `persistent_logins` table (§3.3). It implements the series/token scheme:
-an indexed series identifier plus a single-use token **rotated on every request**, so a stolen
-cookie stops working as soon as the legitimate device authenticates again, and the mismatch is
-itself detectable. Cookie is `HttpOnly; Secure; SameSite=Lax` with a 90-day expiry.
+### What this removes, and what it adds
 
-An earlier draft hand-rolled the identical design. Using the framework's implementation deletes that
-code, removes a class of subtle mistakes from a security-critical path, and gives a reviewer a
-mechanism they already know (ADR-012). Revoking a lost phone is a single `DELETE` by username.
+**Removed:** PIN generation and hashing, lockout counters, a PIN reset flow, credential rate
+limiting, and a remember-me token table. None of these can fail if none of them exist, and there is
+no longer a weak 6-digit secret to defend.
+
+**Added, and stated plainly:**
+
+| New exposure | Assessment |
+|---|---|
+| Dependency on Google availability | If Google OIDC is unreachable, attenders cannot sign in. The manager still can, and can record work on their behalf via `act-as` (§9.4) |
+| OAuth client secret | One more environment variable (§11.5). It authenticates our application to Google; it is not a user credential |
+| Two redirect URIs to maintain | The cloud URL and `http://localhost:8080/...` for the standby and development. A stale entry breaks sign-in visibly, not silently |
+| Attender email addresses stored | Personal data, recorded in §11.4 |
+
+The manager's password is rate-limited to 10 attempts/minute/IP rather than locked out after N
+failures. Lockout on a single-administrator account is itself a denial-of-service: anyone who knows
+the username could lock the only person who can fix it.
 
 ## 11.3 Authorization
 
-Role-based, enforced at the service layer (not only in controllers) via `@PreAuthorize`:
+Role-based, enforced at the service layer (not only in controllers) via `@PreAuthorize`. Roles come
+from `app_user.role` at sign-in, never from anything Google asserts — Google tells us *who*, we
+decide *what they may do*:
 
 | Capability | Manager | Attender |
 |---|---|---|
@@ -76,7 +87,7 @@ Role-based, enforced at the service layer (not only in controllers) via `@PreAut
 | Log penalties, adjustments, special duties | ✅ | ❌ |
 | View leaderboard | ✅ (full) | ✅ (ranks + own detail) |
 | View another attender's point detail | ✅ | ❌ |
-| Provision users, reset PINs, revoke devices | ✅ | ❌ |
+| Provision users, edit the allowlist, deactivate accounts | ✅ | ❌ |
 | Export reports | ✅ | ❌ |
 | Edit lexicon, weights, SLA table | ✅ | ❌ |
 
@@ -92,7 +103,7 @@ otherwise any attender could resolve any other attender's work and collect the p
 | Room number | **Operationally essential** — dispatch depends on it | 1 year |
 | Complaint text | Diagnosis, classification, chronic-defect detection | 1 year, then `[purged]` |
 | Attender name | Assignment, leaderboard | Life of employment |
-| Attender PIN | Authentication | Hash only, never plaintext |
+| Attender Google email | Allowlist key, and identifies the actor in the audit log | Life of employment |
 | Push endpoint + keys | Delivering assignment alerts | Until revoked or 3 failures; a device identifier, so treated as personal data |
 
 We **do not** collect resident names or phone numbers even when the Form offers them — the mapped
@@ -109,6 +120,7 @@ what the resident wrote.
 | Google service-account JSON | Base64 in `GOOGLE_SA_KEY` env var. **Never a file in the repo.** |
 | Database credentials | `DATABASE_URL` env var, injected by the platform |
 | Session signing key | `APP_SECRET` env var, generated per environment |
+| Google OAuth client | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` env vars. Authenticates the application to Google; **not** a user credential |
 | VAPID key pair | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` env vars. The private key authenticates us to push services; rotating it invalidates every subscription, so it is generated once per environment |
 
 `.gitignore` blocks `**/google-service-account*.json`, `**/credentials.json`, `.env*` and
@@ -133,8 +145,9 @@ to the single response sheet — if it leaks, the blast radius is reading compla
 
 ## 11.7 Audit as a security control
 
-`audit_event` (§3.7) is append-only and covers authentication attempts, provisioning, every state
-transition, every point movement, `act-as` actions, and configuration changes.
+`audit_event` (§3.7) is append-only and covers sign-ins (including rejected ones, with the email
+that was refused), provisioning, every state transition, every point movement, `act-as` actions, and
+configuration changes.
 
 Two properties make it trustworthy rather than decorative: it is written **in the same transaction**
 as the change it records, so it cannot silently diverge; and there is **no application code path

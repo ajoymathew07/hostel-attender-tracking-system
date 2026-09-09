@@ -162,14 +162,14 @@ makes the one-click correction feel like collaboration rather than cleanup after
 
 | Screen | Route | Audience |
 |---|---|---|
-| Login | `/login` | Both — role-appropriate form (password vs PIN keypad) |
+| Login | `/login` | Both — manager password form, plus a "Sign in with Google" button for attenders |
 | Manager dashboard | `/` | Manager |
 | Complaint detail | `/complaints/{ref}` | Manager — full audit timeline, score breakdown, docket history |
 | Attender queue | `/m` | Attender |
 | Task detail / flow | `/m/tasks/{id}` | Attender |
 | Special duties | `/m/duties` | Attender |
 | My standing | `/m/me` | Attender — point history, month rank, notification settings |
-| Attender admin | `/admin/attenders` | Manager — provisioning, PIN reset, leave, floor coverage |
+| Attender admin | `/admin/attenders` | Manager — provisioning, allowlist email, leave, floor coverage |
 | Reports | `/reports` | Manager — date range, export |
 | Settings | `/settings` | Manager — lexicon, weights, thresholds, SLA table |
 

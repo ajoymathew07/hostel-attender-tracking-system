@@ -43,55 +43,61 @@ inadequate.
 
 ---
 
-## ADR-002 · Local credentials, invite-only; no Google OAuth
+## ADR-002 · Google sign-in for attenders, local password for the manager
 
-**Status:** Accepted · 8 Sep 2026 · **Rationale revised** 8 Sep 2026
+**Status:** Accepted · 9 Sep 2026 — **reverses** the earlier local-credentials-only decision
 
-**Context.** Users are one manager and ~4 attenders. Requirements: people without institute accounts
-must be able to use the system, but only a specific pre-registered set may have access.
+**Context.** One manager and ~4 attenders. Only a pre-registered set may have access, and people
+without an institute account must be usable. The original decision was local credentials for
+everyone: manager password, per-attender 6-digit PIN, persistent remember-me.
 
-**Decision.** No self-registration. Every principal is a pre-provisioned `app_user` row. Manager
-authenticates with username + password; attenders with a **per-user** 6-digit PIN plus Spring
-Security's persistent remember-me. No OAuth of any kind.
+**This decision has been revised twice, and the trail matters more than the outcome:**
 
-**The original decisive argument was wrong and has been withdrawn.** This ADR previously claimed
-OAuth could not work on the local fallback because a redirect flow needs internet. Once "outage" was
-clarified to mean *the cloud platform*, not the network, that argument collapsed — Google permits
-`http://localhost` redirect URIs, so OAuth would in fact work there. The decision survives on
-weaker but real grounds, and it is worth being explicit that it is now a closer call:
+1. *Original:* local credentials, justified primarily by "OAuth cannot complete a redirect flow
+   without internet, so it would fail on the offline fallback."
+2. *First revision:* that argument was **withdrawn as factually wrong** once the stakeholder
+   clarified that the outage being designed for is the cloud platform, not the network. Google
+   permits `http://localhost` redirect URIs, so OAuth would work there. The decision was kept,
+   re-justified on account recovery.
+3. *This revision:* the recovery argument was **overstated**. It claimed neither the developer nor
+   the manager could act if an attender lost their Google account. In fact the manager updates the
+   allowlist to whatever account the attender can use. That is a difference in degree — recovery
+   partly happens outside our system — not the wall it was presented as. With the argument
+   correctly sized, it no longer outweighs what OAuth gives.
 
-**Rationale (revised).**
-- **Account recovery — the deciding factor.** If an attender loses access to their Google account,
-  neither the developer nor the manager can do anything: recovery sits entirely with Google. With a
-  PIN, the manager clicks *reset* and reads out a new six-digit number. The manager is the only
-  support desk these four people have, and handing their access to a third party we cannot
-  intervene with is the wrong trade for a system this small.
-- Local credentials require no Google account at all, so "non-institute people must have access" is
-  met by *removing* an external dependency rather than adding one. Whether every attender reliably
-  has, remembers, and controls their own Google account — as opposed to one set up by a family
-  member — is an assumption we would rather not take.
-- OAuth would add a consent screen, a client ID and secret, redirect URIs for two environments, and
-  a second login path to build and test — for a five-account system.
-- **Explainability.** Every line must be defensible in a viva. "BCrypt-compare a PIN, count
-  failures, lock the account" is code that can be explained end to end; "Spring handles the OAuth2
-  authorization-code flow" is less code but more of it is framework behaviour rather than something
-  the author implemented.
+**Decision.** Attenders authenticate with **Google OIDC** (`openid, email, profile`), admitted by an
+allowlist against `app_user.email`. The manager authenticates with a **local username and password**.
+No PINs, no remember-me table.
 
-**The honest counter-argument**, recorded because it is a good one: OAuth would delete *all*
-credential-handling code — PIN hashing, lockout, rate limiting, reset flow, remember-me — and on an
-Android phone where the Google account is already signed in, sign-in is genuinely one tap with no
-typing. If the PIN mechanism causes friction in the field, this is the first thing to revisit.
+**Rationale.**
+- **Materially less code.** The Google path is a starter dependency, three config lines, one
+  `SecurityFilterChain` line, and a ~20-line `OidcUserService` that resolves the verified email
+  against the allowlist. Roughly 30 lines against ~180 for PIN generation, hashing, lockout
+  counters, a reset flow, rate limiting and a remember-me scheme.
+- **It deletes a liability rather than managing one.** No attender credential is stored anywhere, so
+  a database breach yields nothing to steal and there is no weak 6-digit secret to defend.
+- **Better in the hand.** On an Android phone the Google account is already signed in, so
+  authentication is one tap with no typing — better than a PIN, not merely cheaper to build.
+- **The manager stays local, deliberately.** They are the only person who can reach the standby
+  during a cloud outage, the account that must work in a demo regardless of network, and the support
+  desk for everyone else. Their access must not depend on a third party.
 
-**Consequences.** We own credential hygiene: BCrypt cost 12, lockout, rate limiting, audited
-attempts (§11.2). A 6-digit PIN is weak in isolation and the design says so openly, compensating
-with lockout, no username enumeration, a small per-attender blast radius, and one-click revocation.
+**Consequences.**
+- A dependency on Google availability for attender sign-in. The manager can always get in, and can
+  record work on an attender's behalf via `act-as` (§9.4).
+- One-time Google Cloud console setup: consent screen and two redirect URIs (cloud and
+  `localhost`). Scopes are non-sensitive, so no Google verification review is required.
+- An OAuth client secret to manage as an environment variable (§11.5).
+- **Authentication is not integration-tested end to end.** The authorization-code flow is Spring
+  Security's code; what we wrote — the allowlist decision — is unit-tested directly, and other
+  tests use `@WithMockUser` (§12.1). This is the honest cost of the choice and is recorded rather
+  than glossed.
+- Attender email addresses become stored personal data (§11.4).
+- Two login paths instead of one. Both are small and conventional, and the split is defensible on
+  its own terms: different roles have genuinely different failure modes.
 
-**Status: settled.** This was reopened once when its original argument proved wrong, and is now
-closed on the recovery argument above, which does not depend on the network assumption.
-
-**Revisit if:** attenders find the PIN flow awkward in practice, or the user population grows past
-~20 — at which point self-service recovery matters more than manager-mediated recovery, and the
-balance flips.
+**Revisit if:** attenders turn out not to control their own Google accounts in practice, or Google
+sign-in proves unreliable on the devices actually in use.
 
 ---
 
@@ -346,7 +352,7 @@ that added implementation complexity without adding user-visible capability.
 | Skill + Continuity dispatch terms | Floor + Load only | Skill was a constant `0.5` for every candidate, so it *mathematically could not* change the ranking. Continuity cost a per-candidate lookback query for a 10% nudge |
 | Transactional outbox + `Last-Event-ID` replay | Refetch current state on reconnect | Identical screen for one manager, minus a table, a poller and replay bookkeeping |
 | `push_delivery` table | `fail_count` + a log line | A per-attempt audit table for four phones |
-| Hand-rolled device tokens | Spring Security `persistent_logins` | The framework already implements the exact same series/token design |
+| Hand-rolled device tokens, then the remember-me table itself | Nothing — Google re-auth is one tap | Superseded by ADR-002; a persistent-token scheme saved an interaction that now costs nothing |
 | `cms_docket` table + 5-state docket machine | Three columns on `complaint` | The history duplicated `audit_event`; the `VERIFIED` state gated nothing by its own definition |
 | `VANISHED` state + nightly full-sheet scan | Ignore deletions | Bought one notification, cost a second scan mode and a review path |
 | Temporal `floor_assignment` | Current coverage only | Date-filtered every dispatch query to serve rotation that does not happen; `score_snapshot` already explains past decisions |

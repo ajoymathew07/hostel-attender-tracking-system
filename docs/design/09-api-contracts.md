@@ -25,7 +25,7 @@ third-party consumers, so a version prefix would be ceremony without a payer.
 | Nulls | Omitted from responses rather than sent as `null` |
 | Casing | `camelCase` |
 | Paging | `?page=0&size=25`, envelope `{content, page, size, totalElements, totalPages}` |
-| Auth | Session cookie (`HttpOnly; Secure; SameSite=Lax`) + device token for attenders |
+| Auth | Session cookie (`HttpOnly; Secure; SameSite=Lax`). Attenders establish it via Google OIDC, the manager via form login |
 | CSRF | Spring Security tokens on all non-GET form posts |
 | Idempotency | `Idempotency-Key` header **required** on attender state-changing POSTs (§7.4) |
 
@@ -138,8 +138,8 @@ user.
 | `GET` | `/api/manager/reports/daily.xlsx` | Daily Excel export |
 | `GET` | `/api/manager/reports/weekly.xlsx` | Weekly Excel export |
 | `GET/POST` | `/api/manager/users` | List / provision accounts |
-| `POST` | `/api/manager/users/{id}/reset-pin` | Issue a new PIN |
-| `POST` | `/api/manager/users/{id}/revoke-devices` | Lost-phone response |
+| `PATCH` | `/api/manager/users/{id}/email` | Point the allowlist at a different Google account |
+| `POST` | `/api/manager/users/{id}/deactivate` | Lost-phone / departure response |
 | `POST` | `/api/manager/availability` | Mark an attender on leave |
 
 `act-as` is worth noting: it lets the manager perform an attender's transition during roll-call when
@@ -314,7 +314,7 @@ RFC 7807 problem details:
 | `NOT_ASSIGNED` | 403 | Caller does not hold an active assignment |
 | `INVALID_DOCKET` | 422 | Docket fails the configured pattern (OQ-1) |
 | `INGESTION_COLUMN_MISSING` | 422 | Required sheet column unresolvable (§5.2) |
-| `ACCOUNT_LOCKED` | 423 | Too many failed PIN attempts (§11.2) |
+| `NOT_PROVISIONED` | 403 | Google sign-in succeeded, but the email is not on the allowlist (§11.2) |
 | `VALIDATION_FAILED` | 400 | Bean-validation failure; `errors[]` lists fields |
 
 `detail` is written to be shown directly to the user. On the attender's phone there is no developer

@@ -62,7 +62,7 @@ gantt
 |---|---|---|
 | 1.1 | Maven project, package layout (§2.3), ArchUnit rules | Structure is cheapest to establish before there is code |
 | 1.2 | Flyway migrations: `app_user`, `floor`, `floor_assignment`, `complaint`, `task`, `task_assignment`, `point_ledger`, `audit_event` | The spine of the schema |
-| 1.3 | Auth: manager password, attender PIN, Spring remember-me, provisioning screen | Nothing is usable without login |
+| 1.3 | Auth: manager form login, **attender Google sign-in with allowlist**, provisioning screen | Nothing is usable without login. Google Cloud console setup (consent screen, two redirect URIs) happens here |
 | 1.4 | **CSV upload** → complaint created | Proves ingestion *without* depending on Google API credentials arriving on time |
 | 1.5 | Manager list view + **manual assign** to an attender | The heuristic can wait; the assignment concept cannot |
 | 1.6 | Attender mobile queue → *Resolve* → **+2 ledger row** | Proves the ledger and the idempotency key end to end |

@@ -99,7 +99,7 @@ graph TD
 | **analytics** | `...analytics` | MTTR, bottlenecks, anomaly detection | Read-only over the ledger and audit tables |
 | **notification** | `...notification` | Fan-out of domain events to manager SSE streams **and attender Web Push**, on `AFTER_COMMIT` | Delivery is best-effort; never blocks or rolls back a transaction |
 | **reporting** | `...reporting` | `.xlsx` generation via Apache POI | Reports are point-in-time snapshots, reproducible from stored data |
-| **identity** | `...identity` | Users, roles, PINs, device tokens, provisioning | No self-registration; every principal is pre-provisioned |
+| **identity** | `...identity` | Users, roles, Google allowlist, manager password, provisioning | No self-registration; every principal is pre-provisioned |
 | **audit** | `...audit` | Append-only event log | Written in the same transaction as the change it records |
 
 **Root package:** `in.ac.iitm.hostel.duty`
@@ -201,7 +201,7 @@ and everything they do lands in the one real database.
 | Reached by | Attenders and manager, over HTTPS | Manager only, on `localhost` |
 | Sheets ingestion | Active, polled | Active — internet is available |
 | Notifications | SSE + Web Push | SSE to the manager; push still delivered |
-| Authentication | Local credentials | Local credentials, unchanged |
+| Authentication | Google (attenders) + password (manager) | Manager password only — attenders cannot reach `localhost` anyway |
 | Purpose | Day-to-day operation | Continuity when the app tier is down |
 
 This is deliberately the *boring* answer, and it is boring in a useful way. An earlier draft ran the
@@ -220,7 +220,7 @@ back to pen and paper, exactly as they do today, and enters the backlog afterwar
 | Concern | Approach |
 |---|---|
 | **Configuration** | Spring profiles: `local` (dev) and `cloud` (production and standby — identical config bar the bind address). All tunables (dispatch weights, thresholds, SLA table, poll interval, CMS regex) are `@ConfigurationProperties`, never constants. |
-| **Secrets** | Environment variables only. The Google service-account JSON is supplied as a base64 env var, never a committed file. `.gitignore` blocks the obvious filenames (§11.5). |
+| **Secrets** | Environment variables only. The Sheets service-account JSON is supplied as a base64 env var and the OAuth client secret as a plain one — never committed files. `.gitignore` blocks the obvious filenames (§11.5). |
 | **Migrations** | Flyway, forward-only, versioned, PostgreSQL-only. Schema changes never hand-edited. |
 | **Errors** | `@ControllerAdvice` maps domain exceptions to the RFC 7807 problem envelope (§9.7). |
 | **Observability** | Spring Actuator health/metrics; structured logging with a correlation ID per request and per ingestion run. |

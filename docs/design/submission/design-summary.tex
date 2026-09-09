@@ -88,38 +88,69 @@ they solved a scale problem this system will never have.
 % =========================== 2. AUTH ========================================
 \section{Authentication \& Access Control}
 
-\textbf{Invite-only provisioning with local credentials. No self-registration, and no OAuth.}
-Every principal is a pre-provisioned \code{app\_user} row created by the manager.
+\textbf{Google sign-in for attenders, a local password for the manager, invite-only provisioning for
+both.} There is no self-registration: every principal is a pre-provisioned \code{app\_user} row
+created by the manager.
 
-\begin{tabularx}{\linewidth}{@{}l l l X@{}}
+\begin{tabularx}{\linewidth}{@{}l X X@{}}
 \toprule
-& \textbf{Credential} & \textbf{Session} & \textbf{Notes}\\
+& \textbf{Manager} & \textbf{Attender}\\
 \midrule
-Manager  & Username + password ($\ge$12 chars) & 12\,h idle timeout & BCrypt cost 12 \\
-Attender & \textbf{Per-user} 6-digit PIN & + 90-day device token & PIN typed once per phone \\
+Mechanism & Username + password (form login) & Google OIDC (\code{openid, email, profile}) \\
+Credential stored & BCrypt hash, cost 12 & \textbf{None} \\
+Admission decided by & Password check & Verified email present and active in \code{app\_user} \\
+Re-authentication & Type the password & One tap --- account already signed in on Android \\
 \bottomrule
 \end{tabularx}
 
-Each attender has their own PIN. On provisioning the system generates a random 6-digit value,
-shows it \emph{once} to the manager to hand over, and stores only the BCrypt hash --- a forgotten
-PIN is reset, never looked up. Device tokens use Spring Security's own
-\code{PersistentTokenBasedRememberMeServices} and its \code{persistent\_logins} table --- a series
-identifier plus a single-use token rotated on every request, so a stolen cookie stops working the
-moment the real device authenticates again.
+\subsection{Why the split}
 
-\keybox{Why no Google OAuth?}{\textbf{Account recovery.} If an attender loses access to their
-Google account, neither the developer nor the manager can do anything --- recovery sits entirely
-with Google. With a PIN the manager clicks \emph{reset} and reads out a new six-digit number. For
-four low-tech staff whose only support desk is the Hostel Manager, that decides it. Local
-credentials also need no Google or institute account at all, so supporting non-institute staff is
-achieved by \emph{removing} an external dependency rather than adding one. The cost is accepted
-openly: we now own credential hygiene, and a 6-digit PIN is weak without the controls below.}
+Attenders get the mechanism with \textbf{no credential to lose, forget or leak}, and re-entry costs
+a single tap on a phone where the Google account is already active --- better in the hand than a PIN,
+not merely cheaper to build. The manager gets the mechanism with \textbf{no external dependency},
+because they are the only person who can reach the standby during a cloud outage, theirs is the
+account that must work in a demo whatever the network does, and they are the support desk that fixes
+everyone else's access.
 
-A 6-digit PIN is weak in isolation ($10^6$ space) and the design says so rather than implying
-otherwise. It is acceptable only because of the controls around it: lockout after 5 failures with
-a 15-minute cooldown, 10 attempts/minute/IP, identity chosen from a 4-name list so there is no
-username to enumerate, every attempt audited, and a small blast radius --- an attender can see only
-their own queue and their own points.
+\keybox{The allowlist is the access-control boundary.}{Google establishes \emph{who someone is}; it
+has no opinion on whether they may use this system. That decision is ours, made in one place --- a
+custom \code{OidcUserService} that resolves the verified email against \code{app\_user} and throws
+if there is no matching active row. A sign-in from any other Google account, institute or personal,
+is rejected without creating anything. Emails are normalised before comparison and matched only
+against the \code{email\_verified} claim, never a self-asserted address.}
+
+\subsection{What this removes, and what it adds}
+
+Choosing Google deletes PIN generation and hashing, lockout counters, a reset flow, credential rate
+limiting and a remember-me token table --- roughly 30 lines of configuration and allowlist logic in
+place of about 180. None of those can fail if none of them exist, and there is no weak six-digit
+secret to defend.
+
+The costs are real and worth stating rather than glossing:
+
+\begin{tabularx}{\linewidth}{@{}p{5.0cm} X@{}}
+\toprule
+\textbf{New exposure} & \textbf{Assessment}\\
+\midrule
+Dependency on Google availability & Attenders cannot sign in if Google OIDC is unreachable. The
+  manager always can, and can record work on their behalf via \code{act-as} \\
+Authentication not integration-tested end to end & The authorization-code flow is Spring Security's
+  code. What \emph{we} wrote --- the allowlist decision --- is unit-tested directly; other tests use
+  \code{@WithMockUser} \\
+OAuth client secret, two redirect URIs & One environment variable and a one-time console setup
+  (cloud URL and \code{localhost}). Scopes are non-sensitive, so no Google review is needed \\
+Recovery is partly external; emails stored & If an attender loses their Google account the manager
+  repoints the allowlist, but they must first have \emph{some} working account. Their email is
+  personal data (Sec.~7) \\
+\bottomrule
+\end{tabularx}
+
+The manager's password is rate-limited to 10 attempts/minute/IP rather than locked out after $N$
+failures. Lockout on a single-administrator account is itself a denial of service: anyone who knows
+the username could lock out the only person able to undo it.
+
+Revoking a lost phone is \code{active = false}, which blocks the next sign-in immediately and
+revokes that user's push subscriptions in the same action; the session expires within 12 hours.
 
 \subsection{Authorization matrix}
 
@@ -136,7 +167,7 @@ Start / inspect / record docket / resolve & via \code{act-as} & \textbf{own assi
 Claim special duties & no & yes \\
 Log penalties, adjustments, post special duties & yes & no \\
 View leaderboard & full & ranks + own detail \\
-Provision users, reset PINs, revoke devices & yes & no \\
+Provision users, edit the allowlist, deactivate accounts & yes & no \\
 Export reports; edit lexicon, weights, SLA table & yes & no \\
 \bottomrule
 \end{tabularx}
@@ -211,7 +242,7 @@ code paths.
 \draw[fld] (ing.south) -- ++(0,-6mm) -| (pg.west);
 
 % --- notification fan-out ---
-\node[abox,right=6mm of wf,text width=16mm,yshift=-9mm] (notif) {\textbf{Notify}\\\tiny outbox};
+\node[abox,right=6mm of wf,text width=16mm,yshift=-9mm] (notif) {\textbf{Notify}\\\tiny after commit};
 \draw[fl] (wf.east) -- ++(3mm,0) |- (notif.west);
 \draw[fl] (led.east) -- ++(3mm,0) |- (notif.west);
 
@@ -259,7 +290,7 @@ analytics & \ttiny{...analytics} & MTTR, bottlenecks, anomaly detection.
   \textit{Read-only over ledger and audit.} \\
 reporting & \ttiny{...reporting} & \code{.xlsx} generation via Apache POI.
   \textit{Reports are reproducible point-in-time snapshots.} \\
-identity & \ttiny{...identity} & Users, roles, PINs, device tokens, provisioning.
+identity & \ttiny{...identity} & Users, roles, Google allowlist, manager password, provisioning.
   \textit{No self-registration; every principal is pre-provisioned.} \\
 audit & \ttiny{...audit} & Append-only event log.
   \textit{Written in the same transaction as the change it records.} \\
@@ -334,7 +365,7 @@ Database & Managed PostgreSQL & \textbf{The same} managed PostgreSQL \\
 Reached by & Attenders and manager, HTTPS & Manager only, on \code{localhost} \\
 Ingestion & Sheets polling + CSV & Both --- internet is available \\
 Notifications & SSE + Web Push & SSE + Web Push \\
-Authentication & Local credentials & Local credentials, unchanged \\
+Authentication & Google (attenders) + password (manager) & Manager password --- no Google round-trip \\
 Purpose & Day-to-day operation & Continuity when the app tier is down \\
 \bottomrule
 \end{tabularx}
@@ -378,11 +409,11 @@ arise. Residual risk is the managed database failing, which no application desig
     \end{tabular}};}
 
 % ---- column 1: identity & coverage ----
-\entity{0,0}{user}{APP\_USER}{\tiny id, username, role,\\\tiny password/pin\_hash,\\\tiny active, \textbf{version}}
-\entity{0,-2.05}{devtok}{PERSISTENT\_LOGINS}{\tiny series (pk), token,\\\tiny \tiny Spring Security's own table}
-\entity{0,-3.65}{push}{PUSH\_SUBSCRIPTION}{\tiny endpoint (uq), keys,\\\tiny fail\_count, revoked\_at}
-\entity{0,-5.25}{floora}{FLOOR\_ASSIGNMENT}{\tiny floor\_id,\\\tiny coverage (PRIMARY/SECONDARY)}
-\entity{0,-6.8}{avail}{AVAILABILITY\_WINDOW}{\tiny status, starts\_at, ends\_at}
+\entity{0,0}{user}{APP\_USER}{\tiny id, role, display\_name,\\\tiny \textbf{email} (uq, allowlist),\\\tiny username, password\_hash,\\\tiny active, \textbf{version}}
+\entity{0,-2.05}{push}{PUSH\_SUBSCRIPTION}{\tiny endpoint (uq), keys,\\\tiny fail\_count, revoked\_at}
+\entity{0,-3.65}{floora}{FLOOR\_ASSIGNMENT}{\tiny floor\_id,\\\tiny coverage (PRIMARY/SECONDARY)}
+\entity{0,-5.25}{avail}{AVAILABILITY\_WINDOW}{\tiny status, starts\_at, ends\_at}
+\entity{0,-6.85}{floorent}{FLOOR}{\tiny wing, floor\_number, label}
 
 % ---- column 2: ingestion & complaint ----
 \entity{4.9,-0.15}{src}{SOURCE\_ROW}{\tiny \textbf{response\_key} (uq),\\\tiny content\_hash, state}
@@ -394,11 +425,12 @@ arise. Residual risk is the managed database failing, which no application desig
 \entity{10.0,-6.0}{ledger}{POINT\_LEDGER}{\tiny reason\_code, points, period\_key,\\\tiny effective\_date,\\\tiny \textbf{idempotency\_key} (uq)}
 
 % ---- relations: APP_USER owns the left column (vertical bus) ----
-\draw[fl] (user.south) -- (devtok.north);
+\draw[fl] (user.south) -- (push.north);
 \coordinate (bus) at (-2.35,0);
 \draw[draw=ink!65,line width=0.45pt] (user.west) -- (bus);
-\draw[draw=ink!65,line width=0.45pt] (bus) -- (-2.35,-6.8);
-\foreach \n in {push,floora,avail}{\draw[fl] (\n.west -| bus) -- (\n.west);}
+\draw[draw=ink!65,line width=0.45pt] (bus) -- (-2.35,-5.25);
+\foreach \n in {floora,avail}{\draw[fl] (\n.west -| bus) -- (\n.west);}
+\draw[fl] (floorent.east) -- ++(0.55,0) |- node[lbl,right,pos=0.25]{1 : N} (floora.east);
 
 % ---- ingestion chain ----
 \draw[fl] (src.south) -- node[lbl,right]{1 : 0..1} (comp.north);
@@ -459,7 +491,7 @@ trustworthy rather than decorative.
 \ttiny{actor\_id, actor\_role} & Who did it. \code{NULL} for system/scheduler actions \\
 \ttiny{on\_behalf\_of} & Set when the manager used \code{act-as}; the points still go to the attender \\
 \ttiny{entity\_type, entity\_id} & What was changed --- \code{COMPLAINT}, \code{TASK}, \code{LEDGER}, \code{APP\_USER}, \dots \\
-\ttiny{event\_type} & \code{TRANSITION}, \code{POINTS\_CREDITED}, \code{PENALTY\_LOGGED}, \code{LOGIN\_FAILED}, \code{PIN\_RESET}, \code{DEVICES\_REVOKED}, \code{CONFIG\_CHANGED}, \dots \\
+\ttiny{event\_type} & \code{TRANSITION}, \code{POINTS\_CREDITED}, \code{PENALTY\_LOGGED}, \code{SIGN\_IN}, \code{SIGN\_IN\_REJECTED}, \code{USER\_PROVISIONED}, \code{CONFIG\_CHANGED}, \dots \\
 \ttiny{from\_state, to\_state} & For transitions, the exact edge taken \\
 \ttiny{detail} & JSON payload: reason text, dispatch score snapshot, old/new config values \\
 \ttiny{correlation\_id} & Groups everything caused by one request or one ingestion run \\
@@ -482,8 +514,8 @@ ticket ends up \code{RESOLVED} with no docket, or credited twice.
 The \emph{only} way to change it is
 \code{WorkflowService.transition(id, event, actor, payload)}, which loads the aggregate with its
 \code{version}, rejects any \code{(state, event)} pair absent from the transition table, evaluates
-the guard, then applies the change, side effects, audit row and outbox row \textbf{in one
-transaction}. Controllers, the scheduler and the CSV importer all funnel through it.
+the guard, then applies the change, its side effects and the audit row \textbf{in one transaction};
+notifications fire separately on \code{AFTER\_COMMIT}. Controllers, the scheduler and the CSV importer all funnel through it.
 
 \begin{figure}[H]
 \centering
@@ -678,7 +710,7 @@ Resident email & Contacting the reporter when details are unclear & 90 days, the
 Room number & \textbf{Operationally essential} --- dispatch depends on it & 1 year \\
 Complaint text & Diagnosis, classification, chronic-defect detection & 1 year, then \code{[purged]} \\
 Attender name & Assignment, leaderboard & Life of employment \\
-Attender PIN & Authentication & BCrypt hash only, never plaintext \\
+Attender Google email & Allowlist key; identifies the actor in the audit log & Life of employment \\
 Push endpoint + keys & Delivering assignment alerts & Until revoked or 3 failures \\
 Audit log, point ledger & Bonus dispute resolution & Indefinite \\
 \bottomrule
@@ -722,8 +754,8 @@ access to a single sheet.
 \textbf{Module} & \textbf{Libraries \& technology} & \textbf{Milestone}\\
 \midrule
 identity &
-  Spring Security 6 (form login, roles), BCrypt cost 12,
-  \code{PersistentTokenBasedRememberMeServices} &
+  Spring Security 6: OAuth2 client (Google OIDC) for attenders, form login + BCrypt cost 12
+  for the manager, custom \code{OidcUserService} for the allowlist &
   S1 \textit{(12--18 Sep)} \\
 persistence &
   Spring Data JPA / Hibernate 6, Flyway (forward-only migrations), HikariCP,
@@ -778,7 +810,7 @@ reporting &
   Apache POI (\code{poi-ooxml}) for multi-tab \code{.xlsx} export &
   S7 \textit{(24--30 Oct)} \\
 notification &
-  Spring MVC \code{SseEmitter} + transactional outbox; \code{nl.martijndwars:web-push}
+  Spring MVC \code{SseEmitter} on \code{AFTER\_COMMIT}; \code{nl.martijndwars:web-push}
   with VAPID for attender push &
   S7 \\
 testing &
