@@ -102,14 +102,18 @@ Attender & \textbf{Per-user} 6-digit PIN & + 90-day device token & PIN typed onc
 
 Each attender has their own PIN. On provisioning the system generates a random 6-digit value,
 shows it \emph{once} to the manager to hand over, and stores only the BCrypt hash --- a forgotten
-PIN is reset, never looked up. Device tokens use a split scheme: a public \code{selector} for
-indexed lookup and a \code{validator} stored only as SHA-256, rotated on every use.
+PIN is reset, never looked up. Device tokens use Spring Security's own
+\code{PersistentTokenBasedRememberMeServices} and its \code{persistent\_logins} table --- a series
+identifier plus a single-use token rotated on every request, so a stolen cookie stops working the
+moment the real device authenticates again.
 
-\keybox{Why no Google OAuth?}{The design requires an offline fallback server on the manager's
-desktop for outages. \textbf{OAuth cannot complete a redirect flow without internet} --- it would
-fail during precisely the outage the fallback exists for. Local credentials also need no institute
-account, so supporting non-institute staff is achieved by \emph{removing} an external dependency
-rather than adding one.}
+\keybox{Why no Google OAuth?}{\textbf{Account recovery.} If an attender loses access to their
+Google account, neither the developer nor the manager can do anything --- recovery sits entirely
+with Google. With a PIN the manager clicks \emph{reset} and reads out a new six-digit number. For
+four low-tech staff whose only support desk is the Hostel Manager, that decides it. Local
+credentials also need no Google or institute account at all, so supporting non-institute staff is
+achieved by \emph{removing} an external dependency rather than adding one. The cost is accepted
+openly: we now own credential hygiene, and a 6-digit PIN is weak without the controls below.}
 
 A 6-digit PIN is weak in isolation ($10^6$ space) and the design says so rather than implying
 otherwise. It is acceptable only because of the controls around it: lockout after 5 failures with
@@ -298,51 +302,53 @@ enforced, so they must sit in one predictable place.
 \draw[fl] (phone.east) -- node[lbl,above,pos=0.6]{HTTPS} (jar.north west);
 \draw[fl] (desk.east)  -- node[lbl,below,pos=0.6]{HTTPS} (jar.south west);
 
-% ---- offline fallback ----
-\node[wbox,text width=27mm] (jarl) at (3.1,-2.55) {\textbf{app.jar}\\\tiny localhost:8080};
-\node[db,text width=22mm]   (h2)   at (7.0,-2.55) {H2 file DB};
-\draw[fl] (jarl) -- (h2);
+% ---- standby ----
+\node[wbox,text width=27mm] (jarl) at (3.1,-2.55) {\textbf{app.jar} \tiny(same build)\\\tiny localhost:8080};
 
-\draw[fld] (desk.south) -- (-1.4,-2.55) -- node[lbl,above,pos=0.55]{during outage} (jarl.west);
-\draw[fld] (pgc.south) -- node[lbl,right,pos=0.5]{nightly dump} (h2.north);
+\draw[fld] (desk.south) -- (-1.4,-2.55) -- node[lbl,above,pos=0.55]{cloud app tier down} (jarl.west);
+\coordinate (join) at (7.0,-2.55);
+\draw[fld] (jarl.east) -- node[lbl,above]{\ttfamily same DATABASE\_URL} (join);
+\draw[fld] (join) -- (pgc.south);
 \draw[fld] ([xshift=6mm]jar.north) -- node[lbl,right,pos=0.85]{Web Push} (wp.south);
 \draw[fld] ([xshift=-6mm]jar.north) -- node[lbl,left,pos=0.85]{poll} (gs.south);
 
 \begin{scope}[on background layer]
   \node[grp,fit=(jar)(pgc),inner xsep=9pt,inner ysep=8pt] (cb) {};
-  \node[grp,fit=(jarl)(h2),inner xsep=9pt,inner ysep=8pt] (fb) {};
+  \node[grp,fit=(jarl),inner xsep=9pt,inner ysep=8pt] (fb) {};
 \end{scope}
 \node[font=\scriptsize\bfseries\color{accent},anchor=west] at ([xshift=2pt,yshift=6pt]cb.north west)
   {Cloud --- Render / Railway free tier};
 \node[font=\scriptsize\bfseries\color{warm},anchor=west] at ([xshift=2pt,yshift=6pt]fb.north west)
-  {Offline fallback --- manager's desktop};
+  {Standby --- manager's desktop};
 \end{tikzpicture}
-\caption{Deployment. The fallback jar runs with \emph{no internet at all} --- which is why
-authentication is local (Sec.~2) and why Sheets ingestion and Web Push are both disabled there,
-leaving CSV upload as the input path.}
+\caption{Deployment. \textbf{One database.} The standby is the same jar with the same
+\code{DATABASE\_URL}, started on the manager's desktop when the cloud app tier is down. The outage
+designed for is the \emph{platform} failing, not the network.}
 \end{figure}
 
 \begin{tabularx}{\linewidth}{@{}p{2.6cm} X X@{}}
 \toprule
-& \textbf{Cloud (primary)} & \textbf{Local (fallback)}\\
+& \textbf{Cloud (primary)} & \textbf{Standby (manager's desktop)}\\
 \midrule
-Database & Managed PostgreSQL & H2 file mode \\
-Ingestion & Sheets polling + CSV & CSV upload only \\
-Notifications & SSE + Web Push & SSE only (no internet) \\
-Authentication & Local credentials & Local credentials --- works offline \\
-Purpose & Day-to-day operation & Business continuity during an outage \\
+Database & Managed PostgreSQL & \textbf{The same} managed PostgreSQL \\
+Reached by & Attenders and manager, HTTPS & Manager only, on \code{localhost} \\
+Ingestion & Sheets polling + CSV & Both --- internet is available \\
+Notifications & SSE + Web Push & SSE + Web Push \\
+Authentication & Local credentials & Local credentials, unchanged \\
+Purpose & Day-to-day operation & Continuity when the app tier is down \\
 \bottomrule
 \end{tabularx}
 
-Free-tier instances sleep when idle, so \code{@Scheduled} polling alone is unreliable. Three
-mitigations: a \textbf{Sync~Now} button that is the guaranteed path and also wakes the instance;
-catch-up ingestion on startup (safe because delta detection is watermark-and-hash based, not
-time based); and a database-backed lock (ShedLock) so two instances could never double-ingest.
+Free-tier instances sleep when idle, so \code{@Scheduled} polling alone is unreliable. Mitigations:
+a \textbf{Sync~Now} button that is the guaranteed path and also wakes the instance, and catch-up
+ingestion on startup --- safe because delta detection is watermark-based rather than time-based, so
+a six-hour gap and a six-minute gap take the identical code path.
 
-The schema is deliberately constrained to the SQL subset \emph{both} engines accept --- identity
-columns rather than \code{SERIAL}, \code{TEXT} holding JSON rather than \code{JSONB}, and plain
-\code{UNIQUE} rather than partial indexes --- so the correctness-bearing constraints behave
-identically on cloud and fallback.
+An earlier draft ran the standby on embedded H2 seeded from a nightly dump. That forced every
+migration into the SQL subset both engines accept, and left an unsolved problem: \textbf{work done
+during an outage had no path back into the cloud database.} Two diverging copies of the points
+ledger is precisely the failure this system exists to prevent --- one database means it cannot
+arise. Residual risk is the managed database failing, which no application design fixes.
 
 % =========================== 4. DATA MODEL ==================================
 \section{Data Model}
@@ -373,15 +379,14 @@ identically on cloud and fallback.
 
 % ---- column 1: identity & coverage ----
 \entity{0,0}{user}{APP\_USER}{\tiny id, username, role,\\\tiny password/pin\_hash,\\\tiny active, \textbf{version}}
-\entity{0,-2.05}{devtok}{DEVICE\_TOKEN}{\tiny selector, token\_hash,\\\tiny expires\_at, revoked\_at}
+\entity{0,-2.05}{devtok}{PERSISTENT\_LOGINS}{\tiny series (pk), token,\\\tiny \tiny Spring Security's own table}
 \entity{0,-3.65}{push}{PUSH\_SUBSCRIPTION}{\tiny endpoint (uq), keys,\\\tiny fail\_count, revoked\_at}
-\entity{0,-5.25}{floora}{FLOOR\_ASSIGNMENT}{\tiny floor\_id, coverage,\\\tiny valid\_from / valid\_to}
+\entity{0,-5.25}{floora}{FLOOR\_ASSIGNMENT}{\tiny floor\_id,\\\tiny coverage (PRIMARY/SECONDARY)}
 \entity{0,-6.8}{avail}{AVAILABILITY\_WINDOW}{\tiny status, starts\_at, ends\_at}
 
 % ---- column 2: ingestion & complaint ----
-\entity{4.9,-0.15}{src}{SOURCE\_ROW}{\tiny \textbf{response\_key} (uq),\\\tiny content\_hash, state, revision}
-\entity{4.9,-2.4}{comp}{COMPLAINT}{\tiny public\_ref, raw\_text, floor\_id,\\\tiny domain, confidence, priority,\\\tiny status, sla\_due\_at, \textbf{version}}
-\entity{4.9,-5.0}{docket}{CMS\_DOCKET}{\tiny docket\_no, docket\_state,\\\tiny superseded\_at}
+\entity{4.9,-0.15}{src}{SOURCE\_ROW}{\tiny \textbf{response\_key} (uq),\\\tiny content\_hash, state}
+\entity{4.9,-2.4}{comp}{COMPLAINT}{\tiny public\_ref, raw\_text, floor\_id,\\\tiny domain, confidence, priority,\\\tiny status, sla\_due\_at,\\\tiny \textit{docket\_no, docket\_filed\_at,}\\\tiny \textit{docket\_filed\_by}, \textbf{version}}
 
 % ---- column 3: work & points ----
 \entity{10.0,-1.2}{task}{TASK}{\tiny task\_type, title, point\_value,\\\tiny shared, status, \textbf{version}}
@@ -397,7 +402,6 @@ identically on cloud and fallback.
 
 % ---- ingestion chain ----
 \draw[fl] (src.south) -- node[lbl,right]{1 : 0..1} (comp.north);
-\draw[fl] (comp.south) -- node[lbl,right]{1 : N} (docket.north);
 
 % ---- complaint -> work ----
 \draw[fl] (comp.east) -- node[lbl,above,pos=0.45]{1 : 0..1} (task.west);
@@ -410,17 +414,17 @@ identically on cloud and fallback.
 \draw[fl] (12.6,-6.0) -- (ledger.east);
 
 % ---- cross-cutting tables ----
-\entity{0.1,-8.55}{audit}{AUDIT\_EVENT}{\tiny actor, entity\_type, entity\_id,\\\tiny event\_type, from/to\_state, detail}
-\entity{4.9,-8.55}{outbox}{OUTBOX\_EVENT}{\tiny event\_type, payload,\\\tiny created\_at, published\_at}
-\entity{9.5,-8.55}{alert}{ANALYTICS\_ALERT}{\tiny detector, severity, evidence,\\\tiny dedupe\_key (uq)}
-\node[font=\tiny\itshape,text=ink!70,anchor=west] at (-2.35,-9.5)
-  {Cross-cutting tables: referenced by (entity\_type, entity\_id) rather than by foreign key, so they can record any aggregate.};
+\entity{0.1,-7.95}{audit}{AUDIT\_EVENT}{\tiny actor, entity\_type, entity\_id,\\\tiny event\_type, from/to\_state, detail}
+\entity{4.9,-7.95}{run}{INGESTION\_RUN}{\tiny source, trigger, started/finished,\\\tiny rows\_created, rows\_skipped}
+\entity{9.5,-7.95}{alert}{ANALYTICS\_ALERT}{\tiny detector, severity, evidence,\\\tiny dedupe\_key (uq)}
+\node[font=\tiny\itshape,text=ink!70,anchor=west] at (-2.35,-8.75)
+  {Supporting tables. AUDIT\_EVENT references any aggregate by (entity\_type, entity\_id) rather than by foreign key, so one table records every change.};
 \end{tikzpicture}
 \caption{Core entities. Bold fields carry the guarantees: \code{version} for optimistic locking,
 \code{response\_key} for ingestion identity, \code{idempotency\_key} for point integrity.}
 \end{figure}
 
-\subsection{The three constraints that carry the design}
+\subsection{The two constraints that carry the design}
 
 \begin{tabularx}{\linewidth}{@{}p{4.5cm} X@{}}
 \toprule
@@ -434,8 +438,6 @@ identically on cloud and fallback.
   Double-crediting. The key is derived from the \emph{work}
   (\code{RESOLVE:\{task\}:\{attender\}}), not the request, so a retry on flaky hostel Wi-Fi ---
   the expected case, not an exotic one --- collides and is swallowed as a no-op. \\
-\ttiny{uq\_push\_delivery}\newline\tiny(subscription, outbox\_event) &
-  Buzzing the same phone twice for one event when the outbox poller re-runs after a crash. \\
 \bottomrule
 \end{tabularx}
 
@@ -598,34 +600,35 @@ case, handled by construction rather than a special branch.
 
 \subsection{Stage 2 --- score the eligible set}
 
-\[ \mathrm{Score}(a,c)=w_f\!\cdot\!\mathrm{Floor}(a,c)\;+\;w_l\!\cdot\!\mathrm{Load}(a)\;+\;w_s\!\cdot\!\mathrm{Skill}(a,c.d)\;+\;w_c\!\cdot\!\mathrm{Continuity}(a,c) \]
+\[ \mathrm{Score}(a,c)=w_f\!\cdot\!\mathrm{Floor}(a,c)\;+\;w_l\!\cdot\!\mathrm{Load}(a) \]
 
-Every component is normalised to $[0,1]$ and the weights sum to 1, so $\mathrm{Score}\in[0,1]$ and
-each weight reads directly as ``how much does this factor matter''.
+Two terms, each normalised to $[0,1]$, weights summing to 1, so $\mathrm{Score}\in[0,1]$ and each
+weight reads directly as ``how much does this factor matter''.
 
 \begin{tabularx}{\linewidth}{@{}p{2.45cm} p{1.15cm} X@{}}
 \toprule
 \textbf{Term} & \textbf{Weight} & \textbf{Definition}\\
 \midrule
-\textbf{Floor} proximity & $w_f=0.45$ &
+\textbf{Floor} proximity & $w_f=0.60$ &
   \code{PRIMARY} coverage $=1.00$; \code{SECONDARY} $=0.70$; adjacent floor same wing $=0.40$;
   same wing $|\Delta|\!\ge\!2$ is $\max(0.10,\,0.35-0.05|\Delta|)$; different wing $=0.10$.
   Non-zero for distant attenders on purpose: when the primary is away someone still has to go. \\
-\textbf{Load} (free capacity) & $w_l=0.30$ &
+\textbf{Load} (free capacity) & $w_l=0.40$ &
   $L(a)=\sum_t \pi(t)$ over active tasks with $\pi(\text{P1})\!=\!3,\pi(\text{P2})\!=\!2,\pi(\text{P3})\!=\!1$;
   $\mathrm{Load}(a)=1-\min(1,L(a)/L_{cap})$, $L_{cap}=8$. Weighting by priority reflects reality ---
   three P1 electrical faults is not three P3 cosmetic complaints. \code{ON\_HOLD} counts 0. \\
-\textbf{Skill} in domain & $w_s=0.15$ &
-  Neutral $0.5$ by default, since we do not yet know whether attenders specialise. The term
-  contributes nothing until we have evidence --- the heuristic never invents a preference. \\
-\textbf{Continuity} & $w_c=0.10$ &
-  $1.0$ if the attender resolved a complaint in the same room within 14 days, $0.5$ same floor,
-  else $0$. A recurring fault is faster for whoever saw it last. \\
 \bottomrule
 \end{tabularx}
 
-Floor coverage is evaluated \textbf{as it stood at the complaint's report time}, not today's, so a
-decision made last month can still be explained using the roster that was actually in force.
+\textbf{Two terms were cut, and the reason generalises.} An earlier draft added a \emph{domain
+skill} term and a \emph{continuity} term. Skill defaulted to a neutral $0.5$ for every attender,
+because we do not know whether attenders specialise --- and a constant added identically to every
+candidate \textbf{cannot change the ranking}. It was arithmetic that looked like intelligence.
+Continuity (has this attender worked this room lately?) carried 10\% weight and cost a 14-day
+lookback query per candidate; the signal it captures is used to better effect by the chronic-defect
+detector, which tells the manager to \emph{replace the fixture} rather than merely routing the next
+complaint to the same person. What remains is a dozen lines of pure Java with no framework
+involvement.
 
 \subsection{Stage 3 --- select, tie-break, record}
 
@@ -719,7 +722,8 @@ access to a single sheet.
 \textbf{Module} & \textbf{Libraries \& technology} & \textbf{Milestone}\\
 \midrule
 identity &
-  Spring Security 6 (form login, roles), BCrypt cost 12, split-token remember-me &
+  Spring Security 6 (form login, roles), BCrypt cost 12,
+  \code{PersistentTokenBasedRememberMeServices} &
   S1 \textit{(12--18 Sep)} \\
 persistence &
   Spring Data JPA / Hibernate 6, Flyway (forward-only migrations), HikariCP,
@@ -754,7 +758,7 @@ web (manager) &
   Thymeleaf, Tailwind CSS (purged), Chart.js 4 &
   S4 \textit{(3--9 Oct)} \\
 web (attender) &
-  Thymeleaf server-rendered shell + PWA service worker, IndexedDB offline queue &
+  Thymeleaf server-rendered shell + PWA service worker (push receiver) &
   S4 \\
 validation &
   Hibernate Validator (Jakarta Bean Validation) --- entity constraints, CMS docket pattern &
@@ -846,9 +850,9 @@ drift re-scoring.
 \midrule
 Identical simultaneous submissions, two residents & Two complaints --- distinct \code{response\_key} \\
 Byte-identical resubmission by one resident & One complaint --- key collides \\
-Same CSV uploaded twice during an outage & Zero duplicates \\
+Same CSV uploaded twice by mistake & Zero duplicates \\
 Sheet row deleted, shifting all indices below & \textbf{Zero spurious amendments} \\
-Sheet row deleted entirely & \code{VANISHED}; the complaint survives and the manager is flagged \\
+Sheet row deleted entirely & Ignored --- the sheet is an inbox, the complaint is unaffected \\
 Required column renamed & Run fails loudly, never a silent partial ingest \\
 Tamil-transliterated text (``thanni varala'') & Lexicon/fuzzy hit or triage --- never a confident wrong domain \\
 Resolve attempted with no docket & \code{GUARD\_FAILED} 422 \\

@@ -61,9 +61,15 @@ clarified to mean *the cloud platform*, not the network, that argument collapsed
 weaker but real grounds, and it is worth being explicit that it is now a closer call:
 
 **Rationale (revised).**
+- **Account recovery — the deciding factor.** If an attender loses access to their Google account,
+  neither the developer nor the manager can do anything: recovery sits entirely with Google. With a
+  PIN, the manager clicks *reset* and reads out a new six-digit number. The manager is the only
+  support desk these four people have, and handing their access to a third party we cannot
+  intervene with is the wrong trade for a system this small.
 - Local credentials require no Google account at all, so "non-institute people must have access" is
   met by *removing* an external dependency rather than adding one. Whether every attender reliably
-  has and can use a Google account is an assumption we would rather not take.
+  has, remembers, and controls their own Google account — as opposed to one set up by a family
+  member — is an assumption we would rather not take.
 - OAuth would add a consent screen, a client ID and secret, redirect URIs for two environments, and
   a second login path to build and test — for a five-account system.
 - **Explainability.** Every line must be defensible in a viva. "BCrypt-compare a PIN, count
@@ -80,8 +86,12 @@ typing. If the PIN mechanism causes friction in the field, this is the first thi
 attempts (§11.2). A 6-digit PIN is weak in isolation and the design says so openly, compensating
 with lockout, no username enumeration, a small per-attender blast radius, and one-click revocation.
 
+**Status: settled.** This was reopened once when its original argument proved wrong, and is now
+closed on the recovery argument above, which does not depend on the network assumption.
+
 **Revisit if:** attenders find the PIN flow awkward in practice, or the user population grows past
-~20.
+~20 — at which point self-service recovery matters more than manager-mediated recovery, and the
+balance flips.
 
 ---
 
