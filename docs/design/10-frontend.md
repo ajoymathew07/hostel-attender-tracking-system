@@ -162,7 +162,7 @@ makes the one-click correction feel like collaboration rather than cleanup after
 
 | Screen | Route | Audience |
 |---|---|---|
-| Login | `/login` | Both — manager password form, plus a "Sign in with Google" button for attenders |
+| Login | `/login` | Both — a single "Sign in with Google" button; role comes from the allowlist |
 | Manager dashboard | `/` | Manager |
 | Complaint detail | `/complaints/{ref}` | Manager — full audit timeline, score breakdown, docket history |
 | Attender queue | `/m` | Attender |

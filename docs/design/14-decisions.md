@@ -43,60 +43,59 @@ inadequate.
 
 ---
 
-## ADR-002 · Google sign-in for attenders, local password for the manager
+## ADR-002 · Google sign-in for everyone, admitted by an allowlist
 
-**Status:** Accepted · 9 Sep 2026 — **reverses** the earlier local-credentials-only decision
+**Status:** Accepted · 9 Sep 2026 — third revision; supersedes both local credentials and the
+manager/attender split
 
 **Context.** One manager and ~4 attenders. Only a pre-registered set may have access, and people
-without an institute account must be usable. The original decision was local credentials for
-everyone: manager password, per-attender 6-digit PIN, persistent remember-me.
+without an institute account must be usable.
 
-**This decision has been revised twice, and the trail matters more than the outcome:**
+**The decision trail matters more than the outcome, so all three revisions are kept:**
 
-1. *Original:* local credentials, justified primarily by "OAuth cannot complete a redirect flow
+1. *Local credentials for everyone*, justified primarily by "OAuth cannot complete a redirect flow
    without internet, so it would fail on the offline fallback."
-2. *First revision:* that argument was **withdrawn as factually wrong** once the stakeholder
-   clarified that the outage being designed for is the cloud platform, not the network. Google
-   permits `http://localhost` redirect URIs, so OAuth would work there. The decision was kept,
-   re-justified on account recovery.
-3. *This revision:* the recovery argument was **overstated**. It claimed neither the developer nor
-   the manager could act if an attender lost their Google account. In fact the manager updates the
-   allowlist to whatever account the attender can use. That is a difference in degree — recovery
-   partly happens outside our system — not the wall it was presented as. With the argument
-   correctly sized, it no longer outweighs what OAuth gives.
+2. That argument was **withdrawn as factually wrong** once the stakeholder clarified the outage is
+   the cloud platform, not the network. Re-justified on account recovery, which was then found to be
+   **overstated** — a manager can repoint the allowlist. Decision moved to Google for attenders,
+   local password retained for the manager.
+3. *This revision:* the three reasons for keeping the manager local do not survive scrutiny either.
 
-**Decision.** Attenders authenticate with **Google OIDC** (`openid, email, profile`), admitted by an
-allowlist against `app_user.email`. The manager authenticates with a **local username and password**.
-No PINs, no remember-me table.
+**Decision.** Every user — manager and attenders — authenticates with **Google OIDC**, admitted by
+an allowlist against `app_user.email`. No passwords, no PINs, no remember-me. Two `MANAGER` rows are
+provisioned as break-glass.
+
+**Why the manager's local password was dropped.**
+- *"Needs the standby during an outage."* Google permits `http://localhost` redirect URIs. Register
+  the standby URI alongside the cloud one and it signs in normally.
+- *"A demo must work regardless of network."* The application is hosted on Render. If the network
+  fails the demo fails anyway, so a local password buys nothing in its own motivating scenario.
+- *"They are the support desk."* Genuine — and answered by a **row rather than a mechanism**: two
+  provisioned `MANAGER` accounts, plus the developer's database access as ultimate recovery. A
+  forgotten password would have ended in exactly the same place, with one more mechanism built.
 
 **Rationale.**
-- **Materially less code.** The Google path is a starter dependency, three config lines, one
-  `SecurityFilterChain` line, and a ~20-line `OidcUserService` that resolves the verified email
-  against the allowlist. Roughly 30 lines against ~180 for PIN generation, hashing, lockout
-  counters, a reset flow, rate limiting and a remember-me scheme.
-- **It deletes a liability rather than managing one.** No attender credential is stored anywhere, so
-  a database breach yields nothing to steal and there is no weak 6-digit secret to defend.
-- **Better in the hand.** On an Android phone the Google account is already signed in, so
-  authentication is one tap with no typing — better than a PIN, not merely cheaper to build.
-- **The manager stays local, deliberately.** They are the only person who can reach the standby
-  during a cloud outage, the account that must work in a demo regardless of network, and the support
-  desk for everyone else. Their access must not depend on a third party.
+- **One mechanism, one sentence to defend:** every user authenticates with Google and is admitted by
+  the allowlist. That is a better answer under questioning than a two-path scheme with four
+  justifications.
+- **No credential exists in the schema at all.** A database breach yields nothing to steal.
+- Deletes `password_hash`, `username`, the BCrypt encoder, the login form and controller, password
+  rate limiting, and one of two `SecurityFilterChain` branches.
+- IITM runs Google Workspace, so an institutional account is recoverable through IT — more reliable
+  than a password a user may forget. The allowlist is domain-agnostic, so a personal Gmail works
+  identically.
 
 **Consequences.**
-- A dependency on Google availability for attender sign-in. The manager can always get in, and can
-  record work on an attender's behalf via `act-as` (§9.4).
-- One-time Google Cloud console setup: consent screen and two redirect URIs (cloud and
-  `localhost`). Scopes are non-sensitive, so no Google verification review is required.
-- An OAuth client secret to manage as an environment variable (§11.5).
+- Sign-in depends on Google availability. Since the app is cloud-hosted, a network failure already
+  takes the system down independently of authentication.
 - **Authentication is not integration-tested end to end.** The authorization-code flow is Spring
-  Security's code; what we wrote — the allowlist decision — is unit-tested directly, and other
-  tests use `@WithMockUser` (§12.1). This is the honest cost of the choice and is recorded rather
-  than glossed.
-- Attender email addresses become stored personal data (§11.4).
-- Two login paths instead of one. Both are small and conventional, and the split is defensible on
-  its own terms: different roles have genuinely different failure modes.
+  Security's code; the allowlist decision is ours and is unit-tested directly, with `@WithMockUser`
+  elsewhere (§12.1). Recorded rather than glossed.
+- An OAuth client secret and two redirect URIs to maintain (§11.5).
+- Email addresses become stored personal data (§11.4).
+- Recovery is partly external: a locked-out user needs *some* working Google account first.
 
-**Revisit if:** attenders turn out not to control their own Google accounts in practice, or Google
+**Revisit if:** users turn out not to control their own Google accounts in practice, or Google
 sign-in proves unreliable on the devices actually in use.
 
 ---

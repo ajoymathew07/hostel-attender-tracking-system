@@ -25,7 +25,7 @@ third-party consumers, so a version prefix would be ceremony without a payer.
 | Nulls | Omitted from responses rather than sent as `null` |
 | Casing | `camelCase` |
 | Paging | `?page=0&size=25`, envelope `{content, page, size, totalElements, totalPages}` |
-| Auth | Session cookie (`HttpOnly; Secure; SameSite=Lax`). Attenders establish it via Google OIDC, the manager via form login |
+| Auth | Session cookie (`HttpOnly; Secure; SameSite=Lax`), established via Google OIDC for every user |
 | CSRF | Spring Security tokens on all non-GET form posts |
 | Idempotency | `Idempotency-Key` header **required** on attender state-changing POSTs (§7.4) |
 

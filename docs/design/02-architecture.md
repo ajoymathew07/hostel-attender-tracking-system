@@ -11,10 +11,21 @@ problems in exchange for scalability we will never need. The modular boundaries 
 separation-of-concerns benefit without the operational cost, and they are drawn so that a module
 *could* be extracted later if that ever became necessary.
 
-Within each module we use **ports and adapters (hexagonal)** where — and only where — an external
-system is involved. This is not decoration: the ingestion port is what allows the Google Sheets
-adapter and the CSV fallback adapter (proposal §10, Plan B) to share one normalization, dedupe and
-categorization pipeline instead of drifting into two code paths.
+We use **ports and adapters** at the boundaries where the system talks to the outside world, and
+nowhere else.
+
+Ingestion is the clearest example. Complaints arrive two ways: polled from the Google Sheet, or
+uploaded as a CSV when the Sheets API is unavailable (proposal §10, Plan B). Different sources, but
+both produce the same thing — a list of raw rows. So we define one interface that says exactly that,
+`ComplaintSource`, and the two ways of fetching rows become two implementations of it. Everything
+downstream — deduplication, categorization, dispatch — is written once, against the interface, and
+never learns which source the rows came from.
+
+The alternative is what usually happens without that boundary: the CSV path grows its own copy of
+the dedupe and categorization logic. Then a fix lands in one copy and not the other, and the two
+quietly disagree. The interface is what makes the fallback path *the same path*, which is also why
+re-uploading the same CSV twice cannot create duplicates — it inherits the guarantee rather than
+reimplementing it.
 
 ## 2.2 Context diagram
 
@@ -99,7 +110,7 @@ graph TD
 | **analytics** | `...analytics` | MTTR, bottlenecks, anomaly detection | Read-only over the ledger and audit tables |
 | **notification** | `...notification` | Fan-out of domain events to manager SSE streams **and attender Web Push**, on `AFTER_COMMIT` | Delivery is best-effort; never blocks or rolls back a transaction |
 | **reporting** | `...reporting` | `.xlsx` generation via Apache POI | Reports are point-in-time snapshots, reproducible from stored data |
-| **identity** | `...identity` | Users, roles, Google allowlist, manager password, provisioning | No self-registration; every principal is pre-provisioned |
+| **identity** | `...identity` | Users, roles, Google allowlist, provisioning | No self-registration; every principal is pre-provisioned |
 | **audit** | `...audit` | Append-only event log | Written in the same transaction as the change it records |
 
 **Root package:** `in.ac.iitm.hostel.duty`
@@ -201,7 +212,7 @@ and everything they do lands in the one real database.
 | Reached by | Attenders and manager, over HTTPS | Manager only, on `localhost` |
 | Sheets ingestion | Active, polled | Active — internet is available |
 | Notifications | SSE + Web Push | SSE to the manager; push still delivered |
-| Authentication | Google (attenders) + password (manager) | Manager password only — attenders cannot reach `localhost` anyway |
+| Authentication | Google sign-in, allowlisted | Google sign-in — `http://localhost:8080/...` is a registered redirect URI |
 | Purpose | Day-to-day operation | Continuity when the app tier is down |
 
 This is deliberately the *boring* answer, and it is boring in a useful way. An earlier draft ran the

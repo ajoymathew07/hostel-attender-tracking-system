@@ -17,30 +17,22 @@ Naming what we are and are not defending against keeps the controls proportionat
 | DDoS | ❌ | Free-tier platform's problem |
 
 The most *likely* real incident here is mundane: a shared or lost phone. The controls above are
-weighted accordingly — and note that with no attender credential stored anywhere, a lost phone
+weighted accordingly — and note that with no credential stored anywhere in this system, a lost phone
 exposes a *session*, not a secret.
 
 ## 11.2 Authentication
 
-Per ADR-002: **Google sign-in for attenders, a local password for the manager, invite-only
-provisioning for both.**
+Per ADR-002: **one mechanism for everyone — Google sign-in, admitted by an allowlist.** No
+passwords, no PINs, no credential of any kind stored by this system.
 
-| | Manager | Attender |
-|---|---|---|
-| Mechanism | Username + password (Spring form login) | Google OIDC (`openid, email, profile`) |
-| Credential stored | BCrypt hash, cost 12 | **None** |
-| Admission decided by | Password check | Verified email present and `active` in `app_user` |
-| Session | 12 h idle timeout | 12 h idle timeout |
-| Re-authentication | Type the password | One tap — Google account already signed in on Android |
-
-### Why the split
-
-Attenders get the mechanism with **no credential to lose, forget, or leak**, and re-entry costs a
-single tap on a phone where the Google account is already active. The manager gets the mechanism
-with **no external dependency**, which matters for three separate reasons: they are the only person
-who can reach the standby deployment during a cloud outage, they are the account that must work
-during a demo regardless of network conditions, and they are the support desk that fixes everyone
-else's access.
+| | Every user |
+|---|---|
+| Mechanism | Google OIDC (`openid, email, profile`) |
+| Credential stored | **None** |
+| Admission decided by | Verified email present and `active` in `app_user` |
+| Role | `app_user.role`, never anything Google asserts |
+| Session | 12 h idle timeout |
+| Re-authentication | One tap — account already signed in on the device |
 
 ### The allowlist is the access-control boundary
 
@@ -49,27 +41,51 @@ decision is ours and is made in one place — a custom `OidcUserService` that re
 email against `app_user` and throws if there is no matching active row. A sign-in from any other
 Google account, institute or personal, is rejected without creating anything.
 
-Emails are normalised (trimmed, lower-cased) before comparison, and matched only against the
-`email_verified` claim — never a self-asserted address.
+Emails are normalised (trimmed, lower-cased) before comparison and matched only against the
+`email_verified` claim, never a self-asserted address.
 
-### What this removes, and what it adds
+### Why one mechanism rather than two
 
-**Removed:** PIN generation and hashing, lockout counters, a PIN reset flow, credential rate
-limiting, and a remember-me token table. None of these can fail if none of them exist, and there is
-no longer a weak 6-digit secret to defend.
+An earlier draft kept a local password for the manager, on the grounds that they need the standby
+during a cloud outage, that a demo must work regardless of network, and that they are the support
+desk for everyone else. All three were re-examined once "outage" was confirmed to mean the cloud
+platform rather than the network:
 
-**Added, and stated plainly:**
+- **Standby.** Google permits `http://localhost` redirect URIs — the standard pattern for local
+  development and installed apps. Registering `http://localhost:8080/login/oauth2/code/google`
+  alongside the cloud URI means the standby signs in normally.
+- **Demo.** The application is hosted on Render. If the network is down the demo is down regardless
+  of how authentication works, so a local password buys nothing in the scenario it was meant for.
+- **Support desk.** This one is real, and it is answered by a **row, not a mechanism** (below).
 
-| New exposure | Assessment |
+Collapsing to one mechanism deletes the `password_hash` and `username` columns, the BCrypt encoder,
+the login form and controller, password rate limiting, and one of two `SecurityFilterChain`
+branches. What remains is a single sentence: *every user authenticates with Google and is admitted
+by the allowlist.*
+
+### Break-glass
+
+**Two `MANAGER` rows are provisioned from day one** — the manager's own account and a second one
+(the hostel office's shared account, or a personal Gmail). If either becomes inaccessible, the other
+can still administer, including editing the allowlist.
+
+Beyond that, the developer holds database access, so `UPDATE app_user SET email = ?` is the ultimate
+recovery path. That is written into the runbook rather than dressed up as a feature. It is worth
+noting this is no worse than a password would have been: a forgotten manager password ends in
+exactly the same place, with one more mechanism to have built.
+
+### What this costs, stated plainly
+
+| Exposure | Assessment |
 |---|---|
-| Dependency on Google availability | If Google OIDC is unreachable, attenders cannot sign in. The manager still can, and can record work on their behalf via `act-as` (§9.4) |
-| OAuth client secret | One more environment variable (§11.5). It authenticates our application to Google; it is not a user credential |
-| Two redirect URIs to maintain | The cloud URL and `http://localhost:8080/...` for the standby and development. A stale entry breaks sign-in visibly, not silently |
-| Attender email addresses stored | Personal data, recorded in §11.4 |
+| Dependency on Google availability | Nobody can sign in if Google OIDC is unreachable. The application is cloud-hosted, so a network failure already takes the system down independently of authentication |
+| Not integration-tested end to end | The authorization-code flow is Spring Security's code. What we wrote — the allowlist decision — is unit-tested directly; other tests use `@WithMockUser` (§12.1) |
+| OAuth client secret; two redirect URIs | One environment variable (§11.5) and a one-time console setup. Scopes are non-sensitive, so no Google verification review is required |
+| Recovery is partly external | A user who loses their Google account needs *some* working account before a manager can repoint the allowlist |
+| Email addresses stored | Personal data, recorded in §11.4 |
 
-The manager's password is rate-limited to 10 attempts/minute/IP rather than locked out after N
-failures. Lockout on a single-administrator account is itself a denial-of-service: anyone who knows
-the username could lock the only person who can fix it.
+Revoking a lost device is `active = false`, which blocks the next sign-in immediately and revokes
+that user's push subscriptions in the same action; the session expires within 12 hours.
 
 ## 11.3 Authorization
 
@@ -103,7 +119,7 @@ otherwise any attender could resolve any other attender's work and collect the p
 | Room number | **Operationally essential** — dispatch depends on it | 1 year |
 | Complaint text | Diagnosis, classification, chronic-defect detection | 1 year, then `[purged]` |
 | Attender name | Assignment, leaderboard | Life of employment |
-| Attender Google email | Allowlist key, and identifies the actor in the audit log | Life of employment |
+| Google email (all users) | Allowlist key, and identifies the actor in the audit log | Life of employment |
 | Push endpoint + keys | Delivering assignment alerts | Until revoked or 3 failures; a device identifier, so treated as personal data |
 
 We **do not** collect resident names or phone numbers even when the Form offers them — the mapped

@@ -88,29 +88,21 @@ they solved a scale problem this system will never have.
 % =========================== 2. AUTH ========================================
 \section{Authentication \& Access Control}
 
-\textbf{Google sign-in for attenders, a local password for the manager, invite-only provisioning for
-both.} There is no self-registration: every principal is a pre-provisioned \code{app\_user} row
-created by the manager.
+\textbf{One mechanism for everyone: Google sign-in, admitted by an allowlist.} No passwords, no
+PINs --- \textbf{this system stores no credential of any kind}. There is no self-registration:
+every principal is a pre-provisioned \code{app\_user} row created by a manager.
 
-\begin{tabularx}{\linewidth}{@{}l X X@{}}
+\begin{tabularx}{\linewidth}{@{}l X@{}}
 \toprule
-& \textbf{Manager} & \textbf{Attender}\\
+& \textbf{Every user --- manager and attenders alike}\\
 \midrule
-Mechanism & Username + password (form login) & Google OIDC (\code{openid, email, profile}) \\
-Credential stored & BCrypt hash, cost 12 & \textbf{None} \\
-Admission decided by & Password check & Verified email present and active in \code{app\_user} \\
-Re-authentication & Type the password & One tap --- account already signed in on Android \\
+Mechanism & Google OIDC (\code{openid, email, profile}) \\
+Credential stored & \textbf{None} \\
+Admission decided by & Verified email present and \code{active} in \code{app\_user} \\
+Role & \code{app\_user.role} --- never anything Google asserts \\
+Re-authentication & One tap; the account is already signed in on the device \\
 \bottomrule
 \end{tabularx}
-
-\subsection{Why the split}
-
-Attenders get the mechanism with \textbf{no credential to lose, forget or leak}, and re-entry costs
-a single tap on a phone where the Google account is already active --- better in the hand than a PIN,
-not merely cheaper to build. The manager gets the mechanism with \textbf{no external dependency},
-because they are the only person who can reach the standby during a cloud outage, theirs is the
-account that must work in a demo whatever the network does, and they are the support desk that fixes
-everyone else's access.
 
 \keybox{The allowlist is the access-control boundary.}{Google establishes \emph{who someone is}; it
 has no opinion on whether they may use this system. That decision is ours, made in one place --- a
@@ -119,38 +111,47 @@ if there is no matching active row. A sign-in from any other Google account, ins
 is rejected without creating anything. Emails are normalised before comparison and matched only
 against the \code{email\_verified} claim, never a self-asserted address.}
 
-\subsection{What this removes, and what it adds}
+\subsection{Why one mechanism rather than two}
 
-Choosing Google deletes PIN generation and hashing, lockout counters, a reset flow, credential rate
-limiting and a remember-me token table --- roughly 30 lines of configuration and allowlist logic in
-place of about 180. None of those can fail if none of them exist, and there is no weak six-digit
-secret to defend.
+An earlier draft kept a local password for the manager, on three grounds. None survived scrutiny
+once ``outage'' was confirmed to mean the cloud platform rather than the network:
 
-The costs are real and worth stating rather than glossing:
+\begin{itemize}
+  \item \textbf{``Needs the standby during an outage.''} Google permits \code{http://localhost}
+        redirect URIs. Register the standby URI alongside the cloud one and it signs in normally.
+  \item \textbf{``A demo must work regardless of network.''} The app is hosted on Render --- if the
+        network fails the demo fails anyway, so a password buys nothing in its own motivating case.
+  \item \textbf{``They are the support desk.''} Genuine, and answered by a \emph{row rather than a
+        mechanism}: two \code{MANAGER} accounts are provisioned from day one, so if one Google
+        account becomes inaccessible the other still administers. Beyond that the developer holds
+        database access --- no worse than a forgotten password, which ends in the same place with
+        one more mechanism built.
+\end{itemize}
 
-\begin{tabularx}{\linewidth}{@{}p{5.0cm} X@{}}
+Collapsing to one mechanism deletes \code{password\_hash}, \code{username}, the BCrypt encoder, the
+login form and controller, password rate limiting, and one of two \code{SecurityFilterChain}
+branches --- leaving a single sentence to defend.
+
+\subsection{What this costs, stated plainly}
+
+\begin{tabularx}{\linewidth}{@{}p{4.6cm} X@{}}
 \toprule
-\textbf{New exposure} & \textbf{Assessment}\\
+\textbf{Exposure} & \textbf{Assessment}\\
 \midrule
-Dependency on Google availability & Attenders cannot sign in if Google OIDC is unreachable. The
-  manager always can, and can record work on their behalf via \code{act-as} \\
-Authentication not integration-tested end to end & The authorization-code flow is Spring Security's
-  code. What \emph{we} wrote --- the allowlist decision --- is unit-tested directly; other tests use
+Dependency on Google availability & Nobody signs in if Google OIDC is unreachable. The app is
+  cloud-hosted, so a network failure already takes the system down independently of authentication \\
+Not integration-tested end to end & The authorization-code flow is Spring Security's code. What
+  \emph{we} wrote --- the allowlist decision --- is unit-tested directly; other tests use
   \code{@WithMockUser} \\
-OAuth client secret, two redirect URIs & One environment variable and a one-time console setup
-  (cloud URL and \code{localhost}). Scopes are non-sensitive, so no Google review is needed \\
-Recovery is partly external; emails stored & If an attender loses their Google account the manager
-  repoints the allowlist, but they must first have \emph{some} working account. Their email is
-  personal data (Sec.~7) \\
+Client secret, two redirect URIs & One environment variable and a one-time console setup (cloud URL
+  and \code{localhost}). Scopes are non-sensitive, so no Google review is needed \\
+Recovery partly external; emails stored & A locked-out user needs \emph{some} working Google account
+  before a manager can repoint the allowlist. Their email is personal data (Sec.~7) \\
 \bottomrule
 \end{tabularx}
 
-The manager's password is rate-limited to 10 attempts/minute/IP rather than locked out after $N$
-failures. Lockout on a single-administrator account is itself a denial of service: anyone who knows
-the username could lock out the only person able to undo it.
-
-Revoking a lost phone is \code{active = false}, which blocks the next sign-in immediately and
-revokes that user's push subscriptions in the same action; the session expires within 12 hours.
+Revoking a lost device is \code{active = false}: it blocks the next sign-in immediately and revokes
+that user's push subscriptions in the same action; the session expires within 12 hours.
 
 \subsection{Authorization matrix}
 
@@ -194,10 +195,14 @@ modules with explicit interfaces. This is a deliberate choice over microservices
         enforced in CI by ArchUnit rather than left to discipline.
 \end{itemize}
 
-Within modules we use \textbf{ports and adapters} only where an external system is involved. This
-is not decoration: the ingestion port is what lets the Google Sheets adapter and the CSV fallback
-adapter share one normalization, dedupe and categorization pipeline instead of drifting into two
-code paths.
+We use \textbf{ports and adapters} at the boundaries where the system talks to the outside world,
+and nowhere else. Ingestion is the clearest example. Complaints arrive two ways --- polled from the
+Google Sheet, or uploaded as a CSV when the Sheets API is unavailable --- but both produce the same
+thing: a list of raw rows. So one interface, \code{ComplaintSource}, says exactly that, and the two
+ways of fetching rows become two implementations of it. Everything downstream (dedupe,
+categorization, dispatch) is written once against the interface and never learns which source the
+rows came from. Without that boundary the CSV path grows its own copy of the logic, and the two
+copies drift.
 
 \subsection{Context and processing pipeline}
 
@@ -290,7 +295,7 @@ analytics & \ttiny{...analytics} & MTTR, bottlenecks, anomaly detection.
   \textit{Read-only over ledger and audit.} \\
 reporting & \ttiny{...reporting} & \code{.xlsx} generation via Apache POI.
   \textit{Reports are reproducible point-in-time snapshots.} \\
-identity & \ttiny{...identity} & Users, roles, Google allowlist, manager password, provisioning.
+identity & \ttiny{...identity} & Users, roles, Google allowlist, provisioning.
   \textit{No self-registration; every principal is pre-provisioned.} \\
 audit & \ttiny{...audit} & Append-only event log.
   \textit{Written in the same transaction as the change it records.} \\
@@ -365,7 +370,7 @@ Database & Managed PostgreSQL & \textbf{The same} managed PostgreSQL \\
 Reached by & Attenders and manager, HTTPS & Manager only, on \code{localhost} \\
 Ingestion & Sheets polling + CSV & Both --- internet is available \\
 Notifications & SSE + Web Push & SSE + Web Push \\
-Authentication & Google (attenders) + password (manager) & Manager password --- no Google round-trip \\
+Authentication & Google sign-in, allowlisted & Google sign-in; \code{localhost} is a registered URI \\
 Purpose & Day-to-day operation & Continuity when the app tier is down \\
 \bottomrule
 \end{tabularx}
@@ -409,7 +414,7 @@ arise. Residual risk is the managed database failing, which no application desig
     \end{tabular}};}
 
 % ---- column 1: identity & coverage ----
-\entity{0,0}{user}{APP\_USER}{\tiny id, role, display\_name,\\\tiny \textbf{email} (uq, allowlist),\\\tiny username, password\_hash,\\\tiny active, \textbf{version}}
+\entity{0,0}{user}{APP\_USER}{\tiny id, role, display\_name,\\\tiny \textbf{email} (uq, allowlist),\\\tiny active, \textbf{version}}
 \entity{0,-2.05}{push}{PUSH\_SUBSCRIPTION}{\tiny endpoint (uq), keys,\\\tiny fail\_count, revoked\_at}
 \entity{0,-3.65}{floora}{FLOOR\_ASSIGNMENT}{\tiny floor\_id,\\\tiny coverage (PRIMARY/SECONDARY)}
 \entity{0,-5.25}{avail}{AVAILABILITY\_WINDOW}{\tiny status, starts\_at, ends\_at}
@@ -710,7 +715,7 @@ Resident email & Contacting the reporter when details are unclear & 90 days, the
 Room number & \textbf{Operationally essential} --- dispatch depends on it & 1 year \\
 Complaint text & Diagnosis, classification, chronic-defect detection & 1 year, then \code{[purged]} \\
 Attender name & Assignment, leaderboard & Life of employment \\
-Attender Google email & Allowlist key; identifies the actor in the audit log & Life of employment \\
+Google email (all users) & Allowlist key; identifies the actor in the audit log & Life of employment \\
 Push endpoint + keys & Delivering assignment alerts & Until revoked or 3 failures \\
 Audit log, point ledger & Bonus dispute resolution & Indefinite \\
 \bottomrule
@@ -754,8 +759,8 @@ access to a single sheet.
 \textbf{Module} & \textbf{Libraries \& technology} & \textbf{Milestone}\\
 \midrule
 identity &
-  Spring Security 6: OAuth2 client (Google OIDC) for attenders, form login + BCrypt cost 12
-  for the manager, custom \code{OidcUserService} for the allowlist &
+  Spring Security 6: OAuth2 client (Google OIDC) for all users, plus a custom
+  \code{OidcUserService} holding the allowlist decision &
   S1 \textit{(12--18 Sep)} \\
 persistence &
   Spring Data JPA / Hibernate 6, Flyway (forward-only migrations), HikariCP,

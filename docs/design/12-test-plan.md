@@ -20,8 +20,8 @@ tasks. A phase is not complete until its tests are green.
 Spring Security's code and is not re-tested; what *we* wrote is the allowlist decision, which is a
 plain unit test over `OidcUserService` — known email admits with the right role, unknown email
 rejects, inactive user rejects, case and whitespace variants normalise. Every other test
-authenticates with `@WithMockUser`. The manager's form login is covered end to end because it has
-no external dependency.
+authenticates with `@WithMockUser`. Since there is now only one authentication mechanism, this is
+the *entire* authentication test surface.
 
 **All database tests run against real PostgreSQL via Testcontainers**, never an in-memory
 substitute. The properties we most need to verify — unique-constraint behaviour under concurrent
