@@ -50,9 +50,8 @@ reads directly as "how much does this factor matter".
 |---|---|
 | `PRIMARY` coverage of the complaint's floor | **1.00** |
 | `SECONDARY` coverage of that floor | **0.70** |
-| Covers an adjacent floor in the same wing (\|Δ\| = 1) | **0.40** |
-| Same wing, \|Δ\| ≥ 2 | `max(0.10, 0.35 − 0.05·|Δ|)` |
-| Different wing | **0.10** |
+| Covers an adjacent floor (\|Δ\| = 1) | **0.40** |
+| Each additional floor of distance | −0.05, with a floor of **0.10** |
 
 Non-zero floors for distant attenders are intentional: when the primary is unavailable, someone
 still has to go, and a zero would make the whole term uninformative in exactly that case.
@@ -85,7 +84,8 @@ attender is genuinely not blocked by it (§4.2, T12).
 | `w_f` floor | **0.60** | The stakeholder's stated primary criterion |
 | `w_l` load | **0.40** | Strong enough to override floor when someone is badly overloaded |
 
-Both, plus `L_cap` and the proximity table, are `@ConfigurationProperties` (R5). §12 pins their
+Both, plus `L_cap` and the proximity table, are `@ConfigurationProperties` (R5) and are editable by
+the manager from the configuration screen (§10.3) rather than needing a redeploy. §12 pins their
 behaviour with tests that assert *relationships* ("an overloaded primary loses to an idle
 secondary") rather than exact float outputs, so tuning does not break the suite.
 

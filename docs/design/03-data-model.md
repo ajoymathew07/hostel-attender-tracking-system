@@ -169,7 +169,10 @@ CREATE TABLE complaint (
     raw_text          TEXT         NOT NULL,
     reported_at       TIMESTAMP    NOT NULL,
     reporter_room     VARCHAR(32),
-    reporter_contact  VARCHAR(128),           -- purged after 90 days (NFR-9)
+    reporter_name     VARCHAR(128),           -- shown to the assigned attender (§11.4)
+    reporter_roll_no  VARCHAR(32),            -- shown to the assigned attender (§11.4)
+    reporter_phone    VARCHAR(32),            -- shown to the assigned attender (§11.4)
+    reporter_contact  VARCHAR(128),           -- resident email; purged after 90 days (NFR-9)
     floor_id          BIGINT       REFERENCES floor(id),
     location_note     VARCHAR(255),
     docket_no         VARCHAR(64),            -- IITM EU CMS docket; NULL until filed (§4.3)
@@ -198,6 +201,11 @@ CREATE INDEX ix_complaint_status ON complaint (status, priority, reported_at);
 CREATE INDEX ix_complaint_domain ON complaint (domain, created_at);
 CREATE INDEX ix_complaint_sla    ON complaint (sla_due_at, sla_breached);
 ```
+
+`reporter_name`, `reporter_roll_no` and `reporter_phone` let the assigned attender identify the
+student and reach them for access or clarification. They are **not** exposed on the leaderboard, in
+push payloads or in analytics, and the attender's view of them expires 7 days after resolution while
+the manager keeps them with the complaint record (§11.4).
 
 `complaint.raw_text` keeps the resident's original wording verbatim. The classifier's output is
 stored *alongside* it with a confidence score and the method used, never in place of it — so a
@@ -350,6 +358,7 @@ current state on reconnect gives the identical user-visible result for a fractio
 
 | Data | Retention | Mechanism |
 |---|---|---|
+| `complaint.reporter_name`, `reporter_roll_no`, `reporter_phone` | Hidden from the attender 7 days after resolution; retained on the record for the manager | View-level scoping, not deletion — the manager still needs them for oversight (§11.4) |
 | `complaint.reporter_contact` | 90 days | Nightly job nulls the column; audit records the purge |
 | `complaint.raw_text` | 1 year | Nightly job replaces with `[purged]`; aggregates survive |
 | `audit_event`, `point_ledger` | Indefinite | Required for bonus dispute resolution |

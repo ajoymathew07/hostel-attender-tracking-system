@@ -129,11 +129,16 @@ their own idempotency key `DUTY:{task_id}:{attender_id}`. The concurrency argume
 Priority is not a fixed label; it ages so that old low-priority work eventually surfaces above new
 noise.
 
+The SLA figures below are **working hours, not wall-clock hours**, so a complaint submitted
+overnight does not burn its SLA while no attender is expected to be working. The working calendar —
+working hours, weekends and holidays, and the initial SLA per domain — is configurable by the
+manager rather than compiled in.
+
 | Base priority | Assigned when | Initial SLA (OQ-2) |
 |---|---|---|
 | `P1` | Safety/utility keywords hit (`shock`, `spark`, `no water`, `sewage`, `short circuit`) | Electrical 4h · Other 8h |
 | `P2` | Default for a confidently classified complaint | Electrical 8h · RO 12h · Civil 24h · Network 24h |
-| `P3` | Cosmetic keywords, or explicitly downgraded by the manager | 72h |
+| `P3` | Downgraded by the manager | 72h |
 
 A scheduled job escalates `P3 → P2 → P1` when a complaint has been open past **1.5×** its SLA
 window without reaching `RESOLVED`, and `base_priority` is retained so the dashboard can always

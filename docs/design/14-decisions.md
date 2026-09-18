@@ -48,7 +48,7 @@ inadequate.
 **Status:** Accepted · 9 Sep 2026 — third revision; supersedes both local credentials and the
 manager/attender split
 
-**Context.** One manager and ~4 attenders. Only a pre-registered set may have access, and people
+**Context.** One manager and ~5 attenders. Only a pre-registered set may have access, and people
 without an institute account must be usable.
 
 **The decision trail matters more than the outcome, so all three revisions are kept:**

@@ -13,9 +13,11 @@ Three properties of the real sheet make the naive approach fail:
    depending on the reconciliation rule, could duplicate hundreds of complaints in one poll.
 2. **Responses can be edited.** With "edit response" enabled, a resident can change their answer
    after submission. Content changes; it is still the same complaint.
-3. **The instance sleeps.** On free-tier hosting the poller may not run for hours (§2.5). Any
-   design that depends on "what changed since the last tick" is fragile; the design must be
-   *stateless with respect to elapsed time*.
+3. **The instance sleeps.** On free-tier hosting the poller may not run for hours (§2.5): a sleeping
+   instance has no scheduler. A Google Apps Script trigger on the response sheet wakes it when a
+   response arrives, but the trigger is a *hint*, not a delivery mechanism — it carries no row data
+   and may fire twice or not at all. Any design that depends on "what changed since the last tick"
+   is fragile; the design must be *stateless with respect to elapsed time*.
 
 ## 5.2 Column mapping
 
@@ -28,11 +30,18 @@ ingestion:
     columns:
       timestamp:  ["Timestamp", "Submitted at"]
       email:      ["Email Address", "Email"]
+      name:       ["Name", "Student Name", "Full Name"]
+      rollNo:     ["Roll Number", "Roll No", "Roll"]
+      phone:      ["Phone Number", "Contact Number", "Mobile"]
       room:       ["Room Number", "Room No", "Room"]
       description:["Describe the issue", "Complaint", "Issue"]
       category:   ["Type of issue"]        # optional resident-supplied hint
     required: [timestamp, description]
 ```
+
+`name`, `rollNo` and `phone` are mapped because the assigned attender needs to identify and reach
+the student (§11.4). They are optional: a Form that does not ask for them still ingests, and the
+attender simply sees the room number alone.
 
 Each logical field lists accepted header aliases. At the start of a run we resolve headers once; an
 unresolvable **required** column fails the whole run loudly rather than ingesting garbage — a
@@ -88,6 +97,10 @@ re-reading rows we already have a no-op regardless. A long gap — the instance 
 or a manual "Sync Now" after a week — is handled by the same code path: `lastRowSeen` has not moved,
 so the fetch simply covers more rows. **There is no separate catch-up mode to get wrong.**
 
+This is also what makes the Apps Script wake-up trigger (§2.5) safe: it only signals that the sheet
+changed, so a duplicate trigger, a trigger for a row we already hold, or a trigger that never
+arrives all converge on the same delta computation.
+
 ### Pseudocode
 
 ```
@@ -135,6 +148,9 @@ manager must find out from the UI, not by noticing complaints stopped arriving.
 | `reported_at` | Parsed form timestamp, interpreted in Asia/Kolkata, stored UTC |
 | `reporter_room` | Regex `\b([A-Z]{0,2}[-\s]?\d{3,4})\b` over the room cell, then the description as fallback |
 | `floor_id` | Derived from room number via a configurable rule (default: first digit of a 3-digit room, first two of a 4-digit). Unmapped → `NULL`, which routes to triage |
+| `reporter_name` | Name cell, trimmed; optional — `NULL` when the Form does not ask (§11.4) |
+| `reporter_roll_no` | Roll-number cell, upper-cased and trimmed; optional |
+| `reporter_phone` | Phone cell, digits normalised; optional |
 | `reporter_contact` | Email cell; purged after 90 days (NFR-9) |
 | `public_ref` | `CAU-{year}-{zero-padded sequence}` |
 

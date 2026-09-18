@@ -16,6 +16,16 @@ carries no desktop compromise.
 
 ## 10.2 Attender mobile
 
+**What the attender dashboard shows.**
+
+| Area | Contents |
+|---|---|
+| Assigned tasks | Complaint, category, priority, room number, floor, SLA status, assignment time |
+| Student details | Name, roll number and phone number for assigned complaints (§11.4) |
+| Task actions | `START_INSPECTION`, `CONFIRM_DEFECT`, `RECORD_DOCKET`, `MARK_RESOLVED`, `ON_HOLD` when work is blocked, `RESUME` when the blocker clears |
+| Resolution details | Resolution note and the EU CMS docket number where required |
+| Points | Points earned from completed work and duties |
+
 Design rules, all driven by the table above:
 
 1. **Never more than one primary action visible per task.** The state machine already knows what
@@ -105,6 +115,19 @@ notification" button. Attenders who find alerts intrusive can dial them down rat
 browser permission entirely, which would be irreversible from inside the app.
 
 ## 10.3 Manager desktop
+
+**What the manager dashboard covers.**
+
+| Area | Contents |
+|---|---|
+| Complaint overview | Every complaint with category, priority, status, SLA status, assignment and history |
+| Complaint actions | Assign or reassign manually, change priority, release an assignment back to the pool, reject, reopen |
+| Triage | Unclassified complaints, and those where dispatch found no suitable attender — assign or reject |
+| Attender management | Add or deactivate attenders, configure floor coverage, view current workload and points |
+| Student & complaint detail | Student name, roll number, phone and room number, complaint detail and classification |
+| Configuration | Priority rules, SLA windows, working hours, escalation thresholds, dispatch weights, load limits (§6.2) |
+| Synchronization | `Sync Now`, latest sync status and ingestion errors (§5.3) |
+| Audit & history | Assignment changes, status transitions, ledger entries and other audit records |
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
