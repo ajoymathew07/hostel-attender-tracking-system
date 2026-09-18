@@ -30,6 +30,7 @@ Do not edit either PDF by hand.
 | 12 | [Test Plan](12-test-plan.md) | Fixtures, gold set, concurrency stress, traceability |
 | 13 | [Delivery Plan](13-timeline.md) | Five phases, walking skeleton first, backlog and cut line |
 | 14 | [Decision Record](14-decisions.md) | ADRs for the choices that shaped this design |
+| — | [PR Plan](pr-plan.md) | The sixteen pull requests to the mid-demo, in merge order |
 
 ## Building the PDF
 
