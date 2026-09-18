@@ -63,7 +63,7 @@ Measured in working hours (08:00–20:00 IST, OQ-6). These are configuration, no
 
 ### The honest constraint
 
-This deserves stating plainly, in the design doc rather than after the fact: with **4 attenders and
+This deserves stating plainly, in the design doc rather than after the fact: with **~5 attenders and
 ~20 complaints/day**, we are doing statistics on small samples. A textbook z-score over a 30-day
 window has *n* ≈ 600 overall but only *n* ≈ 150 per domain and *n* ≈ 5 per domain-day. Ordinary
 mean-and-standard-deviation outlier detection on data this thin and this skewed will produce

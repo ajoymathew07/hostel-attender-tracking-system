@@ -46,7 +46,7 @@ Explicitly **out of scope** for this project, to keep the solo build tractable:
 | Actor | Count | Device | Authenticated | Responsibilities |
 |---|---|---|---|---|
 | **Hostel Manager** | 1 | Desktop (office), occasionally mobile | Yes — Google sign-in, allowlisted | Oversight, triage of unclassified complaints, reassignment, penalties, special duties, exports, account provisioning |
-| **Attender** | ~4 | Personal Android phone, hostel Wi-Fi / mobile data | Yes — Google sign-in, allowlisted | Receive push alerts, view assigned queue, record CMS docket, mark resolved, claim special duties, view own standing |
+| **Attender** | ~5 | Personal Android / iOS phone, hostel Wi-Fi / mobile data | Yes — Google sign-in, allowlisted | Receive push alerts, view assigned queue (with the reporting student's contact detail), record CMS docket, mark resolved, claim special duties, view own standing |
 | **Resident** | ~hundreds | Any | **No** | Submits the Google Form. Never touches this system directly. |
 | **Scheduler** | — | — | System | Polls the sheet, ages priorities, runs telemetry scans |
 
@@ -69,7 +69,7 @@ Explicitly **out of scope** for this project, to keep the solo build tractable:
 
 | ID | Requirement | Target | Rationale |
 |---|---|---|---|
-| NFR-1 | Scale envelope | ≤50 complaints/day, ≤10 concurrent users, ≤50k rows/year | Single hostel, 4 attenders. Sizing everything else follows from this. |
+| NFR-1 | Scale envelope | ≤50 complaints/day, ≤10 concurrent users, ≤50k rows/year | Single hostel, ~5 attenders (4–8 users in total). Sizing everything else follows from this. |
 | NFR-2 | Ingestion latency | New Form response visible in the manager dashboard within **5 minutes** | Poll interval, not a real-time requirement |
 | NFR-3 | Interactive response time | p95 < 500 ms for queue and dashboard reads | Attenders on mobile data in hostel corridors |
 | NFR-4 | Mobile payload | Attender queue initial load < 150 KB | Low-end phones, patchy connectivity |
@@ -78,7 +78,7 @@ Explicitly **out of scope** for this project, to keep the solo build tractable:
 | NFR-10 | Push delivery | P1 assignment push dispatched within **30 s** of assignment; delivery itself is best-effort | The push service is outside our control, so the in-app queue stays the source of truth |
 | NFR-7 | Timezone | All business dates in **Asia/Kolkata**; all timestamps stored UTC | Month boundaries for the bonus cycle must be unambiguous |
 | NFR-8 | Auditability | Every state change and point movement is reconstructible | Bonus disputes must be resolvable from the log |
-| NFR-9 | Data retention | Complaint text retained 1 year; resident contact detail retained 90 days | Minimize PII exposure (§11.4) |
+| NFR-9 | Data retention | Complaint text retained 1 year; resident email retained 90 days; student name, roll number and phone visible to the assigned attender for 7 days after resolution, and retained with the complaint record for the manager | Minimize PII exposure; access is scoped by role and complaint lifecycle (§11.4) |
 
 ## 1.7 Open questions
 

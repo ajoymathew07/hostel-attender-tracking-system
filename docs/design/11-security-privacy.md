@@ -113,21 +113,40 @@ otherwise any attender could resolve any other attender's work and collect the p
 
 ## 11.4 PII and data minimisation
 
-| Data | Why we hold it | Retention (NFR-9) |
-|---|---|---|
-| Resident email | Contacting the reporter if details are unclear | 90 days, then nulled |
-| Room number | **Operationally essential** — dispatch depends on it | 1 year |
-| Complaint text | Diagnosis, classification, chronic-defect detection | 1 year, then `[purged]` |
-| Attender name | Assignment, leaderboard | Life of employment |
-| Google email (all users) | Allowlist key, and identifies the actor in the audit log | Life of employment |
-| Push endpoint + keys | Delivering assignment alerts | Until revoked or 3 failures; a device identifier, so treated as personal data |
+Complaints originate from residents who never agreed to use this system and cannot log in to check
+what we keep. The stance is therefore **minimisation plus scoped access**: hold only what complaint
+handling, accountability and reporting need, and let each role see it only for as long as the
+complaint's lifecycle justifies.
 
-We **do not** collect resident names or phone numbers even when the Form offers them — the mapped
-column set (§5.2) simply omits them. The cheapest way to protect data is not to hold it.
+| Data | Why we hold it | Retention / access (NFR-9) |
+|---|---|---|
+| Student name | Lets the assigned attender identify the resident; available to the manager for oversight | **Attender: 7 days after resolution.** Manager: retained with the complaint record |
+| Roll number | Unambiguous reference to the resident when handling the complaint | **Attender: 7 days after resolution.** Manager: retained with the complaint record |
+| Student phone number | Lets the attender reach the resident when clarification or room access is needed | **Attender: 7 days after resolution.** Manager: retained with the complaint record |
+| Resident email | Contacting the reporter if details are unclear | 90 days, then nulled |
+| Room number | **Operationally essential** — dispatch depends on it, and it identifies where the work is | 1 year |
+| Complaint text | Diagnosis, classification, chronic-defect detection | 1 year, then `[purged]` |
+| Attender name | Assignment, accountability, leaderboard | Life of employment |
+| Attender Google email | Allowlist key, and identifies the actor in the audit log | Life of employment |
+| Push endpoint + keys | Delivering assignment alerts | Until revoked or 3 failures; a device identifier, so treated as personal data |
+| Audit log, point ledger | Bonus disputes, accountability, historical reconstruction | Indefinite |
+
+**The 7-day attender window is the main control.** An attender needs the student's details while
+the work is live and briefly afterwards, not permanently. After that the fields disappear from the
+attender's view of the complaint while remaining on the record for the manager, so oversight and
+dispute resolution still work.
+
+**No resident profiles.** We never build a resident account or a cross-complaint profile. Each
+complaint carries its own reporter fields and nothing links them into a history.
 
 Aggregates survive purging: MTTR, arrival counts and chronic-defect detection all continue to work
-on rows whose text has been redacted, because they depend on timestamps, domain and room — not on
-what the resident wrote.
+on rows whose text has been redacted or whose reporter fields are hidden, because they depend on
+timestamps, domain and room — not on who reported it or what they wrote.
+
+**Test data is synthetic.** Real student details never enter the repository: names and phone
+numbers are replaced with synthetic values, roll numbers with synthetic identifiers, and room
+numbers remapped through a fixed permutation that preserves floor structure so dispatch tests stay
+meaningful. The mapping table is not committed.
 
 ## 11.5 Secrets
 
@@ -155,7 +174,7 @@ to the single response sheet — if it leaks, the blast radius is reading compla
 | Transport | HTTPS enforced (`Strict-Transport-Security`); platform-terminated TLS |
 | Headers | CSP, `X-Content-Type-Options: nosniff`, `Referrer-Policy` |
 | Upload safety | CSV only, ≤5 MB, ≤5000 rows, content-type and header validated before parsing |
-| Push payload privacy | Payloads are end-to-end encrypted (`aes128gcm`) per the Web Push spec, so Google's or Mozilla's push service relays ciphertext it cannot read. Bodies still avoid resident identifiers — a lock-screen preview is visible to anyone holding the phone, so notifications name a room, never a person |
+| Push payload privacy | Payloads are end-to-end encrypted (`aes128gcm`) per the Web Push spec, so Google's or Mozilla's push service relays ciphertext it cannot read. Bodies carry only the minimum needed to alert the attender — complaint reference and room number — and **never** the student's name, roll number or phone, since a lock-screen preview is visible to anyone holding the phone |
 | Dependencies | OWASP Dependency-Check in CI; Dependabot enabled |
 | Error leakage | RFC 7807 responses only; stack traces never returned to a client |
 

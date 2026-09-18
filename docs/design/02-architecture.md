@@ -5,7 +5,7 @@
 A **modular monolith** deployed as a single Spring Boot executable jar, organised internally into
 bounded modules with explicit interfaces between them.
 
-This is a deliberate choice over microservices. At NFR-1 scale (≤50 complaints/day, 4 attenders) a
+This is a deliberate choice over microservices. At NFR-1 scale (≤50 complaints/day, 4–8 users) a
 distributed system would add network failure modes, deployment complexity and eventual-consistency
 problems in exchange for scalability we will never need. The modular boundaries below give us the
 separation-of-concerns benefit without the operational cost, and they are drawn so that a module
@@ -169,15 +169,21 @@ sequenceDiagram
     end
 ```
 
-**Scheduler safety.** Free-tier PaaS instances sleep when idle, so `@Scheduled` polling cannot be
-relied on alone. Three mitigations:
+**Scheduler safety.** Free-tier PaaS instances sleep when idle, and a sleeping instance has no
+running scheduler — so `@Scheduled` polling cannot be relied on alone. Ingestion is therefore made
+**event-driven**, with polling as a backstop:
 
-1. A **"Sync Now"** button in the manager dashboard triggers ingestion on demand — this is the
-   guaranteed path, and it also wakes a sleeping instance.
-2. On startup the app runs a **catch-up ingestion**, so a wake after sleep loses nothing. Because
+1. A **Google Apps Script trigger** attached to the response sheet sends an HTTP request to the
+   application whenever a new Form response arrives, which lets the hosting platform wake the
+   instance to process it. The endpoint only signals *that the sheet changed* — it carries no row
+   data, so the normal watermark-based delta detection and dedupe (§5.3) still run. Repeated or
+   duplicate triggers are therefore harmless.
+2. A **"Sync Now"** button in the manager dashboard triggers ingestion on demand. It is the manual
+   wake-and-sync path when the trigger fails or an immediate reconciliation is wanted.
+3. On startup the app runs a **catch-up ingestion**, so a wake after sleep loses nothing. Because
    the delta algorithm (§5.3) is watermark-and-hash based rather than time based, a long gap is
    handled identically to a short one.
-3. Scheduled jobs take a **database-backed lock** (ShedLock) before running, so if the platform
+4. Scheduled jobs take a **database-backed lock** (ShedLock) before running, so if the platform
    ever runs two instances they cannot double-ingest.
 
 ## 2.6 Deployment topology
