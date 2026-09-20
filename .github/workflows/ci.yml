@@ -17,7 +17,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # setup-java's `cache: maven` fails outright when there is no pom.xml to
+      # key the cache on, so the whole job has to be gated before that step runs
+      # rather than only around the build itself.
+      - name: Detect Maven project
+        id: maven
+        run: |
+          if [ -f pom.xml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up JDK 21
+        if: steps.maven.outputs.present == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -25,12 +38,12 @@ jobs:
           cache: maven
 
       - name: Verify
-        run: mvn -B verify
-        if: hashFiles('pom.xml') != ''
+        if: steps.maven.outputs.present == 'true'
+        run: ./mvnw -B verify
 
-      - name: Skip (no Maven project yet)
-        run: echo "No pom.xml present yet — build step skipped."
-        if: hashFiles('pom.xml') == ''
+      - name: Skip (no Maven project on this branch)
+        if: steps.maven.outputs.present == 'false'
+        run: echo "No pom.xml on this branch — nothing to build."
 
   docs:
     name: Design doc renders
