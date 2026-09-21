@@ -70,6 +70,10 @@ class SchemaMigrationIntegrationTest extends AbstractIntegrationTest {
                     "ck_conf",
                     "ck_task_type",
                     "ck_task_link",
+                    // Not in section 3: added by this PR alongside `task.slots`, because section
+                    // 7.6's claim path reads `task.getSlots()`. Asserted here so the deviation is
+                    // pinned down rather than left to a comment in a migration.
+                    "ck_task_slots",
                     "ck_asg_method",
                     "ck_ledger_reason");
 

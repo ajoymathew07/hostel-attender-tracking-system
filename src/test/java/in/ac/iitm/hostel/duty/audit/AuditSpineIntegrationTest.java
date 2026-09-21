@@ -132,8 +132,11 @@ class AuditSpineIntegrationTest extends AbstractIntegrationTest {
                                                             null,
                                                             "MANAGER"));
                                         }))
-                .describedAs("the failing audit insert must surface, not be swallowed")
-                .isInstanceOf(Exception.class);
+                .describedAs(
+                        "the failing audit insert must surface as the database rejection it is, not"
+                                + " be swallowed and not be some unrelated failure that would let"
+                                + " this test pass for the wrong reason")
+                .isInstanceOf(DataIntegrityViolationException.class);
 
         assertThat(terms.findByDomainAndTerm("CIVIL", term))
                 .describedAs(

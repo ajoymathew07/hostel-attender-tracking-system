@@ -159,9 +159,16 @@ class OptimisticLockingIntegrationTest extends AbstractIntegrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    /**
+     * Note this does not depend on contention. All four copies are detached at version 0 before the
+     * threads are released, so the outcome is the same run sequentially — what it pins down is the
+     * {@code @Version} check against a stale copy, which is the behaviour that matters when a
+     * manager reassigns while an attender is mid-resolve. The genuinely contended case is
+     * {@code LedgerIdempotencyIntegrationTest}, where the losers block inside Postgres.
+     */
     @Test
-    @DisplayName("under a genuine four-thread race on one task, exactly one write survives per version")
-    void concurrentTaskUpdatesLeaveExactlyOneWinnerPerRound() throws Exception {
+    @DisplayName("a stale copy loses to a committed write, so only one of four updates survives")
+    void staleCopiesLoseToTheCommittedWrite() throws Exception {
         Long managerId = users.saveAndFlush(Fixtures.manager()).getId();
         Complaint complaint = complaints.saveAndFlush(Fixtures.complaint());
         Long taskId =
