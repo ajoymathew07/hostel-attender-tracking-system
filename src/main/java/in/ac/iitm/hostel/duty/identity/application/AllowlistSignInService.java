@@ -64,6 +64,13 @@ class AllowlistSignInService implements SignInService {
         if (!identity.emailVerified()) {
             return refuse(SignInRejection.EMAIL_NOT_VERIFIED, email, NO_SUCH_USER);
         }
+        // Tested on what Google sent, NOT on `email`: normalisation is where the damage is done.
+        // Lower-casing is not injective over Unicode — U+212A KELVIN SIGN folds to 'k', so
+        // "Kumar@…" normalises to the ASCII string "kumar@…" and would match a row it is not
+        // (see EmailAddresses). Nothing this system stores is non-ASCII, so refusing loses nobody.
+        if (!EmailAddresses.isAscii(identity.email())) {
+            return refuse(SignInRejection.NOT_PROVISIONED, email, NO_SUCH_USER);
+        }
 
         Optional<AppUser> found = users.findByEmail(email);
         if (found.isEmpty()) {
@@ -100,27 +107,10 @@ class AllowlistSignInService implements SignInService {
         return SignInOutcome.refused(rejection, email);
     }
 
-    /** A two-field JSON object, escaped enough for an address that came from outside. */
+    /** A two-field JSON object, escaped because the address came from outside. */
     private static String json(String email, SignInRejection rejection) {
-        StringBuilder detail = new StringBuilder("{\"email\":\"").append(escape(email)).append('"');
-        if (rejection != null) {
-            detail.append(",\"reason\":\"").append(rejection.name()).append('"');
-        }
-        return detail.append('}').toString();
-    }
-
-    private static String escape(String value) {
-        StringBuilder escaped = new StringBuilder(value.length() + 8);
-        for (int i = 0; i < value.length(); i++) {
-            char c = value.charAt(i);
-            if (c == '"' || c == '\\') {
-                escaped.append('\\').append(c);
-            } else if (c < 0x20) {
-                escaped.append(String.format("\\u%04x", (int) c));
-            } else {
-                escaped.append(c);
-            }
-        }
-        return escaped.toString();
+        return rejection == null
+                ? AuditDetail.of("email", email)
+                : AuditDetail.of("email", email, "reason", rejection.name());
     }
 }

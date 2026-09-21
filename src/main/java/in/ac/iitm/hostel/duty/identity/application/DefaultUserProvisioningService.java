@@ -52,7 +52,7 @@ class DefaultUserProvisioningService implements UserProvisioningService {
     @Override
     @PreAuthorize("hasRole('MANAGER')")
     public UserSummary provision(String displayName, String email, UserRole role) {
-        String normalised = AppUser.normalizeEmail(email);
+        String normalised = EmailAddresses.requireAllowlistAddress(email);
         if (users.existsByEmail(normalised)) {
             throw new EmailAlreadyProvisionedException(normalised);
         }
@@ -60,7 +60,7 @@ class DefaultUserProvisioningService implements UserProvisioningService {
         AppUser user =
                 users.saveAndFlush(
                         new AppUser(displayName, role, normalised, Instant.now(), CurrentUser.idOrNull()));
-        record(user, "USER_PROVISIONED", "{\"email\":\"" + normalised + "\",\"role\":\"" + role + "\"}");
+        record(user, "USER_PROVISIONED", AuditDetail.of("email", normalised, "role", role.name()));
         return UserSummary.of(user);
     }
 
@@ -68,8 +68,9 @@ class DefaultUserProvisioningService implements UserProvisioningService {
     @PreAuthorize("hasRole('MANAGER')")
     public UserSummary deactivate(long userId) {
         AppUser user = require(userId);
+        requireAnotherManagerRemains(user, UserRole.ATTENDER);
         user.deactivate();
-        return saveAndRecord(user, "USER_DEACTIVATED", "{\"active\":false}");
+        return saveAndRecord(user, "USER_DEACTIVATED", AuditDetail.ofLiteral("active", "false"));
     }
 
     @Override
@@ -77,37 +78,49 @@ class DefaultUserProvisioningService implements UserProvisioningService {
     public UserSummary reactivate(long userId) {
         AppUser user = require(userId);
         user.reactivate();
-        return saveAndRecord(user, "USER_REACTIVATED", "{\"active\":true}");
+        return saveAndRecord(user, "USER_REACTIVATED", AuditDetail.ofLiteral("active", "true"));
     }
 
     @Override
     @PreAuthorize("hasRole('MANAGER')")
     public UserSummary changeRole(long userId, UserRole role) {
         AppUser user = require(userId);
+        requireAnotherManagerRemains(user, role);
         UserRole previous = user.getRole();
         user.changeRole(role);
         return saveAndRecord(
-                user, "USER_ROLE_CHANGED", "{\"from\":\"" + previous + "\",\"to\":\"" + role + "\"}");
+                user, "USER_ROLE_CHANGED", AuditDetail.of("from", previous.name(), "to", role.name()));
     }
 
     @Override
     @PreAuthorize("hasRole('MANAGER')")
     public UserSummary changeEmail(long userId, String email) {
         AppUser user = require(userId);
-        String normalised = AppUser.normalizeEmail(email);
+        String normalised = EmailAddresses.requireAllowlistAddress(email);
         String previous = user.getEmail();
         if (!previous.equals(normalised) && users.existsByEmail(normalised)) {
             throw new EmailAlreadyProvisionedException(normalised);
         }
         user.changeEmail(normalised);
         return saveAndRecord(
-                user,
-                "USER_EMAIL_CHANGED",
-                "{\"from\":\"" + previous + "\",\"to\":\"" + normalised + "\"}");
+                user, "USER_EMAIL_CHANGED", AuditDetail.of("from", previous, "to", normalised));
     }
 
     private AppUser require(long userId) {
         return users.findById(userId).orElseThrow(() -> new UnknownUserException(userId));
+    }
+
+    /**
+     * Refuses an operation that would take the last active manager away (ADR-002's break-glass).
+     * Deactivation passes {@code ATTENDER} because switching a manager off removes a manager just
+     * as demoting one does.
+     */
+    private void requireAnotherManagerRemains(AppUser user, UserRole roleAfter) {
+        boolean wasAManager = user.getRole() == UserRole.MANAGER && user.isActive();
+        boolean stillAManager = roleAfter == UserRole.MANAGER;
+        if (wasAManager && !stillAManager && users.countByRoleAndActiveIsTrue(UserRole.MANAGER) <= 1) {
+            throw new LastManagerException();
+        }
     }
 
     private UserSummary saveAndRecord(AppUser user, String eventType, String detail) {

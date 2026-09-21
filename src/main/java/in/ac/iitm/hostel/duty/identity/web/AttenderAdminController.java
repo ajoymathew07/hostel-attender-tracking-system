@@ -1,6 +1,8 @@
 package in.ac.iitm.hostel.duty.identity.web;
 
 import in.ac.iitm.hostel.duty.identity.application.EmailAlreadyProvisionedException;
+import in.ac.iitm.hostel.duty.identity.application.InvalidEmailException;
+import in.ac.iitm.hostel.duty.identity.application.LastManagerException;
 import in.ac.iitm.hostel.duty.identity.application.UnknownUserException;
 import in.ac.iitm.hostel.duty.identity.application.UserProvisioningService;
 import in.ac.iitm.hostel.duty.identity.application.UserSummary;
@@ -108,6 +110,26 @@ class AttenderAdminController {
     @ExceptionHandler(UnknownUserException.class)
     String unknownUser(RedirectAttributes flash) {
         flash.addFlashAttribute("error", "That user no longer exists — the list has been refreshed");
+        return REDIRECT;
+    }
+
+    /**
+     * An address the allowlist will not accept. The repoint field posts a bare parameter, so the
+     * service is the only thing standing between a typo and a user who can never sign in again.
+     */
+    @ExceptionHandler(InvalidEmailException.class)
+    String invalidEmail(InvalidEmailException failure, RedirectAttributes flash) {
+        flash.addFlashAttribute(
+                "error", "\"" + failure.getEmail() + "\" is not a usable Google address");
+        return REDIRECT;
+    }
+
+    /** Refusing to let the manager lock everybody out (ADR-002's break-glass). */
+    @ExceptionHandler(LastManagerException.class)
+    String lastManager(RedirectAttributes flash) {
+        flash.addFlashAttribute(
+                "error",
+                "That would leave nobody able to administer. Add or reactivate another manager first.");
         return REDIRECT;
     }
 }

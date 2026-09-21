@@ -94,6 +94,25 @@ class AttenderAdminControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("the repoint field posts a bare parameter, so the service is what refuses a non-address")
+    void aNonAddressIsRefusedRatherThanStored() throws Exception {
+        AppUser ravi = anAttender();
+        String before = ravi.getEmail();
+
+        mockMvc.perform(
+                        post("/admin/attenders/{id}/email", ravi.getId())
+                                .with(csrf())
+                                .param("email", "this is not an email at all"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/attenders"))
+                .andExpect(flash().attributeExists("error"));
+
+        assertThat(users.findById(ravi.getId()).orElseThrow().getEmail())
+                .describedAs("an unmatchable allowlist key would lock the user out for good")
+                .isEqualTo(before);
+    }
+
+    @Test
     @DisplayName("acting on a user who no longer exists refreshes the screen instead of throwing")
     void aStaleScreenIsHandled() throws Exception {
         mockMvc.perform(post("/admin/attenders/{id}/deactivate", -1L).with(csrf()))

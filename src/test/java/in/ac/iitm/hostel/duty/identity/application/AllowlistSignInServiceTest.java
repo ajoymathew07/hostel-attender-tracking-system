@@ -134,6 +134,18 @@ class AllowlistSignInServiceTest {
     }
 
     @Test
+    @DisplayName("a Unicode address that lower-cases onto an allowlisted one is not looked up at all")
+    void refusesAnAddressThatCaseFoldingWouldCollideWithARow() {
+        // U+212A KELVIN SIGN lower-cases to 'k', so this normalises to exactly "kumar@example.com".
+        SignInOutcome outcome = signIn().admit(new OidcIdentity("Kumar@example.com", true));
+
+        assertThat(outcome.admitted()).isFalse();
+        assertThat(outcome.rejection()).isEqualTo(SignInRejection.NOT_PROVISIONED);
+        verify(users, never())
+                .findByEmail(anyString());
+    }
+
+    @Test
     @DisplayName("an admitted sign-in is audited against the user")
     void auditsAnAdmittedSignIn() {
         AppUser ravi = attender("ravi@example.com");
