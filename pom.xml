@@ -117,9 +117,13 @@
       </plugin>
 
       <!--
-        Coverage reports only in this PR: there is no production code to cover yet.
-        The §12.1 gates (75% line overall, 90% on `domain`) are switched on in PR 2,
-        when the schema and domain entities land, by adding the `check` goal here.
+        Coverage gates of test plan section 12.1, switched on in PR 2 now that there is
+        real code to cover: 75% line overall, 90% line on `domain`.
+
+        The two are separate `check` executions rather than one, because "90% on domain"
+        is a statement about the domain layer as a whole. A PACKAGE-element rule would
+        instead demand 90% from each domain package independently, which is a stricter
+        and different promise than the design makes.
       -->
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -138,6 +142,55 @@
             <goals>
               <goal>report</goal>
             </goals>
+          </execution>
+
+          <!-- 75% line coverage across the whole module. -->
+          <execution>
+            <id>jacoco-check-overall</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.75</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+
+          <!-- 90% line coverage on the domain layer, aggregated across all modules. -->
+          <execution>
+            <id>jacoco-check-domain</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <includes>
+                <include>in/ac/iitm/hostel/duty/*/domain/*.class</include>
+              </includes>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
           </execution>
         </executions>
       </plugin>
