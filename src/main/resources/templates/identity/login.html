@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!--
+  The login screen of section 10.4. One button, for everyone.
+
+  There is deliberately no form here: no username field, no password field, no "forgot password"
+  link. Every user signs in with Google and is admitted by the allowlist (ADR-002). Styling arrives
+  with the Tailwind shell in PR 4; this is the accessible markup it will dress.
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign in · Hostel Duty Tracker</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostel Duty Tracker</h1>
+      <p>Cauvery Hostel, IIT Madras</p>
+
+      <p th:if="${signInFailed}" role="alert">
+        That Google account is not permitted to use this system. Ask the hostel manager to add it.
+      </p>
+      <p th:if="${signedOut}" role="status">You have been signed out.</p>
+
+      <a th:href="@{${googleAuthorizationUrl}}" rel="nofollow">Sign in with Google</a>
+
+      <p>
+        Accounts are created by the hostel manager. Signing in with a Google account that has not
+        been added does not create one.
+      </p>
+    </main>
+  </body>
+</html>

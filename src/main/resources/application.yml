@@ -27,9 +27,36 @@ spring:
     baseline-on-migrate: false
     validate-on-migrate: true
 
+  # Google OIDC — the one sign-in mechanism (ADR-002). The `google` provider's endpoints are
+  # built into Spring Security, so startup makes no discovery call.
+  #
+  # The client id and secret are environment variables (section 11.5); they authenticate the
+  # *application* to Google and are not anyone's credential. The placeholder defaults exist so the
+  # context starts on a developer machine and in CI — a sign-in attempt against them fails at
+  # Google, which is the correct outcome for a machine with no client registered.
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:duty-tracker-local-placeholder}
+            client-secret: ${GOOGLE_CLIENT_SECRET:duty-tracker-local-placeholder}
+            scope: openid,email,profile
+
   threads:
     virtual:
       enabled: false
+
+# A lost or shared phone exposes a session, not a secret — so the session is the thing that
+# expires (sections 11.1, 11.2). `Secure` is added with the cloud profile in PR 7, where TLS
+# terminates; setting it here would break sign-in over plain http on a developer machine.
+server:
+  servlet:
+    session:
+      timeout: 12h
+      cookie:
+        http-only: true
+        same-site: lax
 
 # Actuator health/metrics (architecture section 2.7) arrive with the cloud
 # deployment in PR 7, together with the spring-boot-starter-actuator dependency.
