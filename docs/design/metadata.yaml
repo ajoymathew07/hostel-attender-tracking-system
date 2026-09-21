@@ -1,0 +1,24 @@
+---
+title: "Hostel Complaint & Attender Duty Tracking System"
+subtitle: "Phase 1 — Design Document"
+author:
+  - "Ajoy Mathew (CS23B101)"
+  - "CS5013 — Programming with AI, IIT Madras"
+date: "11 September 2026"
+documentclass: article
+geometry: "margin=2.4cm"
+fontsize: 10pt
+linkcolor: RoyalBlue
+urlcolor: RoyalBlue
+toccolor: black
+toc: true
+toc-depth: 2
+numbersections: false
+colorlinks: true
+header-includes:
+  - \usepackage{longtable}
+  - \usepackage{booktabs}
+  - \usepackage{fvextra}
+  - \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\},fontsize=\footnotesize}
+  - \setlength{\emergencystretch}{3em}
+---
