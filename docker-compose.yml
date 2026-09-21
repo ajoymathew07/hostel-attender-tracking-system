@@ -1,0 +1,28 @@
+# Local development database.
+#   docker compose up -d
+# PostgreSQL everywhere and only — development, test (Testcontainers) and cloud (ADR-001).
+# Credentials match the `local` profile in src/main/resources/application.yml.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: duty-tracker-postgres
+    environment:
+      POSTGRES_DB: duty_tracker
+      POSTGRES_USER: duty_tracker
+      POSTGRES_PASSWORD: duty_tracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - duty-tracker-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U duty_tracker -d duty_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  duty-tracker-pgdata:
+    name: duty-tracker-pgdata

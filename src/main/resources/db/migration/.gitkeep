@@ -1,0 +1,2 @@
+Flyway migration location (spring.flyway.locations=classpath:db/migration).
+Intentionally empty in PR 1 — the schema lands in PR 2 (schema + audit spine).
