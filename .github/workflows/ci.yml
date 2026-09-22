@@ -41,6 +41,22 @@ jobs:
         if: steps.maven.outputs.present == 'true'
         run: ./mvnw -B verify
 
+      - name: Upload coverage report
+        if: always() && steps.maven.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco
+          if-no-files-found: ignore
+
+      - name: Upload test reports
+        if: failure() && steps.maven.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports
+          if-no-files-found: ignore
+
       - name: Skip (no Maven project on this branch)
         if: steps.maven.outputs.present == 'false'
         run: echo "No pom.xml on this branch — nothing to build."

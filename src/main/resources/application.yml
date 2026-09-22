@@ -1,0 +1,62 @@
+# Base configuration. Profile-specific documents follow.
+#   local — developer machine, against the Postgres in docker-compose.yml
+#   cloud — Render/Railway and the manager's standby jar (arrives with PR 7)
+spring:
+  application:
+    name: duty-tracker
+  profiles:
+    default: local
+
+  jpa:
+    # The schema is owned by Flyway (architecture section 2.7); Hibernate never creates it.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          # Every TIMESTAMP column is written and read as UTC (NFR-7, overview
+          # section 1). Asia/Kolkata is a *presentation* and business-date
+          # concern, applied in web/reporting, never at the JDBC boundary.
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # Forward-only, versioned, PostgreSQL-only (architecture section 2.7).
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+  threads:
+    virtual:
+      enabled: false
+
+# Actuator health/metrics (architecture section 2.7) arrive with the cloud
+# deployment in PR 7, together with the spring-boot-starter-actuator dependency.
+
+logging:
+  level:
+    in.ac.iitm.hostel.duty: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  # Credentials match docker-compose.yml. Secrets are environment variables only
+  # (architecture section 2.7); these defaults are for a throwaway local container.
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/duty_tracker}
+    username: ${DATABASE_USERNAME:duty_tracker}
+    password: ${DATABASE_PASSWORD:duty_tracker}
+    hikari:
+      pool-name: duty-tracker-pool
+      maximum-pool-size: 10
+
+  thymeleaf:
+    cache: false
+
+logging:
+  level:
+    in.ac.iitm.hostel.duty: DEBUG
