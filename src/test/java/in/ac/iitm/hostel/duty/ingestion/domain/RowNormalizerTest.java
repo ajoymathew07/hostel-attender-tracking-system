@@ -140,12 +140,24 @@ class RowNormalizerTest {
     }
 
     @Test
-    @DisplayName("a wing-prefixed room keeps its prefix")
-    void wingPrefixedRoomsSurvive() {
+    @DisplayName("the digits are taken even if someone writes a stray prefix")
+    void strayPrefixesAreIgnored() {
         Map<SourceField, String> fields = minimal();
         fields.put(SourceField.ROOM, "a-214");
 
-        assertThat(NORMALIZER.normalize(row(fields)).reporterRoom()).isEqualTo("A-214");
+        // Cauvery rooms are digits only; the wing is not part of the number. Anything a resident
+        // types around the digits is dropped rather than stored and passed on to dispatch.
+        assertThat(NORMALIZER.normalize(row(fields)).reporterRoom()).isEqualTo("214");
+    }
+
+    @Test
+    @DisplayName("both room shapes are recognised: 3-digit and 4-digit")
+    void bothRoomShapesAreRecognised() {
+        for (String room : new String[] {"169", "214", "312", "1099", "2043", "3007"}) {
+            Map<SourceField, String> fields = minimal();
+            fields.put(SourceField.ROOM, room);
+            assertThat(NORMALIZER.normalize(row(fields)).reporterRoom()).isEqualTo(room);
+        }
     }
 
     @Test

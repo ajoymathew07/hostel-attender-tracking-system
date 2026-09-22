@@ -28,19 +28,15 @@ public final class RowNormalizer {
      * Section 5.4's room pattern, applied to the upper-cased cell so {@code a-214} and {@code
      * A-214} both match.
      *
-     * <p><strong>One deliberate tightening.</strong> The design writes the wing separator as
-     * {@code [-\s]?}, which lets a <em>space</em> sit between the letters and the digits. Over the
-     * room cell that is right — "A 214" is a wing and a room. Over the description, which section
-     * 5.4 makes the fallback, it is not: "no water in 1108" matches with "IN" as the wing and
-     * yields the room "IN 1108", and that string then goes into {@code reporter_room}, where
-     * dispatch reads it. Any two-letter word before a number has the same effect.
-     *
-     * <p>So the separator here is a hyphen or nothing. Every wing form the hostel actually writes
-     * — {@code A-214}, {@code AB214}, {@code 214} — still matches, and the one form that is lost,
-     * {@code A 214}, degrades to {@code 214} rather than to garbage: the digits are what floor
-     * derivation uses anyway. Raised as a design question in the PR notes.
+     * <p>Cauvery room numbers are digits only — 100–199 and 1000–1099 on the ground floor, 2xx and
+     * 2xxx on the first, 3xx and 3xxx on the second. The hostel has wings, but the room number does
+     * not name them, so there is no letter prefix to match. The design's pattern allows up to two
+     * leading letters separated by an optional space; over the description, which section 5.4 makes
+     * the fallback, that makes "no water in 1108" yield the room "IN 1108", and that string then
+     * goes to dispatch. Matching digits only removes the problem at its root rather than patching
+     * the separator.
      */
-    private static final Pattern ROOM = Pattern.compile("\\b([A-Z]{0,2}-?\\d{3,4})\\b");
+    private static final Pattern ROOM = Pattern.compile("\\b(\\d{3,4})\\b");
 
     /** Business dates are Asia/Kolkata; storage is UTC (NFR-7). */
     public static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Kolkata");
