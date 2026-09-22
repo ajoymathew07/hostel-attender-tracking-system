@@ -40,3 +40,6 @@ docs/design/*.log
 docs/design/*.fls
 docs/design/*.fdb_latexmk
 docs/design/*.synctex.gz
+docs/design/submission/*.aux
+docs/design/submission/*.log
+docs/design/submission/*.out
