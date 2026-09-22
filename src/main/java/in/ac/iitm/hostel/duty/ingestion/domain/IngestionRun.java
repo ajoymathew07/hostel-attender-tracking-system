@@ -84,6 +84,21 @@ public class IngestionRun {
         this.finishedAt = Objects.requireNonNull(at, "at");
     }
 
+    /**
+     * Rows that could not be read, on a run that otherwise worked (section 5.3).
+     *
+     * <p>Deliberately not {@link #fail}. Each row is processed in its own transaction so that one
+     * malformed response cannot abort the run; the rows that were fine were ingested, so the run
+     * succeeded and the bad ones are recorded here. Marking such a run {@code FAILED} would train
+     * the manager to ignore the status, which is the one thing it must not do.
+     *
+     * <p>The detail is a row number and a reason, never a cell value — the cell may hold a
+     * student's name, roll number or phone number (section 11.4).
+     */
+    public void recordRowFailures(String detail) {
+        this.errorDetail = detail;
+    }
+
     /** A run fails loudly — a renamed required column must not pass silently (test plan E12). */
     public void fail(Instant at, String detail) {
         this.status = IngestionStatus.FAILED;

@@ -43,9 +43,57 @@ spring:
             client-secret: ${GOOGLE_CLIENT_SECRET:duty-tracker-local-placeholder}
             scope: openid,email,profile
 
+  # Upload safety, section 11.6. The container refuses an oversize part before any of our code
+  # runs; `ingestion.upload.max-bytes` below is the same limit enforced in the service, which is
+  # the one that is tested and that a non-HTTP caller would also meet.
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5MB
+      max-request-size: 5MB
+
   threads:
     virtual:
       enabled: false
+
+# Ingestion, section 5.2. Every one of these is a tunable rather than a constant (section 2.7),
+# because form question wording and column order *will* change (OQ-4) and the fix must be a config
+# edit rather than a redeploy.
+#
+# The design writes this block at `ingestion.sheets.columns`. It is at `ingestion.columns` here
+# because the CSV fallback is a download of the very same response sheet (section 5.8) and so has
+# the very same headers: one mapping, shared by both sources, is the whole point of the shared
+# port. See IngestionProperties.
+ingestion:
+  columns:
+    timestamp: ["Timestamp", "Submitted at"]
+    email: ["Email Address", "Email"]
+    name: ["Name", "Student Name", "Full Name"]
+    rollNo: ["Roll Number", "Roll No", "Roll"]
+    phone: ["Phone Number", "Contact Number", "Mobile"]
+    room: ["Room Number", "Room No", "Room"]
+    description: ["Describe the issue", "Complaint", "Issue"]
+    # Optional resident-supplied hint; consumed by the classifier in PR 10.
+    category: ["Type of issue"]
+
+  # An unresolvable *required* column fails the whole run loudly rather than ingesting garbage.
+  # `name`, `rollNo` and `phone` are deliberately absent: a Form that does not ask for them still
+  # ingests, and the attender sees the room number alone (section 11.4).
+  required: [timestamp, description]
+
+  # The shapes a Google Form timestamp arrives in; which one depends on the sheet's locale.
+  timestamp-patterns:
+    - "yyyy/MM/dd HH:mm:ss"
+    - "yyyy-MM-dd HH:mm:ss"
+    - "dd/MM/yyyy HH:mm:ss"
+    - "yyyy/MM/dd HH:mm"
+
+  # Form timestamps are wall-clock local time; storage is UTC (NFR-7).
+  zone: Asia/Kolkata
+
+  upload:
+    max-bytes: 5242880 # 5 MB (section 11.6)
+    max-rows: 5000
 
 # A lost or shared phone exposes a session, not a secret — so the session is the thing that
 # expires (sections 11.1, 11.2). `Secure` is added with the cloud profile in PR 7, where TLS

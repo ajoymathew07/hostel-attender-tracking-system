@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<!--
+  The manager dashboard, `/` and `/complaints` (sections 10.3, 10.4).
+
+  This PR's share of section 10.3 is the complaint list and the CSV upload. Triage, live activity,
+  the leaderboard and the analytics strip each belong to the module that owns them and arrive with
+  it — a dashboard of empty placeholders would be worse than a short one that is entirely real.
+
+  Escaping: `th:text` throughout and `th:utext` nowhere. Complaint text is written by residents, so
+  it is the one string on this screen an attacker can choose (section 11.6).
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head th:replace="~{layout/shell :: head('Complaints')}">
+    <title>Complaints · Hostel Duty Tracker</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header th:replace="~{layout/shell :: masthead('complaints')}"></header>
+
+    <main id="main" class="mx-auto max-w-7xl px-6 py-8">
+      <div th:replace="~{layout/shell :: flashes}"></div>
+
+      <!--
+        The upload. Section 5.8 calls it drag-and-drop; a plain file input accepts a dragged file
+        in every current browser, so the affordance is there without a line of JavaScript — which
+        matters because the Content-Security-Policy of section 11.6 forbids inline script.
+      -->
+      <section class="mt-6 bg-white border rounded-lg shadow-sm p-6" aria-labelledby="upload-heading">
+        <h1 id="upload-heading" class="text-xl font-semibold text-slate-900">Upload responses</h1>
+        <p class="mt-1 text-sm text-slate-600">
+          The offline fallback for when the Google Sheet cannot be read. Export the response sheet
+          as CSV and upload it here. Uploading the same file twice is safe — a response that is
+          already held is recognised and skipped, so nothing is duplicated.
+        </p>
+
+        <form
+          class="mt-4 flex items-start gap-3 flex-wrap sm-stack"
+          th:action="@{/complaints/upload}"
+          method="post"
+          enctype="multipart/form-data">
+          <div>
+            <label class="label" for="file">Response CSV</label>
+            <input
+              class="file-input"
+              type="file"
+              id="file"
+              name="file"
+              accept=".csv,text/csv"
+              required
+              aria-describedby="file-help" />
+            <p id="file-help" class="mt-1 text-xs text-slate-500">
+              CSV only, up to 5 MB and 5000 rows.
+            </p>
+          </div>
+          <button class="btn mt-6" type="submit">Upload CSV</button>
+        </form>
+      </section>
+
+      <section class="mt-8" aria-labelledby="list-heading">
+        <div class="flex items-center justify-between gap-4 mb-2">
+          <h2 id="list-heading" class="text-2xl font-semibold text-slate-900">All complaints</h2>
+          <p class="text-sm text-slate-600">
+            <span th:text="${#lists.size(complaints)}">0</span> total
+          </p>
+        </div>
+
+        <p
+          th:if="${#lists.isEmpty(complaints)}"
+          class="notice bg-white"
+          th:text="'No complaints yet. Upload a response CSV above to bring them in.'">
+          empty
+        </p>
+
+        <div th:unless="${#lists.isEmpty(complaints)}" class="bg-white border rounded-lg shadow-sm overflow-x-auto">
+          <table class="table">
+            <caption>
+              Student names, roll numbers and phone numbers are the residents' personal data, shown
+              here for complaint handling and oversight (section 11.4).
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Reference</th>
+                <th scope="col">Reported</th>
+                <th scope="col">Room</th>
+                <th scope="col">Complaint</th>
+                <th scope="col">Domain</th>
+                <th scope="col">Priority</th>
+                <th scope="col">Status</th>
+                <th scope="col">Resident</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="complaint : ${complaints}">
+                <td class="font-mono whitespace-nowrap" th:text="${complaint.publicRef()}">CAU-2026-0001</td>
+                <td class="whitespace-nowrap text-slate-600" th:text="${complaint.reportedAt()}">when</td>
+                <td class="whitespace-nowrap" th:text="${complaint.reporterRoom()} ?: '—'">214</td>
+                <td th:text="${complaint.rawText()}">what the resident wrote</td>
+                <td>
+                  <!-- Icon and text together: colour is never the only signal (section 10.5).
+                       The glyph is decorative and aria-hidden, so the text alone is what a
+                       screen reader announces. -->
+                  <span class="badge">
+                    <span aria-hidden="true" th:text="${domainGlyphs.get(complaint.domain().name())} ?: '❓'">❓</span>
+                    <span th:text="${complaint.domain()}">UNCLASSIFIED</span>
+                  </span>
+                  <span
+                    class="block mt-1 text-xs text-slate-500"
+                    th:if="${complaint.domain().name() == 'UNCLASSIFIED'}"
+                    >awaiting triage</span
+                  >
+                </td>
+                <td>
+                  <span
+                    class="badge"
+                    th:classappend="'badge-' + ${#strings.toLowerCase(complaint.priority())}"
+                    th:text="${complaint.priority()}"
+                    >P2</span
+                  >
+                </td>
+                <td class="whitespace-nowrap" th:text="${complaint.status()}">NEW</td>
+                <td class="text-sm">
+                  <span th:text="${complaint.reporterName()} ?: '—'">name</span>
+                  <span
+                    class="block text-xs text-slate-500"
+                    th:if="${complaint.reporterRollNo()}"
+                    th:text="${complaint.reporterRollNo()}"
+                    >roll</span
+                  >
+                  <span
+                    class="block text-xs text-slate-500"
+                    th:if="${complaint.reporterPhone()}"
+                    th:text="${complaint.reporterPhone()}"
+                    >phone</span
+                  >
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer th:replace="~{layout/shell :: footer}"></footer>
+    </main>
+  </body>
+</html>
