@@ -2,9 +2,11 @@ package in.ac.iitm.hostel.duty.workflow.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
@@ -12,7 +14,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
+import in.ac.iitm.hostel.duty.identity.domain.AppUser;
+import in.ac.iitm.hostel.duty.identity.infrastructure.AppUserRepository;
 import in.ac.iitm.hostel.duty.support.AbstractIntegrationTest;
+import in.ac.iitm.hostel.duty.support.Fixtures;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +26,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -41,6 +48,7 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ComplaintRepository complaints;
+    @Autowired private AppUserRepository users;
 
     private static MockMultipartFile file(String name, String contentType, String body) {
         return new MockMultipartFile("file", name, contentType, body.getBytes(StandardCharsets.UTF_8));
@@ -123,6 +131,44 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
     @DisplayName("an attender posting straight at the upload URL is refused — section 11.3")
     void anAttenderCannotPostAnUpload() throws Exception {
         mockMvc.perform(multipart("/complaints/upload").file(file("responses.csv", "text/csv", CSV)).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("a manager assigns from the screen, then releases it back to the pool")
+    void aManagerAssignsAndReleasesFromTheScreen() throws Exception {
+        AppUser manager = users.saveAndFlush(Fixtures.manager());
+        AppUser ravi = users.saveAndFlush(Fixtures.attender());
+        long complaintId = complaints.saveAndFlush(Fixtures.complaint()).getId();
+        // A real SignedInUser, not @WithMockUser: creating the task records who created it.
+        TestingAuthenticationToken asManager = Fixtures.signIn(manager);
+        SecurityContextHolder.clearContext();
+
+        mockMvc.perform(
+                        post("/complaints/{id}/assign", complaintId)
+                                .param("attenderId", String.valueOf(ravi.getId()))
+                                .with(authentication(asManager))
+                                .with(csrf()))
+                .andExpect(redirectedUrl("/complaints"));
+
+        mockMvc.perform(get("/complaints").with(authentication(asManager)))
+                .andExpect(content().string(containsString(ravi.getDisplayName())));
+
+        mockMvc.perform(
+                        post("/complaints/{id}/release", complaintId)
+                                .with(authentication(asManager))
+                                .with(csrf()))
+                .andExpect(redirectedUrl("/complaints"));
+
+        mockMvc.perform(get("/complaints").with(authentication(asManager)))
+                .andExpect(content().string(containsString("In the pool")));
+    }
+
+    @Test
+    @WithMockUser(roles = "ATTENDER")
+    @DisplayName("an attender posting straight at the assign URL is refused — section 11.3")
+    void anAttenderCannotAssign() throws Exception {
+        mockMvc.perform(post("/complaints/{id}/assign", 1L).param("attenderId", "1").with(csrf()))
                 .andExpect(status().isForbidden());
     }
 

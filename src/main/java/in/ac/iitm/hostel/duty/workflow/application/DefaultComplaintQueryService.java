@@ -1,8 +1,13 @@
 package in.ac.iitm.hostel.duty.workflow.application;
 
+import in.ac.iitm.hostel.duty.workflow.domain.AssignmentStatus;
 import in.ac.iitm.hostel.duty.workflow.domain.Complaint;
+import in.ac.iitm.hostel.duty.workflow.domain.TaskAssignment;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
+import in.ac.iitm.hostel.duty.workflow.infrastructure.TaskAssignmentRepository;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -24,14 +29,25 @@ class DefaultComplaintQueryService implements ComplaintQueryService {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "reportedAt", "id");
 
     private final ComplaintRepository complaints;
+    private final TaskAssignmentRepository assignments;
 
-    DefaultComplaintQueryService(ComplaintRepository complaints) {
+    DefaultComplaintQueryService(
+            ComplaintRepository complaints, TaskAssignmentRepository assignments) {
         this.complaints = complaints;
+        this.assignments = assignments;
     }
 
     @Override
     public List<ComplaintListItem> listAll() {
-        return complaints.findAll(NEWEST_FIRST).stream().map(DefaultComplaintQueryService::toItem).toList();
+        // One query for every live assignment, not one per row: the manager's list is the screen
+        // section 10.6 names when it says "no N+1, fetch joins on queue and dashboard".
+        Map<Long, Long> assignee = new HashMap<>();
+        for (TaskAssignment assignment : assignments.findAllWithComplaint(AssignmentStatus.ACTIVE)) {
+            assignee.put(assignment.getTask().getComplaint().getId(), assignment.getAttenderId());
+        }
+        return complaints.findAll(NEWEST_FIRST).stream()
+                .map(complaint -> toItem(complaint, assignee.get(complaint.getId())))
+                .toList();
     }
 
     @Override
@@ -39,7 +55,7 @@ class DefaultComplaintQueryService implements ComplaintQueryService {
         return complaints.count();
     }
 
-    private static ComplaintListItem toItem(Complaint complaint) {
+    private static ComplaintListItem toItem(Complaint complaint, Long assigneeId) {
         return new ComplaintListItem(
                 complaint.getId(),
                 complaint.getPublicRef(),
@@ -52,6 +68,7 @@ class DefaultComplaintQueryService implements ComplaintQueryService {
                 complaint.getDomain(),
                 complaint.getClassifiedBy(),
                 complaint.getPriority(),
-                complaint.getStatus());
+                complaint.getStatus(),
+                assigneeId);
     }
 }

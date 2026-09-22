@@ -87,6 +87,9 @@ table {
 .max-w-md {
   max-width: 28rem;
 }
+.max-w-lg {
+  max-width: 32rem;
+}
 .w-full {
   width: 100%;
 }
@@ -475,6 +478,34 @@ select.input {
   background-color: var(--red-50);
   border-color: var(--red-300);
   color: var(--red-700);
+}
+
+/* ---- the attender's phone (section 10.2) -------------------------------- */
+/*
+ * One column, no horizontal scrolling, and a primary action with a tap target well above the
+ * 48x48px floor — `min-height: 3rem` is 48px at the default root size, and the button is full
+ * width, so the target is the whole line rather than a word.
+ */
+.btn-lg {
+  width: 100%;
+  justify-content: center;
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+}
+
+.card {
+  background-color: var(--white);
+  border: 1px solid var(--slate-200);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  padding: 1rem;
+}
+
+.list-plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 /* ---- accessibility helper ----------------------------------------------- */

@@ -26,7 +26,8 @@ public record ComplaintListItem(
         ComplaintDomain domain,
         ClassificationMethod classifiedBy,
         Priority priority,
-        ComplaintStatus status) {
+        ComplaintStatus status,
+        Long assigneeId) {
 
     /** The room is not personal data on its own; the other three are (section 11.4). */
     @Override

@@ -51,6 +51,15 @@ class DefaultUserProvisioningService implements UserProvisioningService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('MANAGER')")
+    public List<UserSummary> listAssignableAttenders() {
+        return users.findByRoleAndActiveIsTrueOrderByDisplayNameAsc(UserRole.ATTENDER).stream()
+                .map(UserSummary::of)
+                .toList();
+    }
+
+    @Override
     @PreAuthorize("hasRole('MANAGER')")
     public UserSummary provision(String displayName, String email, UserRole role) {
         String normalised = EmailAddresses.requireAllowlistAddress(email);
