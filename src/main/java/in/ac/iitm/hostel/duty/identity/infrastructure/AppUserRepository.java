@@ -21,4 +21,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     List<AppUser> findByRoleAndActiveIsTrueOrderByDisplayNameAsc(UserRole role);
 
     boolean existsByEmail(String email);
+
+    /** How many managers could still administer — the break-glass invariant of ADR-002. */
+    long countByRoleAndActiveIsTrue(UserRole role);
 }

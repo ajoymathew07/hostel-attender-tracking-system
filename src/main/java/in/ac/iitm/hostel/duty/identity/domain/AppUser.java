@@ -93,6 +93,14 @@ public class AppUser {
         this.email = normalizeEmail(newEmail);
     }
 
+    /**
+     * What this person may do (section 11.3). The role is read from this row at each sign-in and
+     * never from anything Google asserts, so a change takes effect on the user's next sign-in.
+     */
+    public void changeRole(UserRole newRole) {
+        this.role = Objects.requireNonNull(newRole, "role");
+    }
+
     public void rename(String newDisplayName) {
         this.displayName = Objects.requireNonNull(newDisplayName, "displayName");
     }

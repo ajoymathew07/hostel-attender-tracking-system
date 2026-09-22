@@ -57,6 +57,21 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
+    <!--
+      Identity: Google OIDC and nothing else (ADR-002). There is deliberately no password
+      encoder, no form login and no credential column anywhere — `spring-boot-starter-security`
+      is here for the filter chain and method security, `oauth2-client` for the one sign-in
+      mechanism the design allows.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-client</artifactId>
+    </dependency>
+
     <!-- Infrastructure: JPA repositories over PostgreSQL only (ADR-001). -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -80,6 +95,17 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!--
+      Test: `@WithMockUser` for every authorization test. The authorization-code flow itself is
+      Spring Security's code and is not re-tested; what we wrote — the allowlist decision — is
+      unit-tested directly (test plan section 12.1, ADR-002).
+    -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
 
