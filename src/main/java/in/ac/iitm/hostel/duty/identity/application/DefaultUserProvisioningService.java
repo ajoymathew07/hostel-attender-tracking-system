@@ -1,5 +1,6 @@
 package in.ac.iitm.hostel.duty.identity.application;
 
+import in.ac.iitm.hostel.duty.audit.application.AuditDetail;
 import in.ac.iitm.hostel.duty.audit.application.AuditEntry;
 import in.ac.iitm.hostel.duty.audit.application.AuditTrail;
 import in.ac.iitm.hostel.duty.identity.domain.AppUser;
@@ -60,7 +61,7 @@ class DefaultUserProvisioningService implements UserProvisioningService {
         AppUser user =
                 users.saveAndFlush(
                         new AppUser(displayName, role, normalised, Instant.now(), CurrentUser.idOrNull()));
-        record(user, "USER_PROVISIONED", AuditDetail.of("email", normalised, "role", role.name()));
+        record(user, "USER_PROVISIONED", AuditDetail.of("email", normalised).and("role", role.name()).json());
         return UserSummary.of(user);
     }
 
@@ -70,7 +71,7 @@ class DefaultUserProvisioningService implements UserProvisioningService {
         AppUser user = require(userId);
         requireAnotherManagerRemains(user, UserRole.ATTENDER);
         user.deactivate();
-        return saveAndRecord(user, "USER_DEACTIVATED", AuditDetail.ofLiteral("active", "false"));
+        return saveAndRecord(user, "USER_DEACTIVATED", AuditDetail.of("active", false).json());
     }
 
     @Override
@@ -78,7 +79,7 @@ class DefaultUserProvisioningService implements UserProvisioningService {
     public UserSummary reactivate(long userId) {
         AppUser user = require(userId);
         user.reactivate();
-        return saveAndRecord(user, "USER_REACTIVATED", AuditDetail.ofLiteral("active", "true"));
+        return saveAndRecord(user, "USER_REACTIVATED", AuditDetail.of("active", true).json());
     }
 
     @Override
@@ -89,7 +90,7 @@ class DefaultUserProvisioningService implements UserProvisioningService {
         UserRole previous = user.getRole();
         user.changeRole(role);
         return saveAndRecord(
-                user, "USER_ROLE_CHANGED", AuditDetail.of("from", previous.name(), "to", role.name()));
+                user, "USER_ROLE_CHANGED", AuditDetail.of("from", previous.name()).and("to", role.name()).json());
     }
 
     @Override
@@ -103,7 +104,7 @@ class DefaultUserProvisioningService implements UserProvisioningService {
         }
         user.changeEmail(normalised);
         return saveAndRecord(
-                user, "USER_EMAIL_CHANGED", AuditDetail.of("from", previous, "to", normalised));
+                user, "USER_EMAIL_CHANGED", AuditDetail.of("from", previous).and("to", normalised).json());
     }
 
     private AppUser require(long userId) {

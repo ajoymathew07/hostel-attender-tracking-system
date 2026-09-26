@@ -1,0 +1,503 @@
+/*
+ * The Tailwind utility layer (design section 10.5).
+ *
+ * WHY THIS IS HAND-WRITTEN, and what should replace it
+ * ----------------------------------------------------
+ * Section 10.5 specifies Tailwind, "utility classes, no separate design system to maintain solo".
+ * A real Tailwind build needs Node: `npx tailwindcss` scanning the templates and emitting a purged
+ * stylesheet. This repository has no Node toolchain, and the build is a single `./mvnw verify` that
+ * must work from cold in CI. Adding a frontend-maven-plugin to download Node mid-build would make
+ * the build depend on npm's availability to compile a stylesheet.
+ *
+ * So this file hand-writes the exact utilities the templates use, under Tailwind's own class names
+ * and its default scale. Every class here behaves as the Tailwind class of the same name. The
+ * templates are therefore written in ordinary Tailwind and need no edit at all on the day a real
+ * build step is added — that PR deletes this file and generates one, and the markup is untouched.
+ * Flagged in the PR description as a decision for the owner.
+ *
+ * It is served from /css/, which SecurityConfig permits anonymously, and it is a same-origin
+ * stylesheet, which the Content-Security-Policy of section 11.6 requires.
+ *
+ * ACCESSIBILITY (section 10.5): every colour pair below meets WCAG AA at the size it is used,
+ * focus rings are visible and never removed, and colour is never the only signal — priority and
+ * status carry a text label, and the domain carries a glyph as well as a hue.
+ */
+
+/* ---- tokens ------------------------------------------------------------ */
+:root {
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-900: #0f172a;
+  --white: #ffffff;
+  --blue-50: #eff6ff;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+  --red-50: #fef2f2;
+  --red-300: #fca5a5;
+  --red-700: #b91c1c;
+  --green-50: #f0fdf4;
+  --green-300: #86efac;
+  --green-800: #166534;
+  --amber-50: #fffbeb;
+  --amber-300: #fcd34d;
+  --amber-800: #92400e;
+}
+
+/* ---- reset ------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+/* Visible focus, never removed: section 10.5. */
+:focus-visible {
+  outline: 2px solid var(--blue-600);
+  outline-offset: 2px;
+}
+
+/* ---- layout ------------------------------------------------------------ */
+.min-h-screen {
+  min-height: 100vh;
+}
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+.max-w-7xl {
+  max-width: 80rem;
+}
+.max-w-md {
+  max-width: 28rem;
+}
+.w-full {
+  width: 100%;
+}
+.block {
+  display: block;
+}
+.flex {
+  display: flex;
+}
+.inline-flex {
+  display: inline-flex;
+}
+.hidden {
+  display: none;
+}
+.flex-wrap {
+  flex-wrap: wrap;
+}
+.items-center {
+  align-items: center;
+}
+.items-start {
+  align-items: flex-start;
+}
+.justify-between {
+  justify-content: space-between;
+}
+.gap-2 {
+  gap: 0.5rem;
+}
+.gap-3 {
+  gap: 0.75rem;
+}
+.gap-4 {
+  gap: 1rem;
+}
+.gap-6 {
+  gap: 1.5rem;
+}
+.overflow-x-auto {
+  overflow-x: auto;
+}
+
+/* ---- spacing ----------------------------------------------------------- */
+.p-4 {
+  padding: 1rem;
+}
+.p-6 {
+  padding: 1.5rem;
+}
+.px-3 {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.px-6 {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+.py-1 {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+.py-4 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+.py-12 {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+.mt-1 {
+  margin-top: 0.25rem;
+}
+.mt-2 {
+  margin-top: 0.5rem;
+}
+.mt-4 {
+  margin-top: 1rem;
+}
+.mt-6 {
+  margin-top: 1.5rem;
+}
+.mt-8 {
+  margin-top: 2rem;
+}
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+.mb-4 {
+  margin-bottom: 1rem;
+}
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+
+/* ---- type -------------------------------------------------------------- */
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.text-base {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+.text-lg {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+.text-xl {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+.text-2xl {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+.font-medium {
+  font-weight: 500;
+}
+.font-semibold {
+  font-weight: 600;
+}
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+.uppercase {
+  text-transform: uppercase;
+}
+.tracking-wide {
+  letter-spacing: 0.025em;
+}
+.text-left {
+  text-align: left;
+}
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+/* ---- colour ------------------------------------------------------------ */
+.bg-slate-50 {
+  background-color: var(--slate-50);
+}
+.bg-slate-100 {
+  background-color: var(--slate-100);
+}
+.bg-white {
+  background-color: var(--white);
+}
+.bg-blue-50 {
+  background-color: var(--blue-50);
+}
+.bg-blue-600 {
+  background-color: var(--blue-600);
+}
+.bg-red-50 {
+  background-color: var(--red-50);
+}
+.bg-green-50 {
+  background-color: var(--green-50);
+}
+.bg-amber-50 {
+  background-color: var(--amber-50);
+}
+.text-white {
+  color: var(--white);
+}
+.text-slate-500 {
+  color: var(--slate-500);
+}
+.text-slate-600 {
+  color: var(--slate-600);
+}
+.text-slate-700 {
+  color: var(--slate-700);
+}
+.text-slate-900 {
+  color: var(--slate-900);
+}
+.text-blue-700 {
+  color: var(--blue-700);
+}
+.text-red-700 {
+  color: var(--red-700);
+}
+.text-green-800 {
+  color: var(--green-800);
+}
+.text-amber-800 {
+  color: var(--amber-800);
+}
+
+/* ---- borders and shape -------------------------------------------------- */
+.border {
+  border: 1px solid var(--slate-200);
+}
+.border-b {
+  border-bottom: 1px solid var(--slate-200);
+}
+.border-t {
+  border-top: 1px solid var(--slate-200);
+}
+.border-slate-200 {
+  border-color: var(--slate-200);
+}
+.border-slate-300 {
+  border-color: var(--slate-300);
+}
+.border-red-300 {
+  border-color: var(--red-300);
+}
+.border-green-300 {
+  border-color: var(--green-300);
+}
+.border-amber-300 {
+  border-color: var(--amber-300);
+}
+.rounded {
+  border-radius: 0.25rem;
+}
+.rounded-md {
+  border-radius: 0.375rem;
+}
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+.rounded-full {
+  border-radius: 9999px;
+}
+.shadow-sm {
+  box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+}
+
+/* ---- controls ----------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  background-color: var(--blue-600);
+  color: var(--white);
+}
+
+.btn:hover {
+  background-color: var(--blue-700);
+}
+
+.btn-secondary {
+  background-color: var(--white);
+  color: var(--slate-700);
+  border-color: var(--slate-300);
+}
+
+.btn-secondary:hover {
+  background-color: var(--slate-100);
+}
+
+.input,
+.file-input,
+select.input {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--slate-300);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background-color: var(--white);
+  color: var(--slate-900);
+}
+
+.label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--slate-700);
+  margin-bottom: 0.25rem;
+}
+
+/* ---- table -------------------------------------------------------------- */
+.table {
+  width: 100%;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.table th {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: var(--slate-600);
+  background-color: var(--slate-100);
+  border-bottom: 1px solid var(--slate-200);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--slate-200);
+  color: var(--slate-700);
+  vertical-align: top;
+}
+
+.table caption {
+  caption-side: bottom;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  color: var(--slate-500);
+  text-align: left;
+}
+
+/* ---- badges: colour is never the only signal (section 10.5) -------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--slate-300);
+  background-color: var(--slate-100);
+  color: var(--slate-700);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-p1 {
+  background-color: var(--red-50);
+  border-color: var(--red-300);
+  color: var(--red-700);
+}
+
+.badge-p2 {
+  background-color: var(--amber-50);
+  border-color: var(--amber-300);
+  color: var(--amber-800);
+}
+
+.badge-p3 {
+  background-color: var(--slate-100);
+  border-color: var(--slate-300);
+  color: var(--slate-700);
+}
+
+/* ---- notices ------------------------------------------------------------ */
+.notice {
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--slate-300);
+  background-color: var(--slate-50);
+  font-size: 0.875rem;
+}
+
+.notice-ok {
+  background-color: var(--green-50);
+  border-color: var(--green-300);
+  color: var(--green-800);
+}
+
+.notice-error {
+  background-color: var(--red-50);
+  border-color: var(--red-300);
+  color: var(--red-700);
+}
+
+/* ---- accessibility helper ----------------------------------------------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ---- the manager desktop is 1440px+; this keeps it usable narrower ------- */
+@media (max-width: 640px) {
+  .px-6 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .sm-stack {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

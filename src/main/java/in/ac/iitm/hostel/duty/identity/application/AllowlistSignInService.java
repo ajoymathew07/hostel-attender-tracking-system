@@ -1,5 +1,6 @@
 package in.ac.iitm.hostel.duty.identity.application;
 
+import in.ac.iitm.hostel.duty.audit.application.AuditDetail;
 import in.ac.iitm.hostel.duty.audit.application.AuditEntry;
 import in.ac.iitm.hostel.duty.audit.application.AuditTrail;
 import in.ac.iitm.hostel.duty.identity.domain.AppUser;
@@ -110,7 +111,7 @@ class AllowlistSignInService implements SignInService {
     /** A two-field JSON object, escaped because the address came from outside. */
     private static String json(String email, SignInRejection rejection) {
         return rejection == null
-                ? AuditDetail.of("email", email)
-                : AuditDetail.of("email", email, "reason", rejection.name());
+                ? AuditDetail.of("email", email).json()
+                : AuditDetail.of("email", email).and("reason", rejection.name()).json();
     }
 }
