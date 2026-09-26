@@ -29,9 +29,17 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity
 class SecurityConfig {
 
-    /** The way in, and the only paths reachable without a session. */
+    /**
+     * The way in, and the only paths reachable without a session.
+     *
+     * <p>{@code /actuator/health} is here because the hosting platform pings it to decide whether a
+     * deploy is live, and it has no session to present. It is safe to open because it is the only
+     * actuator endpoint {@code management.endpoints.web.exposure.include} maps at all, and it
+     * answers with a bare {@code {"status":"UP"}} — no components, no build, no environment.
+     */
     private static final String[] PUBLIC_PATHS = {
         "/login", "/error", "/oauth2/**", "/login/oauth2/**",
+        "/actuator/health", "/actuator/health/**",
         "/css/**", "/js/**", "/images/**", "/favicon.ico"
     };
 

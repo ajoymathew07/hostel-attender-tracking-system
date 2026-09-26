@@ -34,10 +34,15 @@ Java 21 · Spring Boot 3.x (MVC, Data JPA, Security, Validation) · Maven · Pos
 Requires JDK 21, Maven 3.9+, Docker (for the local Postgres and Testcontainers).
 
 ```bash
-docker compose up -d      # start local Postgres
-./mvnw spring-boot:run    # http://localhost:8080
-./mvnw verify             # unit + integration tests
+docker compose up -d                                        # start local Postgres
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local      # http://localhost:8080
+./mvnw verify                                                # unit + integration tests
 ```
+
+There is no default Spring profile: `local` or `cloud` must be named, so that a deployment cannot
+start with developer settings by accident. Deploying is
+[`docs/runbook/deploy.md`](docs/runbook/deploy.md); the Google console setup it depends on is
+[`docs/runbook/google-setup.md`](docs/runbook/google-setup.md).
 
 ## Contributing workflow
 

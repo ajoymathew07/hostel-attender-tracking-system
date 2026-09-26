@@ -1,0 +1,5 @@
+# An EnvironmentPostProcessor has to be registered here rather than as a @Bean: it runs before the
+# application context exists, which is the whole reason ProfileCheck can fail the start before any
+# datasource is created.
+org.springframework.boot.env.EnvironmentPostProcessor=\
+in.ac.iitm.hostel.duty.ProfileCheck
