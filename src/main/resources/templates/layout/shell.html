@@ -51,6 +51,29 @@
     </header>
 
     <!--
+      The attender's top bar (section 10.2). Deliberately not the masthead above: section 10.1
+      treats the two clients as two layouts sharing a backend, not one layout at two widths, so
+      the phone carries none of the desktop's navigation.
+
+      The bottom navigation of section 10.2 (Queue / Duties / Me) is absent because two of its
+      three routes are, and a tab that goes nowhere is worse than a tab that is not there.
+    -->
+    <header th:fragment="mobileBar(title)" class="bg-white border-b">
+      <a class="sr-only" href="#main">Skip to content</a>
+      <div class="mx-auto max-w-lg px-4 py-3 flex items-center justify-between gap-4">
+        <p class="text-lg font-semibold text-slate-900" th:text="${title}">My queue</p>
+        <form th:action="@{/logout}" method="post">
+          <button class="btn btn-secondary" type="submit">Sign out</button>
+        </form>
+      </div>
+    </header>
+
+    <footer th:fragment="mobileFooter" class="mt-8 py-8 text-xs text-slate-500 border-t">
+      The resident's name, roll number and phone number are shown to you while this complaint is
+      live and for 7 days after it is resolved, then no longer (section 11.4).
+    </footer>
+
+    <!--
       Flash messages. `role="status"` for the ordinary case and `role="alert"` for the failure, so
       a screen reader announces a refused upload rather than leaving it to be noticed visually.
     -->

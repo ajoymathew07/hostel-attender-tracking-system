@@ -40,7 +40,9 @@ class SecurityConfig {
                     + " frame-ancestors 'none'";
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, AllowlistOidcUserService allowlist) throws Exception {
+    SecurityFilterChain filterChain(
+            HttpSecurity http, AllowlistOidcUserService allowlist, RoleBasedLanding landing)
+            throws Exception {
         return http.authorizeHttpRequests(
                         requests -> requests.requestMatchers(PUBLIC_PATHS).permitAll().anyRequest().authenticated())
                 // The allowlist is wired in here, so every sign-in passes through it by construction.
@@ -48,6 +50,9 @@ class SecurityConfig {
                         login ->
                                 login.loginPage("/login")
                                         .failureUrl("/login?error")
+                                        // A manager lands on the desktop, an attender on their
+                                        // queue: one door, two applications (section 10.4).
+                                        .successHandler(landing)
                                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(allowlist)))
                 .logout(logout -> logout.logoutSuccessUrl("/login?logout"))
                 // Section 11.6. CSRF protection is Spring Security's default and stays on.

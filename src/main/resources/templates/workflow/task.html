@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<!--
+  One task, `/m/tasks/{id}` (sections 10.2, 10.4) — the deep-link target of a push notification.
+
+  Reached only by the attender who holds the assignment: `@access.ownsTask` refuses everyone else
+  at the service layer (section 11.3), so this page never has to decide what to redact for a
+  stranger. The one thing it does redact is the 7-day window of section 11.4, and that is done in
+  the service too.
+
+  The resolution flow of section 10.2 — START, DEFECT?, DOCKET, DONE — is PR 11's state machine.
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head th:replace="~{layout/shell :: head('Task')}">
+    <title>Task · Hostel Duty Tracker</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header th:replace="~{layout/shell :: mobileBar('Task')}"></header>
+
+    <main id="main" class="mx-auto max-w-lg px-4 py-4">
+      <a class="btn btn-secondary btn-lg" th:href="@{/m}"><span aria-hidden="true">←</span> Back to my queue</a>
+
+      <div class="card mt-4">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span
+            class="badge"
+            th:classappend="'badge-' + ${#strings.toLowerCase(task.priority())}"
+            th:text="${task.priority()}"
+            >P2</span
+          >
+          <span class="badge">
+            <span aria-hidden="true" th:text="${domainGlyphs.get(task.domain().name())} ?: '❓'">❓</span>
+            <span th:text="${task.domain()}">UNCLASSIFIED</span>
+          </span>
+          <span class="badge" th:text="${task.status()}">NEW</span>
+        </div>
+
+        <h1 class="mt-2 text-xl font-semibold">
+          <span class="font-mono" th:text="${task.publicRef()}">CAU-2026-0001</span>
+        </h1>
+        <p class="text-sm text-slate-600" th:if="${task.room()}" th:text="'Room ' + ${task.room()}">Room 214</p>
+
+        <p class="mt-4 text-base" th:text="${task.rawText()}">what the resident wrote</p>
+
+        <p class="mt-4 text-xs text-slate-500" th:text="'Assigned to you ' + ${task.assignedAt()}">assigned</p>
+        <p class="mt-1 text-xs text-slate-500" th:if="${task.slaDueAt()}">
+          <span aria-hidden="true">⏱</span> <span th:text="'Due ' + ${task.slaDueAt()}">due</span>
+        </p>
+      </div>
+
+      <!-- Section 11.4 again, spelled out on the detail screen because this is where an attender
+           goes to phone the resident about access. -->
+      <section class="card mt-4" aria-labelledby="student-heading" th:if="${task.hasStudentContact()}">
+        <h2 id="student-heading" class="text-lg font-semibold">Resident</h2>
+        <p class="mt-2 text-base" th:text="${task.studentName()} ?: '—'">name</p>
+        <p class="text-sm text-slate-600" th:if="${task.studentRollNo()}" th:text="${task.studentRollNo()}">roll</p>
+        <a
+          class="btn btn-lg mt-4"
+          th:if="${task.studentPhone()}"
+          th:href="'tel:' + ${task.studentPhone()}">
+          <span aria-hidden="true">📞</span> <span th:text="${task.studentPhone()}">phone</span>
+        </a>
+      </section>
+
+      <p class="notice bg-white mt-4" th:unless="${task.hasStudentContact()}">
+        The resident's details are no longer shown: this complaint was resolved more than 7 days
+        ago.
+      </p>
+
+      <footer th:replace="~{layout/shell :: mobileFooter}"></footer>
+    </main>
+  </body>
+</html>

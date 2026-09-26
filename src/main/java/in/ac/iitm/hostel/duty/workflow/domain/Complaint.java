@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -29,6 +30,15 @@ import java.util.Objects;
 @Entity
 @Table(name = "complaint")
 public class Complaint {
+
+    /**
+     * How long the assigned attender keeps seeing the student's name, roll number and phone
+     * number after the complaint is resolved (section 11.4, NFR-9).
+     *
+     * <p>This is the retention rule, not a display preference, so it lives on the aggregate that
+     * holds the data rather than in whichever screen happens to render it.
+     */
+    public static final Duration ATTENDER_CONTACT_WINDOW = Duration.ofDays(7);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -119,6 +129,10 @@ public class Complaint {
     @Column(name = "closed_at")
     private Instant closedAt;
 
+    /** When this reached {@code RESOLVED}: the start of the attender's 7-day window (11.4). */
+    @Column(name = "resolved_at")
+    private Instant resolvedAt;
+
     @Version
     @Column(name = "version", nullable = false)
     private long version;
@@ -154,9 +168,26 @@ public class Complaint {
     public void moveTo(ComplaintStatus newStatus, Instant at) {
         this.status = Objects.requireNonNull(newStatus, "status");
         this.updatedAt = Objects.requireNonNull(at, "at");
+        if (newStatus == ComplaintStatus.RESOLVED) {
+            this.resolvedAt = at;
+        }
         if (newStatus == ComplaintStatus.CLOSED || newStatus == ComplaintStatus.REJECTED) {
             this.closedAt = at;
         }
+    }
+
+    /**
+     * Whether an attender may still be shown the reporter's name, roll number and phone number
+     * (section 11.4).
+     *
+     * <p>Scoping, not deletion: the fields stay on the record, and the manager's view of them is
+     * unaffected, because oversight and bonus disputes outlive the work itself. An unresolved
+     * complaint is live work, so the details are visible; after resolution they remain for
+     * {@link #ATTENDER_CONTACT_WINDOW} and then stop.
+     */
+    public boolean reporterVisibleToAttender(Instant at) {
+        Objects.requireNonNull(at, "at");
+        return resolvedAt == null || at.isBefore(resolvedAt.plus(ATTENDER_CONTACT_WINDOW));
     }
 
     /** Transition T11 — the docket gate that {@code mark_resolved} depends on. */
@@ -332,6 +363,10 @@ public class Complaint {
 
     public Instant getClosedAt() {
         return closedAt;
+    }
+
+    public Instant getResolvedAt() {
+        return resolvedAt;
     }
 
     public long getVersion() {

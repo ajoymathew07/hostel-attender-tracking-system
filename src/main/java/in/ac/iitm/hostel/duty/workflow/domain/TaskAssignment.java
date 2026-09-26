@@ -84,6 +84,20 @@ public class TaskAssignment {
         this.scoreSnapshot = json;
     }
 
+    /**
+     * Puts this attender back on the task after a release (transition T6).
+     *
+     * <p>{@code uq_task_attender} allows one row per (task, attender) ever, so a manager who
+     * releases a task and then hands it back to the same attender has to revive this row rather
+     * than insert a second one.
+     */
+    public void assignAgain(Long assigner, Instant at) {
+        this.assignMethod = AssignMethod.MANUAL;
+        this.assignedBy = assigner;
+        this.assignedAt = Objects.requireNonNull(at, "assignedAt");
+        this.status = AssignmentStatus.ACTIVE;
+    }
+
     /** Handed back or superseded by a reassignment (transitions T6, T8). */
     public void release() {
         this.status = AssignmentStatus.RELEASED;

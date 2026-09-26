@@ -1,5 +1,6 @@
 package in.ac.iitm.hostel.duty.support;
 
+import in.ac.iitm.hostel.duty.identity.application.SignedInUser;
 import in.ac.iitm.hostel.duty.identity.domain.AppUser;
 import in.ac.iitm.hostel.duty.identity.domain.UserRole;
 import in.ac.iitm.hostel.duty.ingestion.domain.IngestionRun;
@@ -11,6 +12,8 @@ import in.ac.iitm.hostel.duty.workflow.domain.ComplaintDomain;
 import in.ac.iitm.hostel.duty.workflow.domain.Priority;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * Valid rows for tests, so each test states only the thing it is actually about.
@@ -37,6 +40,25 @@ public final class Fixtures {
             digest.append('0');
         }
         return digest.substring(0, 64);
+    }
+
+    /**
+     * A real {@link SignedInUser} in the security context.
+     *
+     * <p>{@code @WithMockUser} is not enough for anything that reads {@code CurrentUser}: its
+     * principal is Spring's own {@code User}, so {@code CurrentUser.get()} returns empty and the
+     * caller has a role but no identity. Every rule in this PR — whose queue, who assigned, who
+     * owns the task — needs the id, so the tests sign in a provisioned row instead.
+     */
+    public static TestingAuthenticationToken signIn(AppUser user) {
+        TestingAuthenticationToken token =
+                new TestingAuthenticationToken(
+                        new SignedInUser(
+                                user.getId(), user.getEmail(), user.getDisplayName(), user.getRole()),
+                        null,
+                        "ROLE_" + user.getRole().name());
+        SecurityContextHolder.getContext().setAuthentication(token);
+        return token;
     }
 
     public static AppUser attender() {

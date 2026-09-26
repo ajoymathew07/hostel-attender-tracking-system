@@ -86,6 +86,7 @@
                 <th scope="col">Priority</th>
                 <th scope="col">Status</th>
                 <th scope="col">Resident</th>
+                <th scope="col">Assigned to</th>
               </tr>
             </thead>
             <tbody>
@@ -131,6 +132,51 @@
                     th:text="${complaint.reporterPhone()}"
                     >phone</span
                   >
+                </td>
+                <!--
+                  Assign and reassign are the same control (section 10.3): pick a name, press the
+                  button. The select is pre-set to whoever holds it, so reassigning is one change
+                  rather than a separate screen. Release appears only when there is something to
+                  release.
+                -->
+                <td>
+                  <p class="text-sm font-medium" th:if="${complaint.assigneeId()}"
+                     th:text="${attenderNames.get(complaint.assigneeId())} ?: 'Unknown'">Ravi</p>
+                  <p class="text-sm text-slate-500" th:unless="${complaint.assigneeId()}">In the pool</p>
+
+                  <form
+                    class="mt-2 flex items-center gap-2"
+                    th:action="@{/complaints/{id}/assign(id=${complaint.id()})}"
+                    method="post">
+                    <label class="sr-only" th:for="'attender-' + ${complaint.id()}">Assign to</label>
+                    <select
+                      class="input"
+                      name="attenderId"
+                      th:id="'attender-' + ${complaint.id()}"
+                      required>
+                      <option value="" th:selected="${complaint.assigneeId() == null}" disabled>
+                        Choose an attender
+                      </option>
+                      <option
+                        th:each="attender : ${attenders}"
+                        th:value="${attender.id()}"
+                        th:selected="${attender.id() == complaint.assigneeId()}"
+                        th:text="${attender.displayName()}">
+                        Name
+                      </option>
+                    </select>
+                    <button class="btn" type="submit">Assign</button>
+                  </form>
+
+                  <form
+                    class="mt-2"
+                    th:if="${complaint.assigneeId()}"
+                    th:action="@{/complaints/{id}/release(id=${complaint.id()})}"
+                    method="post">
+                    <button class="btn btn-secondary" type="submit">
+                      <span aria-hidden="true">⤺</span> Release
+                    </button>
+                  </form>
                 </td>
               </tr>
             </tbody>

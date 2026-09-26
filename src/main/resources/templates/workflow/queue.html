@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<!--
+  The attender's queue, `/m` (sections 10.2, 10.4).
+
+  Mobile-only. Section 10.1 is explicit that this is not the manager's screen at a narrower
+  breakpoint: one column, no table, no horizontal scrolling, and tap targets of at least 48px.
+
+  What section 10.2 puts here and this PR does NOT draw:
+    - Task actions (START WORK, docket, resolve). They are the state machine's `nextActions`
+      (section 9.3) and arrive with it in PR 11. The one action on a card today is opening it,
+      which keeps section 10.2's "never more than one primary action visible per task" true.
+    - Points, the duties tab and the bottom navigation, whose routes do not exist yet. An inert
+      control that looks real is worse than an absent one.
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head th:replace="~{layout/shell :: head('My queue')}">
+    <title>My queue · Hostel Duty Tracker</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header th:replace="~{layout/shell :: mobileBar('My queue')}"></header>
+
+    <main id="main" class="mx-auto max-w-lg px-4 py-4">
+      <p class="text-sm text-slate-600">
+        <span th:text="${#lists.size(tasks)}">0</span> task(s) assigned to you
+      </p>
+
+      <p th:if="${#lists.isEmpty(tasks)}" class="notice bg-white mt-4">
+        Nothing assigned to you right now.
+      </p>
+
+      <!-- One card per task, single column. `th:text` throughout: the complaint text is written
+           by a resident, so it is the one string here an attacker chooses (section 11.6). -->
+      <ul class="list-plain mt-4">
+        <li th:each="task : ${tasks}" class="card mt-4">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span
+              class="badge"
+              th:classappend="'badge-' + ${#strings.toLowerCase(task.priority())}"
+              th:text="${task.priority()}"
+              >P2</span
+            >
+            <span class="badge">
+              <span aria-hidden="true" th:text="${domainGlyphs.get(task.domain().name())} ?: '❓'">❓</span>
+              <span th:text="${task.domain()}">UNCLASSIFIED</span>
+            </span>
+            <span class="badge" th:text="${task.status()}">NEW</span>
+          </div>
+
+          <p class="mt-2 text-sm text-slate-600">
+            <span class="font-mono" th:text="${task.publicRef()}">CAU-2026-0001</span>
+            <span th:if="${task.room()}" th:text="' · Room ' + ${task.room()}"> · Room 214</span>
+          </p>
+
+          <p class="mt-2 text-base font-medium" th:text="${task.rawText()}">what the resident wrote</p>
+
+          <p class="mt-1 text-xs text-slate-500" th:if="${task.slaDueAt()}">
+            <span aria-hidden="true">⏱</span> <span th:text="'Due ' + ${task.slaDueAt()}">due</span>
+          </p>
+
+          <!-- Section 11.4: present while the work is live and for 7 days after it is resolved,
+               then gone. The service nulls the fields, so there is nothing here to hide. -->
+          <p class="mt-2 text-sm" th:if="${task.hasStudentContact()}">
+            <span th:text="${task.studentName()} ?: '—'">name</span>
+            <span th:if="${task.studentRollNo()}" th:text="' · ' + ${task.studentRollNo()}"> · roll</span>
+            <a
+              class="block mt-1"
+              th:if="${task.studentPhone()}"
+              th:href="'tel:' + ${task.studentPhone()}"
+              th:text="${task.studentPhone()}"
+              >phone</a
+            >
+          </p>
+
+          <a class="btn btn-lg mt-4" th:href="@{/m/tasks/{id}(id=${task.taskId()})}">
+            <span aria-hidden="true">▸</span> Open task
+          </a>
+        </li>
+      </ul>
+
+      <footer th:replace="~{layout/shell :: mobileFooter}"></footer>
+    </main>
+  </body>
+</html>

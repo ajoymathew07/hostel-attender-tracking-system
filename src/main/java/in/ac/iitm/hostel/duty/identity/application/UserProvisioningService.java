@@ -19,6 +19,17 @@ public interface UserProvisioningService {
     /** Everyone on the allowlist, active or not — the provisioning screen's list. */
     List<UserSummary> listUsers();
 
+    /**
+     * The attenders a manager may hand work to, by name.
+     *
+     * <p>Published here rather than left to the caller to filter, because "who can be assigned"
+     * is an identity question — a deactivated account is off the allowlist (section 11.2) and must
+     * not appear in the dispatcher's dropdown. It also keeps {@code workflow} from having to know
+     * the {@code UserRole} enum, which is this module's internal vocabulary (architecture section
+     * 2.4, rule 3).
+     */
+    List<UserSummary> listAssignableAttenders();
+
     /** Adds a Google address to the allowlist. This is the only way an account comes into being. */
     UserSummary provision(String displayName, String email, UserRole role);
 
