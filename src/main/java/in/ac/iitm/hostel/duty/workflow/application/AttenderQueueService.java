@@ -82,6 +82,7 @@ public class AttenderQueueService {
                 complaint.getPriority(),
                 complaint.getStatus(),
                 complaint.getReporterRoom(),
+                complaint.getDocketNo(),
                 complaint.getSlaDueAt(),
                 assignment.getAssignedAt(),
                 showStudent ? complaint.getReporterName() : null,

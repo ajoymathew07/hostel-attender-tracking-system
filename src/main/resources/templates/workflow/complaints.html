@@ -2,9 +2,10 @@
 <!--
   The manager dashboard, `/` and `/complaints` (sections 10.3, 10.4).
 
-  This PR's share of section 10.3 is the complaint list and the CSV upload. Triage, live activity,
-  the leaderboard and the analytics strip each belong to the module that owns them and arrive with
-  it — a dashboard of empty placeholders would be worse than a short one that is entirely real.
+  Section 10.3's dashboard, as far as it is real: the CSV upload, the leaderboard and the
+  complaint list. Triage, live activity and the analytics strip each belong to the module that
+  owns them and arrive with it — a dashboard of empty placeholders would be worse than a short one
+  that is entirely real.
 
   Escaping: `th:text` throughout and `th:utext` nowhere. Complaint text is written by residents, so
   it is the one string on this screen an attacker can choose (section 11.6).
@@ -53,6 +54,50 @@
           </div>
           <button class="btn mt-6" type="submit">Upload CSV</button>
         </form>
+      </section>
+
+      <!--
+        The leaderboard, section 10.3. Every number here is a SUM over the point ledger computed
+        at render time (section 7.8) — there is no stored total, no cache and no counter column,
+        which is exactly why the standings can never disagree with the ledger.
+
+        An attender with no activity still appears on zero: a missing row would read to the
+        manager as a bug rather than as a quiet month.
+      -->
+      <section class="mt-8" aria-labelledby="leaderboard-heading">
+        <div class="flex items-center justify-between gap-4 mb-2">
+          <h2 id="leaderboard-heading" class="text-2xl font-semibold text-slate-900">Leaderboard</h2>
+          <p class="text-sm text-slate-600" th:text="${leaderboard.periodKey()}">2026-09</p>
+        </div>
+
+        <p th:if="${#lists.isEmpty(leaderboard.rows())}" class="notice bg-white">
+          No active attenders yet. Add one on the Users screen.
+        </p>
+
+        <div
+          th:unless="${#lists.isEmpty(leaderboard.rows())}"
+          class="bg-white border rounded-lg shadow-sm overflow-x-auto">
+          <table class="table">
+            <caption>
+              Points earned this month, summed from the ledger. Rank ties are broken by name so the
+              order is the same on every render.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Attender</th>
+                <th scope="col">Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="row, iteration : ${leaderboard.rows()}">
+                <td class="whitespace-nowrap" th:text="${iteration.count}">1</td>
+                <td th:text="${row.displayName()}">Kumar</td>
+                <td class="font-medium whitespace-nowrap" th:text="${row.total()}">41</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section class="mt-8" aria-labelledby="list-heading">

@@ -6,11 +6,12 @@
   breakpoint: one column, no table, no horizontal scrolling, and tap targets of at least 48px.
 
   What section 10.2 puts here and this PR does NOT draw:
-    - Task actions (START WORK, docket, resolve). They are the state machine's `nextActions`
-      (section 9.3) and arrive with it in PR 11. The one action on a card today is opening it,
-      which keeps section 10.2's "never more than one primary action visible per task" true.
-    - Points, the duties tab and the bottom navigation, whose routes do not exist yet. An inert
-      control that looks real is worse than an absent one.
+    - Task actions on the card (START WORK, docket, resolve). They are the state machine's
+      `nextActions` (section 9.3) and arrive with it in PR 11. The one action on a card today is
+      opening it, which keeps section 10.2's "never more than one primary action visible per
+      task" true; the docket and resolve controls live on the task screen behind that tap.
+    - The duties tab and the bottom navigation, whose routes do not exist yet. An inert control
+      that looks real is worse than an absent one.
 -->
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
   <head th:replace="~{layout/shell :: head('My queue')}">
@@ -20,8 +21,17 @@
     <header th:replace="~{layout/shell :: mobileBar('My queue')}"></header>
 
     <main id="main" class="mx-auto max-w-lg px-4 py-4">
-      <p class="text-sm text-slate-600">
+      <div th:replace="~{layout/shell :: flashes}"></div>
+
+      <p class="text-sm text-slate-600 mt-4">
         <span th:text="${#lists.size(tasks)}">0</span> task(s) assigned to you
+      </p>
+
+      <!-- Their own standing and nobody else's: the leaderboard is the manager's screen (11.3).
+           The number is a SUM over the ledger at render time, never a stored counter (7.3). -->
+      <p class="card mt-4 text-base font-medium">
+        <span aria-hidden="true">★</span>
+        <span th:text="${standing}">0</span> points this month
       </p>
 
       <p th:if="${#lists.isEmpty(tasks)}" class="notice bg-white mt-4">

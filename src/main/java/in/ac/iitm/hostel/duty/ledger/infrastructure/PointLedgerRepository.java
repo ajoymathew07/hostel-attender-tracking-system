@@ -1,5 +1,6 @@
 package in.ac.iitm.hostel.duty.ledger.infrastructure;
 
+import in.ac.iitm.hostel.duty.ledger.domain.PeriodTotal;
 import in.ac.iitm.hostel.duty.ledger.domain.PointLedgerEntry;
 import java.util.List;
 import java.util.Optional;
@@ -46,4 +47,20 @@ public interface PointLedgerRepository extends Repository<PointLedgerEntry, Long
                and (:periodKey is null or l.periodKey = :periodKey)
             """)
     long balanceOf(@Param("attenderId") Long attenderId, @Param("periodKey") String periodKey);
+
+    /**
+     * Every attender's total for one period, in one grouped scan over {@code ix_ledger_period} —
+     * the {@code SUM} half of the leaderboard (section 7.8).
+     *
+     * <p>Attenders with no rows in the period are simply absent; the caller supplies them on zero,
+     * which is what section 7.8's {@code LEFT JOIN} was for.
+     */
+    @Query(
+            """
+            select new in.ac.iitm.hostel.duty.ledger.domain.PeriodTotal(l.attenderId, sum(l.points))
+              from PointLedgerEntry l
+             where l.periodKey = :periodKey
+             group by l.attenderId
+            """)
+    List<PeriodTotal> totalsForPeriod(@Param("periodKey") String periodKey);
 }

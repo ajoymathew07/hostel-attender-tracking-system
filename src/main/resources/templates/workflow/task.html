@@ -7,7 +7,9 @@
   stranger. The one thing it does redact is the 7-day window of section 11.4, and that is done in
   the service too.
 
-  The resolution flow of section 10.2 — START, DEFECT?, DOCKET, DONE — is PR 11's state machine.
+  Of the resolution flow in section 10.2 — START, DEFECT?, DOCKET, DONE — this screen draws the
+  last two, which are the ones the +2 depends on (T11, T14). START and DEFECT? are steps of the
+  transition table and arrive with it in PR 11.
 -->
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
   <head th:replace="~{layout/shell :: head('Task')}">
@@ -18,6 +20,8 @@
 
     <main id="main" class="mx-auto max-w-lg px-4 py-4">
       <a class="btn btn-secondary btn-lg" th:href="@{/m}"><span aria-hidden="true">←</span> Back to my queue</a>
+
+      <div th:replace="~{layout/shell :: flashes}"></div>
 
       <div class="card mt-4">
         <div class="flex items-center gap-2 flex-wrap">
@@ -65,6 +69,59 @@
         The resident's details are no longer shown: this complaint was resolved more than 7 days
         ago.
       </p>
+
+      <!--
+        Transition T11. A correction overwrites the number in place — the audit log keeps the old
+        one, which is why there is no docket history here to draw (section 4.3, ADR-012).
+      -->
+      <section class="card mt-4" aria-labelledby="docket-heading">
+        <h2 id="docket-heading" class="text-lg font-semibold">CMS docket</h2>
+        <p class="mt-2 text-sm text-slate-600" th:if="${task.canResolve()}">
+          Filed as <span class="font-mono" th:text="${task.docketNo()}">EU/2026/00417</span>.
+        </p>
+
+        <form class="mt-4" th:action="@{/m/tasks/{id}/docket(id=${task.taskId()})}" method="post">
+          <label
+            class="label"
+            for="docketNo"
+            th:text="${task.canResolve()}
+                     ? 'Correct the number'
+                     : 'Number the Engineering Unit gave you'"
+            >Docket number</label
+          >
+          <input
+            class="input"
+            type="text"
+            id="docketNo"
+            name="docketNo"
+            th:value="${task.docketNo()}"
+            autocomplete="off"
+            required />
+          <button class="btn btn-secondary btn-lg mt-4" type="submit">Save docket</button>
+        </form>
+      </section>
+
+      <!--
+        Transition T14, and the reason the docket gate exists: you cannot collect +2 points for a
+        complaint you never filed. The button is simply absent until the docket is there, so
+        section 10.2's one-primary-action-per-task holds — the refusal in the service is what
+        actually enforces it (section 4.3).
+      -->
+      <section class="card mt-4" aria-labelledby="resolve-heading">
+        <h2 id="resolve-heading" class="text-lg font-semibold">Resolve</h2>
+        <p class="mt-2 text-sm text-slate-600" th:unless="${task.canResolve()}">
+          Record the CMS docket number above first. No docket, no points.
+        </p>
+        <form
+          th:if="${task.canResolve()}"
+          class="mt-4"
+          th:action="@{/m/tasks/{id}/resolve(id=${task.taskId()})}"
+          method="post">
+          <button class="btn btn-lg" type="submit">
+            <span aria-hidden="true">✓</span> Resolve · +2 points
+          </button>
+        </form>
+      </section>
 
       <footer th:replace="~{layout/shell :: mobileFooter}"></footer>
     </main>

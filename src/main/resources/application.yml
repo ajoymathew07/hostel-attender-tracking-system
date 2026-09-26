@@ -95,6 +95,13 @@ ingestion:
     max-bytes: 5242880 # 5 MB (section 11.6)
     max-rows: 5000
 
+# The docket gate, transition T11 (OQ-1). There is no CMS API (section 1.8), so only the format can
+# be validated, and the exact format of an IITM EU CMS docket number is still an open question —
+# hence a property rather than a constant: a wrong guess costs a config edit, not a redeploy. The
+# permissive default is the working answer recorded against OQ-1.
+workflow:
+  docket-pattern: "^[A-Za-z0-9/-]{4,32}$"
+
 # A lost or shared phone exposes a session, not a secret — so the session is the thing that
 # expires (sections 11.1, 11.2). `Secure` is added with the cloud profile in PR 7, where TLS
 # terminates; setting it here would break sign-in over plain http on a developer machine.

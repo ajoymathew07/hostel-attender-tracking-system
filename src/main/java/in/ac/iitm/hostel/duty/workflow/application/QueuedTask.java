@@ -14,8 +14,9 @@ import java.time.Instant;
  * debug dump of the model map.
  *
  * <p>No {@code nextAction} field. Section 10.2's one-primary-action-per-task is driven by the
- * state machine's {@code nextActions} (section 9.3), which is PR 11; until then the one action on
- * a card is opening it.
+ * state machine's {@code nextActions} (section 9.3), which is PR 11; until then the detail screen
+ * decides between "file the docket" and "resolve" from {@link #docketNo()} alone, which is the one
+ * guard transition T14 actually has.
  */
 public record QueuedTask(
         long taskId,
@@ -25,11 +26,17 @@ public record QueuedTask(
         Priority priority,
         ComplaintStatus status,
         String room,
+        String docketNo,
         Instant slaDueAt,
         Instant assignedAt,
         String studentName,
         String studentRollNo,
         String studentPhone) {
+
+    /** Whether the docket gate is open: no docket, no resolve (T14, section 4.3). */
+    public boolean canResolve() {
+        return docketNo != null && !docketNo.isBlank();
+    }
 
     /** Whether the 7-day window is still open, which is what the screen asks (section 11.4). */
     public boolean hasStudentContact() {
