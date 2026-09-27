@@ -235,6 +235,37 @@
                       <span aria-hidden="true">⤺</span> Release
                     </button>
                   </form>
+
+                  <!--
+                    Transitions T15 and T17, shown only on a resolved complaint because those are
+                    the only two rows the table has from RESOLVED. Reopening reverses the +2 with a
+                    new ledger row and never a delete (section 7.3), so the reason is mandatory:
+                    someone's points just went down and the record has to say why.
+                  -->
+                  <form
+                    class="mt-2 flex items-center gap-2"
+                    th:if="${complaint.status().name() == 'RESOLVED'}"
+                    th:action="@{/complaints/{id}/close(id=${complaint.id()})}"
+                    method="post">
+                    <button class="btn btn-secondary" type="submit">Close</button>
+                  </form>
+
+                  <form
+                    class="mt-2 flex items-center gap-2"
+                    th:if="${complaint.status().name() == 'RESOLVED'}"
+                    th:action="@{/complaints/{id}/reopen(id=${complaint.id()})}"
+                    method="post">
+                    <label class="sr-only" th:for="'reopen-' + ${complaint.id()}">Why reopen</label>
+                    <input
+                      class="input"
+                      type="text"
+                      name="reason"
+                      th:id="'reopen-' + ${complaint.id()}"
+                      placeholder="Why reopen?"
+                      autocomplete="off"
+                      required />
+                    <button class="btn btn-secondary" type="submit">Reopen</button>
+                  </form>
                 </td>
               </tr>
             </tbody>

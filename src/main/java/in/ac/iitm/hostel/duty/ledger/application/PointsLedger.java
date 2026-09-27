@@ -45,12 +45,15 @@ public class PointsLedger {
      * request, which is what makes double-crediting structurally impossible rather than a race to
      * win (section 7.3).
      *
+     * @param reopenCount how many times the complaint has been reopened; the {@code :r{n}} suffix
+     *     is what lets a legitimate re-resolution after T17 be credited again under a new key
      * @param at the instant of resolution; the effective date is its Asia/Kolkata business date,
      *     so a job finished at 02:00 IST on the 1st belongs to the new month (section 7.9)
      * @return {@code true} if this call wrote the credit, {@code false} if it was already applied
      */
-    public boolean creditForResolve(long attenderId, long taskId, int points, Instant at) {
-        String key = IdempotencyKeys.forResolve(taskId, attenderId, 0);
+    public boolean creditForResolve(
+            long attenderId, long taskId, int points, int reopenCount, Instant at) {
+        String key = IdempotencyKeys.forResolve(taskId, attenderId, reopenCount);
         if (entries.findByIdempotencyKey(key).isPresent()) {
             return false;
         }
@@ -68,6 +71,48 @@ public class PointsLedger {
                         attenderId,
                         at));
         return true;
+    }
+
+    /**
+     * Whether this exact credit is already on the ledger — the replay of section 7.4.
+     *
+     * <p>The caller needs the answer <em>before</em> it starts moving state, because a retried tap
+     * must be a clean success that touches nothing, not a transition attempted from a state the
+     * table no longer allows.
+     */
+    @Transactional(readOnly = true)
+    public boolean alreadyCreditedForResolve(long attenderId, long taskId, int reopenCount) {
+        return entries
+                .findByIdempotencyKey(IdempotencyKeys.forResolve(taskId, attenderId, reopenCount))
+                .isPresent();
+    }
+
+    /**
+     * Transition T17 — the compensating row for a reopen.
+     *
+     * <p>Append-only means the credit is never deleted: the reversal is a new row with negated
+     * points, keyed {@code REV:{reverses_id}}, and both stay visible in the attender's history.
+     * The second lookup makes a repeated reopen a no-op rather than a constraint violation, for
+     * the same reason the credit's does (section 7.3).
+     */
+    public void reverseResolveCredit(long attenderId, long taskId, int reopenCount, Instant at) {
+        entries
+                .findByIdempotencyKey(IdempotencyKeys.forResolve(taskId, attenderId, reopenCount))
+                .filter(
+                        credit ->
+                                entries
+                                        .findByIdempotencyKey(IdempotencyKeys.forReversal(credit.getId()))
+                                        .isEmpty())
+                .ifPresent(
+                        credit ->
+                                entries.saveAndFlush(
+                                        credit.reversal(
+                                                // The manager reopening is the one raising the
+                                                // reversal (data model section 3.6).
+                                                CurrentUser.idOrNull() == null
+                                                        ? attenderId
+                                                        : CurrentUser.idOrNull(),
+                                                at)));
     }
 
     /**

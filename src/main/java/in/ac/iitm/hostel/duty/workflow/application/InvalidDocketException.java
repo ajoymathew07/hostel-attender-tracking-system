@@ -7,7 +7,7 @@ package in.ac.iitm.hostel.duty.workflow.application;
  * a config property rather than a code constant, so a wrong guess costs a property change and not
  * a redeploy.
  */
-public class InvalidDocketException extends RuntimeException {
+public class InvalidDocketException extends GuardFailedException {
 
     private static final long serialVersionUID = 1L;
 

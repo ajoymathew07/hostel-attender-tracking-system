@@ -13,10 +13,10 @@ import java.time.Instant;
  * that never enters the model cannot be leaked by a later screen, a future JSON endpoint or a
  * debug dump of the model map.
  *
- * <p>No {@code nextAction} field. Section 10.2's one-primary-action-per-task is driven by the
- * state machine's {@code nextActions} (section 9.3), which is PR 11; until then the detail screen
- * decides between "file the docket" and "resolve" from {@link #docketNo()} alone, which is the one
- * guard transition T14 actually has.
+ * <p>Section 10.2's one-primary-action-per-task is the complaint's state, asked four ways below.
+ * The screen may not decide for itself which button to draw: the table is the authority, the
+ * refusal in {@code WorkflowService} is what enforces it, and these four are the same answer
+ * phrased for a template.
  */
 public record QueuedTask(
         long taskId,
@@ -32,6 +32,21 @@ public record QueuedTask(
         String studentName,
         String studentRollNo,
         String studentPhone) {
+
+    /** T7 — the attender is on their way. */
+    public boolean canStart() {
+        return status == ComplaintStatus.ASSIGNED;
+    }
+
+    /** T9 and T10 — the fork on site: a defect, or nothing wrong. */
+    public boolean canReportInspection() {
+        return status == ComplaintStatus.INSPECTING;
+    }
+
+    /** T11 — the number the Engineering Unit gave back, or a correction to it (section 4.3). */
+    public boolean canFileDocket() {
+        return status == ComplaintStatus.AWAITING_CMS || status == ComplaintStatus.IN_PROGRESS;
+    }
 
     /** Whether the docket gate is open: no docket, no resolve (T14, section 4.3). */
     public boolean canResolve() {

@@ -8,7 +8,7 @@ package in.ac.iitm.hostel.duty.workflow.application;
  * matter of attender diligence, so it is a refusal in the service and not a disabled button on a
  * screen.
  */
-public class DocketRequiredException extends RuntimeException {
+public class DocketRequiredException extends GuardFailedException {
 
     private static final long serialVersionUID = 1L;
 

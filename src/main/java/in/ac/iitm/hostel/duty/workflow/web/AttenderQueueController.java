@@ -3,6 +3,8 @@ package in.ac.iitm.hostel.duty.workflow.web;
 import in.ac.iitm.hostel.duty.ledger.application.PointsLedger;
 import in.ac.iitm.hostel.duty.workflow.application.AttenderQueueService;
 import in.ac.iitm.hostel.duty.workflow.application.DocketRequiredException;
+import in.ac.iitm.hostel.duty.workflow.application.GuardFailedException;
+import in.ac.iitm.hostel.duty.workflow.application.IllegalTransitionException;
 import in.ac.iitm.hostel.duty.workflow.application.InvalidDocketException;
 import in.ac.iitm.hostel.duty.workflow.application.QueuedTask;
 import in.ac.iitm.hostel.duty.workflow.application.ResolvedTask;
@@ -69,6 +71,35 @@ class AttenderQueueController {
         return "workflow/task";
     }
 
+    /**
+     * Transitions T7, T9 and T10 — the START and DEFECT? steps of section 10.2's flow.
+     *
+     * <p>One route for the three because they are one screen control each way: the attender taps
+     * what happened and the table decides where that lands. The complaint id is not in the URL —
+     * the attender's world is tasks, and {@code @access.ownsTask} is keyed on the task.
+     */
+    @PostMapping("/m/tasks/{taskId}/start")
+    String start(@PathVariable long taskId, RedirectAttributes flash) {
+        resolution.startInspection(taskId);
+        flash.addFlashAttribute("message", "Inspection started.");
+        return "redirect:/m/tasks/" + taskId;
+    }
+
+    @PostMapping("/m/tasks/{taskId}/defect")
+    String defectConfirmed(@PathVariable long taskId, RedirectAttributes flash) {
+        resolution.confirmDefect(taskId);
+        flash.addFlashAttribute("message", "Defect confirmed. File the CMS docket next.");
+        return "redirect:/m/tasks/" + taskId;
+    }
+
+    @PostMapping("/m/tasks/{taskId}/no-defect")
+    String noDefectFound(
+            @PathVariable long taskId, @RequestParam String note, RedirectAttributes flash) {
+        resolution.reportNoDefect(taskId, note);
+        flash.addFlashAttribute("message", "Closed with no defect found. No points for this one.");
+        return "redirect:/m";
+    }
+
     /** Transition T11: the number the Engineering Unit gave back. */
     @PostMapping("/m/tasks/{taskId}/docket")
     String recordDocket(
@@ -112,6 +143,18 @@ class AttenderQueueController {
     String invalidDocket(InvalidDocketException failure, RedirectAttributes flash) {
         flash.addFlashAttribute(
                 "error", "\"" + failure.getDocketNo() + "\" is not a usable CMS docket number.");
+        return "redirect:/m";
+    }
+
+    /**
+     * Every other refusal from the table.
+     *
+     * <p>Reached from a stale tab — the attender left the task open, finished it on another phone,
+     * and the old screen still shows the old button. The queue is the useful thing to show next.
+     */
+    @ExceptionHandler({IllegalTransitionException.class, GuardFailedException.class})
+    String refused(RuntimeException refusal, RedirectAttributes flash) {
+        flash.addFlashAttribute("error", refusal.getMessage());
         return "redirect:/m";
     }
 }

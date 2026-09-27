@@ -17,9 +17,12 @@ import in.ac.iitm.hostel.duty.workflow.application.InvalidDocketException;
 import in.ac.iitm.hostel.duty.workflow.application.ManualAssignmentService;
 import in.ac.iitm.hostel.duty.workflow.application.ResolvedTask;
 import in.ac.iitm.hostel.duty.workflow.application.TaskResolutionService;
+import in.ac.iitm.hostel.duty.workflow.application.TransitionPayload;
+import in.ac.iitm.hostel.duty.workflow.application.WorkflowService;
 import in.ac.iitm.hostel.duty.workflow.domain.AssignmentStatus;
 import in.ac.iitm.hostel.duty.workflow.domain.ComplaintStatus;
 import in.ac.iitm.hostel.duty.workflow.domain.TaskStatus;
+import in.ac.iitm.hostel.duty.workflow.domain.WorkflowEvent;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.TaskAssignmentRepository;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.TaskRepository;
@@ -55,6 +58,7 @@ class TaskResolutionIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired private TaskResolutionService resolution;
     @Autowired private ManualAssignmentService assignment;
+    @Autowired private WorkflowService workflow;
     @Autowired private ComplaintRepository complaints;
     @Autowired private TaskRepository tasks;
     @Autowired private TaskAssignmentRepository assignments;
@@ -85,8 +89,22 @@ class TaskResolutionIntegrationTest extends AbstractIntegrationTest {
         SecurityContextHolder.clearContext();
     }
 
-    private void fileDocketAsRavi() {
+    /**
+     * T7 then T9 — the two steps of section 10.2's flow that come before the docket.
+     *
+     * <p>They are here because the transition table is now the only write path: a complaint
+     * reaches {@code AWAITING_CMS} by being started and inspected, not by a service deciding to
+     * skip ahead. Before PR 11 these two states did not exist in code and the docket was filed
+     * straight from {@code ASSIGNED}.
+     */
+    private void startAndConfirmDefectAsRavi() {
         Fixtures.signIn(ravi);
+        workflow.transition(complaintId, WorkflowEvent.ATTENDER_START, TransitionPayload.none());
+        workflow.transition(complaintId, WorkflowEvent.DEFECT_CONFIRMED, TransitionPayload.none());
+    }
+
+    private void fileDocketAsRavi() {
+        startAndConfirmDefectAsRavi();
         resolution.recordDocket(taskId, DOCKET);
     }
 
@@ -252,7 +270,7 @@ class TaskResolutionIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("a docket that does not match the configured pattern is refused — T11, OQ-1")
     void aMalformedDocketIsRefused() {
-        Fixtures.signIn(ravi);
+        startAndConfirmDefectAsRavi();
 
         assertThatThrownBy(() -> resolution.recordDocket(taskId, "  "))
                 .isInstanceOf(InvalidDocketException.class);
