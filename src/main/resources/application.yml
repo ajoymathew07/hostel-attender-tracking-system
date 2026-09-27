@@ -95,6 +95,22 @@ ingestion:
     max-bytes: 5242880 # 5 MB (section 11.6)
     max-rows: 5000
 
+  # The Google Form response sheet (sections 2.5, 5.3, 11.5).
+  #
+  # All three may be absent, and on a developer machine and in CI they are: the service-account
+  # key is an environment variable and never a file in this repository, so there is nothing to
+  # commit and nothing to leak. Without them the application starts exactly as it does now, the
+  # poll skips with a debug line and the CSV fallback — the other half of the same port — keeps
+  # working. That is deliberate, not a degraded mode.
+  sheets:
+    spreadsheet-id: ${GOOGLE_SHEET_ID:}
+    sheet-name: ${GOOGLE_SHEET_NAME:Form Responses 1}
+    # Base64 service-account JSON (section 11.5). Read-only on the one response sheet.
+    credentials: ${GOOGLE_SA_KEY:}
+    # One read per three minutes is ~0.1% of the 300-reads-per-minute quota (section 5.3).
+    # ISO-8601, because `@Scheduled` reads this same string and accepts only that form.
+    poll-interval: PT3M
+
 # The docket gate, transition T11 (OQ-1). There is no CMS API (section 1.8), so only the format can
 # be validated, and the exact format of an IITM EU CMS docket number is still an open question —
 # hence a property rather than a constant: a wrong guess costs a config edit, not a redeploy. The

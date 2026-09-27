@@ -28,6 +28,9 @@
     <testcontainers.version>1.21.4</testcontainers.version>
     <archunit.version>1.4.2</archunit.version>
     <jacoco.version>0.8.13</jacoco.version>
+    <google-api-sheets.version>v4-rev20250603-2.0.0</google-api-sheets.version>
+    <google-auth.version>1.48.0</google-auth.version>
+    <shedlock.version>6.6.0</shedlock.version>
   </properties>
 
   <dependencyManagement>
@@ -89,6 +92,42 @@
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
+    </dependency>
+
+    <!--
+      Infrastructure: the Google Sheets adapter (sections 2.2, 5.3).
+
+      `google-api-services-sheets` is the generated v4 client; `google-auth-library-oauth2-http`
+      turns the base64 service-account JSON of section 11.5 into the credential it signs requests
+      with. Both are reached from exactly one class, `GoogleApiSheetReader`, so the rest of the
+      application — and every test — stays free of them.
+    -->
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-sheets</artifactId>
+      <version>${google-api-sheets.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.auth</groupId>
+      <artifactId>google-auth-library-oauth2-http</artifactId>
+      <version>${google-auth.version}</version>
+    </dependency>
+
+    <!--
+      A database-backed lock around the scheduled poll, so two instances cannot double-ingest
+      (architecture section 2.5, point 4). The JDBC provider is chosen because the one database
+      is already the single source of truth (section 2.6); a second piece of infrastructure just
+      to hold a lock would be the wrong trade at this scale.
+    -->
+    <dependency>
+      <groupId>net.javacrumbs.shedlock</groupId>
+      <artifactId>shedlock-spring</artifactId>
+      <version>${shedlock.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>net.javacrumbs.shedlock</groupId>
+      <artifactId>shedlock-provider-jdbc-template</artifactId>
+      <version>${shedlock.version}</version>
     </dependency>
 
     <!-- Test: JUnit 5, AssertJ, Mockito. -->
