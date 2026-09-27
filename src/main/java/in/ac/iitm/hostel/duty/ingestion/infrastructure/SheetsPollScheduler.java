@@ -1,7 +1,10 @@
 package in.ac.iitm.hostel.duty.ingestion.infrastructure;
 
+import in.ac.iitm.hostel.duty.ingestion.application.IngestionHealth;
 import in.ac.iitm.hostel.duty.ingestion.application.SheetsIngestionService;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -21,15 +24,20 @@ import org.springframework.stereotype.Component;
  * ingestion impossible, the lock is what stops us paying for the attempt.
  *
  * <p>The first poll is one interval after start, not at start. A restart loop on the free tier
- * would otherwise hammer the API, and the manager has "Sync Now" for an immediate read.
+ * would otherwise hammer the API, {@code StartupCatchUp} has already reconciled once by then, and
+ * the manager has "Sync Now" for an immediate read.
  */
 @Component
 public class SheetsPollScheduler {
 
-    private final SheetsIngestionService sheets;
+    private static final Logger log = LoggerFactory.getLogger(SheetsPollScheduler.class);
 
-    SheetsPollScheduler(SheetsIngestionService sheets) {
+    private final SheetsIngestionService sheets;
+    private final IngestionHealth health;
+
+    SheetsPollScheduler(SheetsIngestionService sheets, IngestionHealth health) {
         this.sheets = sheets;
+        this.health = health;
     }
 
     /**
@@ -42,6 +50,16 @@ public class SheetsPollScheduler {
             initialDelayString = "${ingestion.sheets.poll-interval}")
     @SchedulerLock(name = "sheetsPoll", lockAtMostFor = "5m")
     public void poll() {
+        // Section 5.3's failure budget. A sheet that is failing will keep failing for a while —
+        // an expired credential, a revoked share, a Google outage — and asking every three
+        // minutes spends quota to learn nothing. Skipping ticks is how the backoff is applied:
+        // the tick still fires, it just declines to call the API.
+        if (health.backingOff()) {
+            log.debug(
+                    "Skipping the poll: ingestion is backing off after {} consecutive failure(s)",
+                    health.consecutiveFailures());
+            return;
+        }
         sheets.poll();
     }
 }

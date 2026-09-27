@@ -21,6 +21,29 @@
       <div th:replace="~{layout/shell :: flashes}"></div>
 
       <!--
+        The degraded-ingestion banner, section 5.3. It appears after three consecutive unattended
+        ingestion failures and says what to do about it, because silence is the failure mode that
+        matters here: a manager whose whole workflow assumes complaints are arriving would
+        otherwise find out by noticing that they stopped.
+
+        `role="alert"` so a screen reader announces it rather than leaving it to be seen, and the
+        wording carries the meaning on its own — the red is a second signal, never the only one
+        (section 10.5).
+      -->
+      <p
+        th:if="${ingestionDegraded}"
+        class="notice notice-error mt-6"
+        role="alert">
+        <strong>Complaints may not be arriving.</strong>
+        <span
+          th:text="'The response sheet has failed to be read ' + ${ingestionFailures} + ' times in a row.'"
+          >The response sheet has failed to be read several times in a row.</span
+        >
+        Export the sheet as CSV and upload it below until it recovers. The sheet is still being
+        retried, less often, and nothing you upload can be ingested twice.
+      </p>
+
+      <!--
         The upload. Section 5.8 calls it drag-and-drop; a plain file input accepts a dragged file
         in every current browser, so the affordance is there without a line of JavaScript — which
         matters because the Content-Security-Policy of section 11.6 forbids inline script.

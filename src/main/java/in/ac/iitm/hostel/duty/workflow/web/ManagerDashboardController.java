@@ -2,6 +2,7 @@ package in.ac.iitm.hostel.duty.workflow.web;
 
 import in.ac.iitm.hostel.duty.identity.application.UserProvisioningService;
 import in.ac.iitm.hostel.duty.identity.application.UserSummary;
+import in.ac.iitm.hostel.duty.ingestion.application.IngestionHealth;
 import in.ac.iitm.hostel.duty.ledger.application.LeaderboardService;
 import in.ac.iitm.hostel.duty.workflow.application.ComplaintQueryService;
 import in.ac.iitm.hostel.duty.workflow.application.GuardFailedException;
@@ -47,18 +48,21 @@ class ManagerDashboardController {
     private final UserProvisioningService users;
     private final LeaderboardService leaderboard;
     private final WorkflowService workflow;
+    private final IngestionHealth ingestion;
 
     ManagerDashboardController(
             ComplaintQueryService complaints,
             ManualAssignmentService assignment,
             UserProvisioningService users,
             LeaderboardService leaderboard,
-            WorkflowService workflow) {
+            WorkflowService workflow,
+            IngestionHealth ingestion) {
         this.complaints = complaints;
         this.assignment = assignment;
         this.users = users;
         this.leaderboard = leaderboard;
         this.workflow = workflow;
+        this.ingestion = ingestion;
     }
 
     @GetMapping({"/", "/complaints"})
@@ -72,6 +76,11 @@ class ManagerDashboardController {
         // A derived projection, recomputed on every render. There is no cached total to go stale
         // and no counter to reconcile (section 7.8).
         model.addAttribute("leaderboard", leaderboard.currentStandings());
+        // Section 5.3's degraded-ingestion banner. Today a failed run is only visible to someone
+        // who goes looking at run history, and the manager's whole workflow assumes complaints
+        // are arriving — so the screen they are already on has to say when they are not.
+        model.addAttribute("ingestionDegraded", ingestion.degraded());
+        model.addAttribute("ingestionFailures", ingestion.consecutiveFailures());
         return VIEW;
     }
 
