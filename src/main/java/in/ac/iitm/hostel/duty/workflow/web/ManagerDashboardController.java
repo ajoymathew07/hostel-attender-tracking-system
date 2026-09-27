@@ -2,6 +2,7 @@ package in.ac.iitm.hostel.duty.workflow.web;
 
 import in.ac.iitm.hostel.duty.identity.application.UserProvisioningService;
 import in.ac.iitm.hostel.duty.identity.application.UserSummary;
+import in.ac.iitm.hostel.duty.ledger.application.LeaderboardService;
 import in.ac.iitm.hostel.duty.workflow.application.ComplaintQueryService;
 import in.ac.iitm.hostel.duty.workflow.application.ManualAssignmentService;
 import java.util.LinkedHashMap;
@@ -19,9 +20,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 /**
  * The manager's desktop: {@code /} and {@code /complaints} (section 10.4).
  *
- * <p>The complaint list and manual assignment are all of it for now. Triage, the live activity
- * feed, the leaderboard and the analytics strip of section 10.3 each belong to the module that
- * owns them and arrive with it; a dashboard full of empty placeholder panels would be worse than a
+ * <p>The complaint list, manual assignment and the leaderboard are all of it for now. Triage, the
+ * live activity feed and the analytics strip of section 10.3 each belong to the module that owns
+ * them and arrive with it; a dashboard full of empty placeholder panels would be worse than a
  * short one that is entirely real.
  *
  * <p>The class-level {@code @PreAuthorize} is defence in depth. The same rules are on {@code
@@ -38,14 +39,17 @@ class ManagerDashboardController {
     private final ComplaintQueryService complaints;
     private final ManualAssignmentService assignment;
     private final UserProvisioningService users;
+    private final LeaderboardService leaderboard;
 
     ManagerDashboardController(
             ComplaintQueryService complaints,
             ManualAssignmentService assignment,
-            UserProvisioningService users) {
+            UserProvisioningService users,
+            LeaderboardService leaderboard) {
         this.complaints = complaints;
         this.assignment = assignment;
         this.users = users;
+        this.leaderboard = leaderboard;
     }
 
     @GetMapping({"/", "/complaints"})
@@ -56,6 +60,9 @@ class ManagerDashboardController {
         // held by someone since deactivated still shows who holds it rather than a bare id.
         model.addAttribute("attenders", users.listAssignableAttenders());
         model.addAttribute("attenderNames", namesById(users.listUsers()));
+        // A derived projection, recomputed on every render. There is no cached total to go stale
+        // and no counter to reconcile (section 7.8).
+        model.addAttribute("leaderboard", leaderboard.currentStandings());
         return VIEW;
     }
 

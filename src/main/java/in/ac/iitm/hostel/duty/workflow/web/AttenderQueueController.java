@@ -1,13 +1,22 @@
 package in.ac.iitm.hostel.duty.workflow.web;
 
+import in.ac.iitm.hostel.duty.ledger.application.PointsLedger;
 import in.ac.iitm.hostel.duty.workflow.application.AttenderQueueService;
+import in.ac.iitm.hostel.duty.workflow.application.DocketRequiredException;
+import in.ac.iitm.hostel.duty.workflow.application.InvalidDocketException;
 import in.ac.iitm.hostel.duty.workflow.application.QueuedTask;
+import in.ac.iitm.hostel.duty.workflow.application.ResolvedTask;
+import in.ac.iitm.hostel.duty.workflow.application.TaskResolutionService;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
  * The attender's phone: {@code /m} and {@code /m/tasks/{id}} (sections 10.2, 10.4).
@@ -16,22 +25,30 @@ import org.springframework.web.server.ResponseStatusException;
  * different breakpoint, and it carries no desktop compromise.
  *
  * <p>No role annotation. {@code /m} shows the caller's own assignments and nothing else, so there
- * is no wider set a role could narrow; the detail view is guarded by {@code @access.ownsTask} on
- * the service, which is the check section 11.3 names. A manager who opens {@code /m} sees an empty
- * queue, which is the truth.
+ * is no wider set a role could narrow; the two actions are guarded by ownership on the service,
+ * which is the check section 11.3 names. A manager who opens {@code /m} sees an empty queue, which
+ * is the truth.
  */
 @Controller
 class AttenderQueueController {
 
     private final AttenderQueueService queue;
+    private final TaskResolutionService resolution;
+    private final PointsLedger ledger;
 
-    AttenderQueueController(AttenderQueueService queue) {
+    AttenderQueueController(
+            AttenderQueueService queue, TaskResolutionService resolution, PointsLedger ledger) {
         this.queue = queue;
+        this.resolution = resolution;
+        this.ledger = ledger;
     }
 
     @GetMapping("/m")
     String myQueue(Model model) {
         model.addAttribute("tasks", queue.myQueue());
+        // Their own standing, and nobody else's: the leaderboard is the manager's screen
+        // (section 11.3).
+        model.addAttribute("standing", ledger.myPeriodTotal());
         model.addAttribute("domainGlyphs", DomainGlyphs.BY_DOMAIN);
         return "workflow/queue";
     }
@@ -50,5 +67,51 @@ class AttenderQueueController {
         model.addAttribute("task", task);
         model.addAttribute("domainGlyphs", DomainGlyphs.BY_DOMAIN);
         return "workflow/task";
+    }
+
+    /** Transition T11: the number the Engineering Unit gave back. */
+    @PostMapping("/m/tasks/{taskId}/docket")
+    String recordDocket(
+            @PathVariable long taskId, @RequestParam String docketNo, RedirectAttributes flash) {
+        resolution.recordDocket(taskId, docketNo);
+        flash.addFlashAttribute("message", "Docket recorded. You can resolve this task now.");
+        return "redirect:/m/tasks/" + taskId;
+    }
+
+    /**
+     * Transition T14: the +2.
+     *
+     * <p>Back to the queue rather than to the task, because the assignment is complete and the
+     * task has left the queue — the attender's next question is what else is waiting.
+     */
+    @PostMapping("/m/tasks/{taskId}/resolve")
+    String resolve(@PathVariable long taskId, RedirectAttributes flash) {
+        ResolvedTask resolved = resolution.resolve(taskId);
+        flash.addFlashAttribute(
+                "message",
+                resolved.publicRef()
+                        + " resolved. You have "
+                        + resolved.periodTotal()
+                        + " points this month.");
+        return "redirect:/m";
+    }
+
+    /**
+     * The two docket refusals, as sentences rather than stack traces (section 11.6).
+     *
+     * <p>Both land back on the queue: a stale screen is how either one is reached, so the useful
+     * next thing to show is the current state of the work.
+     */
+    @ExceptionHandler(DocketRequiredException.class)
+    String docketRequired(RedirectAttributes flash) {
+        flash.addFlashAttribute("error", "File the CMS docket number first — no docket, no points.");
+        return "redirect:/m";
+    }
+
+    @ExceptionHandler(InvalidDocketException.class)
+    String invalidDocket(InvalidDocketException failure, RedirectAttributes flash) {
+        flash.addFlashAttribute(
+                "error", "\"" + failure.getDocketNo() + "\" is not a usable CMS docket number.");
+        return "redirect:/m";
     }
 }
