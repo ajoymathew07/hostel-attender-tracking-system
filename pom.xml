@@ -57,6 +57,21 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
+    <!--
+      Identity: Google OIDC and nothing else (ADR-002). There is deliberately no password
+      encoder, no form login and no credential column anywhere — `spring-boot-starter-security`
+      is here for the filter chain and method security, `oauth2-client` for the one sign-in
+      mechanism the design allows.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-client</artifactId>
+    </dependency>
+
     <!-- Infrastructure: JPA repositories over PostgreSQL only (ADR-001). -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -80,6 +95,17 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!--
+      Test: `@WithMockUser` for every authorization test. The authorization-code flow itself is
+      Spring Security's code and is not re-tested; what we wrote — the allowlist decision — is
+      unit-tested directly (test plan section 12.1, ADR-002).
+    -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -117,9 +143,13 @@
       </plugin>
 
       <!--
-        Coverage reports only in this PR: there is no production code to cover yet.
-        The §12.1 gates (75% line overall, 90% on `domain`) are switched on in PR 2,
-        when the schema and domain entities land, by adding the `check` goal here.
+        Coverage gates of test plan section 12.1, switched on in PR 2 now that there is
+        real code to cover: 75% line overall, 90% line on `domain`.
+
+        The two are separate `check` executions rather than one, because "90% on domain"
+        is a statement about the domain layer as a whole. A PACKAGE-element rule would
+        instead demand 90% from each domain package independently, which is a stricter
+        and different promise than the design makes.
       -->
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -138,6 +168,55 @@
             <goals>
               <goal>report</goal>
             </goals>
+          </execution>
+
+          <!-- 75% line coverage across the whole module. -->
+          <execution>
+            <id>jacoco-check-overall</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.75</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+
+          <!-- 90% line coverage on the domain layer, aggregated across all modules. -->
+          <execution>
+            <id>jacoco-check-domain</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <includes>
+                <include>in/ac/iitm/hostel/duty/*/domain/*.class</include>
+              </includes>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
           </execution>
         </executions>
       </plugin>

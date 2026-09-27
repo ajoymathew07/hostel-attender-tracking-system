@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<!--
+  The application shell (design sections 10.3, 10.5).
+
+  Fragments rather than a layout dialect: `th:replace` is built into Thymeleaf, and one extra
+  dependency to avoid writing two `th:replace` attributes per page is not a trade worth making.
+
+  Accessibility, section 10.5: one `main` landmark per page, a skip link ahead of the navigation,
+  semantic headings, and colour never used as the only signal.
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head th:fragment="head(title)">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title th:text="${title} + ' · Hostel Duty Tracker'">Hostel Duty Tracker</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" />
+  </head>
+
+  <body>
+    <!--
+      The masthead of section 10.3. `Sync Now` and `Export` are drawn by the PRs that own them
+      (9 and Phase 3); an inert button that looks real is worse than an absent one.
+    -->
+    <header th:fragment="masthead(active)" class="bg-white border-b">
+      <a class="sr-only" href="#main">Skip to content</a>
+      <div class="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between gap-4 sm-stack">
+        <div>
+          <p class="text-lg font-semibold text-slate-900">Cauvery Hostel · Duty Tracker</p>
+          <p class="text-xs text-slate-500">IIT Madras</p>
+        </div>
+        <nav class="flex items-center gap-3" aria-label="Main">
+          <!-- `th:attr` with null omits the attribute entirely, which is what marking only the
+               current page requires — `aria-current="false"` is not a thing. -->
+          <a
+            class="btn btn-secondary"
+            th:href="@{/complaints}"
+            th:attr="aria-current=${active == 'complaints'} ? 'page' : null"
+            >Complaints</a
+          >
+          <a
+            class="btn btn-secondary"
+            th:href="@{/admin/attenders}"
+            th:attr="aria-current=${active == 'attenders'} ? 'page' : null"
+            >Users</a
+          >
+          <form th:action="@{/logout}" method="post">
+            <button class="btn btn-secondary" type="submit">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+
+    <!--
+      The attender's top bar (section 10.2). Deliberately not the masthead above: section 10.1
+      treats the two clients as two layouts sharing a backend, not one layout at two widths, so
+      the phone carries none of the desktop's navigation.
+
+      The bottom navigation of section 10.2 (Queue / Duties / Me) is absent because two of its
+      three routes are, and a tab that goes nowhere is worse than a tab that is not there.
+    -->
+    <header th:fragment="mobileBar(title)" class="bg-white border-b">
+      <a class="sr-only" href="#main">Skip to content</a>
+      <div class="mx-auto max-w-lg px-4 py-3 flex items-center justify-between gap-4">
+        <p class="text-lg font-semibold text-slate-900" th:text="${title}">My queue</p>
+        <form th:action="@{/logout}" method="post">
+          <button class="btn btn-secondary" type="submit">Sign out</button>
+        </form>
+      </div>
+    </header>
+
+    <footer th:fragment="mobileFooter" class="mt-8 py-8 text-xs text-slate-500 border-t">
+      The resident's name, roll number and phone number are shown to you while this complaint is
+      live and for 7 days after it is resolved, then no longer (section 11.4).
+    </footer>
+
+    <!--
+      Flash messages. `role="status"` for the ordinary case and `role="alert"` for the failure, so
+      a screen reader announces a refused upload rather than leaving it to be noticed visually.
+    -->
+    <div th:fragment="flashes" class="mt-6">
+      <p th:if="${message}" class="notice notice-ok" role="status" th:text="${message}">status</p>
+      <p th:if="${error}" class="notice notice-error" role="alert" th:text="${error}">error</p>
+    </div>
+
+    <footer th:fragment="footer" class="mx-auto max-w-7xl px-6 py-8 text-xs text-slate-500 border-t mt-8">
+      Student names, roll numbers and phone numbers on this screen are the residents' personal
+      data. They are held for complaint handling and oversight only (section 11.4).
+    </footer>
+  </body>
+</html>

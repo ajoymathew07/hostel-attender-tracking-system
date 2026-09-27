@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!--
+  The login screen of section 10.4. One button, for everyone.
+
+  There is deliberately no form here: no username field, no password field, no "forgot password"
+  link. Every user signs in with Google and is admitted by the allowlist (ADR-002).
+
+  It does not use the shell's masthead: the masthead carries navigation and a sign-out button, and
+  neither means anything to someone who is not signed in.
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head th:replace="~{layout/shell :: head('Sign in')}">
+    <title>Sign in · Hostel Duty Tracker</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <main id="main" class="mx-auto max-w-md px-6 py-12">
+      <div class="bg-white border rounded-lg shadow-sm p-6">
+        <h1 class="text-2xl font-semibold text-slate-900">Hostel Duty Tracker</h1>
+        <p class="mt-1 text-sm text-slate-600">Cauvery Hostel, IIT Madras</p>
+
+        <p th:if="${signInFailed}" class="notice notice-error mt-4" role="alert">
+          That Google account is not permitted to use this system. Ask the hostel manager to add it.
+        </p>
+        <p th:if="${signedOut}" class="notice notice-ok mt-4" role="status">You have been signed out.</p>
+
+        <a class="btn mt-6" th:href="@{${googleAuthorizationUrl}}" rel="nofollow">Sign in with Google</a>
+
+        <p class="mt-6 text-xs text-slate-500">
+          Accounts are created by the hostel manager. Signing in with a Google account that has not
+          been added does not create one.
+        </p>
+      </div>
+    </main>
+  </body>
+</html>

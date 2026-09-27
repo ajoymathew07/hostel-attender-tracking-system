@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<!--
+  Attender admin, `/admin/attenders` (section 10.4) — provisioning and the allowlist.
+
+  Leave and floor coverage, which section 10.4 also puts on this screen, arrive with the modules
+  that own them. Brought into the Tailwind shell by PR 4; the markup and every field name is
+  unchanged from PR 3, only the classes are new.
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head th:replace="~{layout/shell :: head('Users')}">
+    <title>Users · Hostel Duty Tracker</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header th:replace="~{layout/shell :: masthead('attenders')}"></header>
+
+    <main id="main" class="mx-auto max-w-7xl px-6 py-8">
+      <div th:replace="~{layout/shell :: flashes}"></div>
+
+      <h1 class="text-2xl font-semibold text-slate-900 mt-6">Users and the allowlist</h1>
+
+      <section class="mt-6 bg-white border rounded-lg shadow-sm p-6" aria-labelledby="add-heading">
+        <h2 id="add-heading" class="text-lg font-semibold text-slate-900">Add a user</h2>
+        <form class="mt-4 flex items-start gap-3 flex-wrap sm-stack" th:action="@{/admin/attenders}" th:object="${form}" method="post">
+          <div>
+            <label class="label" for="displayName">Name</label>
+            <input class="input" type="text" id="displayName" th:field="*{displayName}" required maxlength="128" />
+            <span class="block mt-1 text-xs text-red-700" th:if="${#fields.hasErrors('displayName')}" th:errors="*{displayName}">name error</span>
+          </div>
+          <div>
+            <label class="label" for="email">Google address</label>
+            <input class="input" type="email" id="email" th:field="*{email}" required maxlength="255" />
+            <span class="block mt-1 text-xs text-red-700" th:if="${#fields.hasErrors('email')}" th:errors="*{email}">email error</span>
+          </div>
+          <div>
+            <label class="label" for="role">Role</label>
+            <select class="input" id="role" th:field="*{role}">
+              <option th:each="option : ${roles}" th:value="${option}" th:text="${option}">ROLE</option>
+            </select>
+          </div>
+          <button class="btn mt-6" type="submit">Add to allowlist</button>
+        </form>
+      </section>
+
+      <section class="mt-8" aria-labelledby="users-heading">
+        <h2 id="users-heading" class="text-lg font-semibold text-slate-900 mb-2">Current users</h2>
+        <div class="bg-white border rounded-lg shadow-sm overflow-x-auto">
+          <table class="table">
+            <caption>
+              Deactivating blocks the next sign-in immediately. A user is never deleted, so their
+              history keeps naming a real person.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Google address</th>
+                <th scope="col">Role</th>
+                <th scope="col">Status</th>
+                <th scope="col">Last sign-in</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="user : ${users}">
+                <td th:text="${user.displayName()}">Name</td>
+                <td class="font-mono text-xs" th:text="${user.email()}">address</td>
+                <td>
+                  <form class="flex items-center gap-2" th:action="@{'/admin/attenders/' + ${user.id()} + '/role'}" method="post">
+                    <label class="sr-only" th:for="'role-' + ${user.id()}">Role</label>
+                    <select class="input" th:id="'role-' + ${user.id()}" name="role">
+                      <option
+                        th:each="option : ${roles}"
+                        th:value="${option}"
+                        th:text="${option}"
+                        th:selected="${option == user.role()}">
+                        ROLE
+                      </option>
+                    </select>
+                    <button class="btn btn-secondary" type="submit">Set role</button>
+                  </form>
+                </td>
+                <td>
+                  <span class="badge" th:text="${user.active()} ? 'Active' : 'Deactivated'">Active</span>
+                </td>
+                <td class="text-slate-600 text-xs" th:text="${user.lastLoginAt()} ?: 'never'">never</td>
+                <td>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <form
+                      th:if="${user.active()}"
+                      th:action="@{'/admin/attenders/' + ${user.id()} + '/deactivate'}"
+                      method="post">
+                      <button class="btn btn-secondary" type="submit">Deactivate</button>
+                    </form>
+                    <form
+                      th:unless="${user.active()}"
+                      th:action="@{'/admin/attenders/' + ${user.id()} + '/reactivate'}"
+                      method="post">
+                      <button class="btn btn-secondary" type="submit">Reactivate</button>
+                    </form>
+                    <form class="flex items-center gap-2" th:action="@{'/admin/attenders/' + ${user.id()} + '/email'}" method="post">
+                      <label class="sr-only" th:for="'email-' + ${user.id()}">New Google address</label>
+                      <input class="input" type="email" th:id="'email-' + ${user.id()}" name="email" required maxlength="255" />
+                      <button class="btn btn-secondary" type="submit">Repoint</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer th:replace="~{layout/shell :: footer}"></footer>
+    </main>
+  </body>
+</html>

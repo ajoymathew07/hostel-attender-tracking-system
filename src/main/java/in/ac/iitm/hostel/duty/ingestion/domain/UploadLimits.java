@@ -1,0 +1,99 @@
+package in.ac.iitm.hostel.duty.ingestion.domain;
+
+import java.util.Locale;
+import java.util.Set;
+
+/**
+ * Upload safety: CSV only, ≤5 MB, ≤5000 rows, content type and headers validated <em>before</em>
+ * parsing (section 11.6).
+ *
+ * <p>The ordering is the control. A media type and a byte count are known before a single cell has
+ * been read, so refusing on them costs nothing and keeps a hostile or merely enormous file away
+ * from the parser entirely. The row limit is the one check that cannot precede parsing — it is
+ * enforced while reading, and aborts before any row is ingested.
+ */
+public final class UploadLimits {
+
+    /** 5 MB (section 11.6). */
+    public static final long DEFAULT_MAX_BYTES = 5L * 1024 * 1024;
+
+    /** 5000 rows (section 11.6). */
+    public static final int DEFAULT_MAX_ROWS = 5000;
+
+    /**
+     * What browsers actually put on a {@code .csv} part.
+     *
+     * <p>{@code text/plain} and {@code application/vnd.ms-excel} are here because Windows and
+     * macOS respectively send them for a file Excel has touched. They are only ever accepted
+     * <em>together with</em> a {@code .csv} extension, so the pair is still "CSV only" — accepting
+     * a bare {@code text/plain} would let any text file through.
+     */
+    private static final Set<String> ACCEPTED_CONTENT_TYPES =
+            Set.of("text/csv", "application/csv", "text/plain", "application/vnd.ms-excel");
+
+    private static final String CSV_EXTENSION = ".csv";
+
+    private final long maxBytes;
+    private final int maxRows;
+
+    public UploadLimits(long maxBytes, int maxRows) {
+        if (maxBytes <= 0) {
+            throw new IllegalArgumentException("maxBytes must be positive");
+        }
+        if (maxRows <= 0) {
+            throw new IllegalArgumentException("maxRows must be positive");
+        }
+        this.maxBytes = maxBytes;
+        this.maxRows = maxRows;
+    }
+
+    public static UploadLimits defaults() {
+        return new UploadLimits(DEFAULT_MAX_BYTES, DEFAULT_MAX_ROWS);
+    }
+
+    public long maxBytes() {
+        return maxBytes;
+    }
+
+    public int maxRows() {
+        return maxRows;
+    }
+
+    /**
+     * Everything that can be decided before the bytes are parsed.
+     *
+     * @throws UploadRejectedException if the file is not a CSV, is empty, or is over the limit
+     */
+    public void validate(String filename, String contentType, long sizeBytes) {
+        if (filename == null || !filename.toLowerCase(Locale.ROOT).endsWith(CSV_EXTENSION)) {
+            throw new UploadRejectedException("Only a CSV file can be uploaded — the file must be named .csv");
+        }
+        if (contentType == null || !ACCEPTED_CONTENT_TYPES.contains(mediaType(contentType))) {
+            throw new UploadRejectedException(
+                    "Only a CSV file can be uploaded — this one was sent as "
+                            + (contentType == null ? "no content type at all" : mediaType(contentType)));
+        }
+        if (sizeBytes <= 0) {
+            throw new UploadRejectedException("That file is empty");
+        }
+        if (sizeBytes > maxBytes) {
+            throw new UploadRejectedException(
+                    "That file is larger than the " + (maxBytes / (1024 * 1024)) + " MB upload limit");
+        }
+    }
+
+    /** @throws UploadRejectedException if the file holds more rows than one upload may carry */
+    public void requireWithinRowLimit(int rows) {
+        if (rows > maxRows) {
+            throw new UploadRejectedException(
+                    "That file holds more than the " + maxRows + " rows one upload may carry");
+        }
+    }
+
+    /** Strips {@code ; charset=UTF-8} and the like, which browsers append freely. */
+    private static String mediaType(String contentType) {
+        int parameters = contentType.indexOf(';');
+        String bare = parameters < 0 ? contentType : contentType.substring(0, parameters);
+        return bare.trim().toLowerCase(Locale.ROOT);
+    }
+}
