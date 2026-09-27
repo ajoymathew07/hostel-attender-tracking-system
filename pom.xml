@@ -75,6 +75,16 @@
       <artifactId>spring-boot-starter-oauth2-client</artifactId>
     </dependency>
 
+    <!--
+      Health check for the hosting platform (§2.7). Exactly one endpoint is exposed —
+      `/actuator/health` — and it answers with a bare status; see the `management` block in
+      application.yml and ActuatorExposureIntegrationTest.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
     <!-- Infrastructure: JPA repositories over PostgreSQL only (ADR-001). -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

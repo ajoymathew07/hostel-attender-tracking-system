@@ -1,0 +1,13 @@
+# `COPY . .` in the Dockerfile means the build context is the repository. These are either large,
+# machine-specific, or things that must never reach an image (.env is already gitignored, and is
+# listed again here so a file that exists only locally cannot be copied in by accident).
+target/
+.git/
+.github/
+docs/
+scripts/
+.env*
+*.log
+.DS_Store
+.idea/
+.vscode/

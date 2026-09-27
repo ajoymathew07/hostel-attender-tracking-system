@@ -1,11 +1,14 @@
 # Base configuration. Profile-specific documents follow.
 #   local — developer machine, against the Postgres in docker-compose.yml
-#   cloud — Render/Railway and the manager's standby jar (arrives with PR 7)
+#   cloud — Render and the manager's standby jar (architecture section 2.6)
+#
+# There is deliberately NO `spring.profiles.default`. It used to be `local`, which meant an unset
+# SPRING_PROFILES_ACTIVE in the cloud silently started the app with developer settings — throwaway
+# OAuth placeholders, no Secure cookie, and a datasource pointing at localhost. Exactly one profile
+# must now be named explicitly, and ProfileCheck fails the start with instructions if none is.
 spring:
   application:
     name: duty-tracker
-  profiles:
-    default: local
 
   jpa:
     # The schema is owned by Flyway (architecture section 2.7); Hibernate never creates it.
@@ -33,7 +36,8 @@ spring:
   # The client id and secret are environment variables (section 11.5); they authenticate the
   # *application* to Google and are not anyone's credential. The placeholder defaults exist so the
   # context starts on a developer machine and in CI — a sign-in attempt against them fails at
-  # Google, which is the correct outcome for a machine with no client registered.
+  # Google, which is the correct outcome for a machine with no client registered. The `cloud`
+  # profile re-declares both without a default, so a real deployment cannot start on a placeholder.
   security:
     oauth2:
       client:
@@ -119,7 +123,7 @@ workflow:
   docket-pattern: "^[A-Za-z0-9/-]{4,32}$"
 
 # A lost or shared phone exposes a session, not a secret — so the session is the thing that
-# expires (sections 11.1, 11.2). `Secure` is added with the cloud profile in PR 7, where TLS
+# expires (sections 11.1, 11.2). `Secure` is set by the `cloud` profile below, where TLS
 # terminates; setting it here would break sign-in over plain http on a developer machine.
 server:
   servlet:
@@ -129,8 +133,28 @@ server:
         http-only: true
         same-site: lax
 
-# Actuator health/metrics (architecture section 2.7) arrive with the cloud
-# deployment in PR 7, together with the spring-boot-starter-actuator dependency.
+# Actuator, architecture section 2.7. The hosting platform pings a health check to decide whether
+# a deploy succeeded, so `/actuator/health` is the one endpoint that answers without a session
+# (SecurityConfig). Everything else under /actuator is left unexposed rather than merely
+# authenticated: an endpoint that is not mapped cannot leak, whatever the filter chain does.
+#
+# `show-details: never` is what keeps the public answer to a bare {"status":"UP"} — no component
+# breakdown, no database name, no disk figures, no build or environment detail (section 11.1).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+      # `/actuator` itself otherwise answers with a link index. It would list only health, but an
+      # endpoint that enumerates endpoints is not one the platform needs, so it is off.
+      discovery:
+        enabled: false
+  endpoint:
+    health:
+      show-details: never
+      # Free with the health endpoint: /actuator/health/readiness and /actuator/health/liveness.
+      probes:
+        enabled: true
 
 logging:
   level:
@@ -158,3 +182,55 @@ spring:
 logging:
   level:
     in.ac.iitm.hostel.duty: DEBUG
+
+---
+# Render, and the standby jar on the manager's desktop — the same jar, the same profile, the same
+# database, differing only in where it is started (architecture section 2.6, ADR-001).
+#
+# Every value below comes from the environment and NONE has a default. That is the point: a
+# missing variable fails the start with its own name in the message, instead of falling back to a
+# developer default and quietly running against the wrong database. Secrets are environment
+# variables only, never files (section 11.5). Set them per docs/runbook/deploy.md.
+spring:
+  config:
+    activate:
+      on-profile: cloud
+
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    hikari:
+      pool-name: duty-tracker-pool
+      # Managed free-tier PostgreSQL allows few connections, and the standby may be holding some
+      # at the same time. Eight users do not need more.
+      maximum-pool-size: 5
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+
+  thymeleaf:
+    cache: true
+
+server:
+  # Render assigns the port at runtime and expects the app to bind to it. The standby has no PORT
+  # set and so gets 8080 — which is the port in the registered localhost redirect URI (ADR-002).
+  port: ${PORT:8080}
+
+  # TLS terminates at Render's proxy, so the request Tomcat sees is plain http on an internal
+  # address. Without this the OAuth redirect_uri Spring Security builds would say `http://` and
+  # Google would reject it as not matching the registered https URI. Harmless on the standby,
+  # which receives no X-Forwarded-* headers.
+  forward-headers-strategy: framework
+
+  servlet:
+    session:
+      cookie:
+        # Cloud only. The browser must never send the session cookie over plain http — and setting
+        # this on the `local` profile would break sign-in on a developer machine, which has no TLS.
+        secure: true
