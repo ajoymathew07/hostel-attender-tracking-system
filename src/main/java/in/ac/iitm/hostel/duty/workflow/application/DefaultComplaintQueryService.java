@@ -2,6 +2,7 @@ package in.ac.iitm.hostel.duty.workflow.application;
 
 import in.ac.iitm.hostel.duty.workflow.domain.AssignmentStatus;
 import in.ac.iitm.hostel.duty.workflow.domain.Complaint;
+import in.ac.iitm.hostel.duty.workflow.domain.ComplaintStatus;
 import in.ac.iitm.hostel.duty.workflow.domain.TaskAssignment;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.TaskAssignmentRepository;
@@ -47,6 +48,17 @@ class DefaultComplaintQueryService implements ComplaintQueryService {
         }
         return complaints.findAll(NEWEST_FIRST).stream()
                 .map(complaint -> toItem(complaint, assignee.get(complaint.getId())))
+                .toList();
+    }
+
+    /**
+     * No assignee is looked up. A complaint in {@code TRIAGE} has nobody on it by definition —
+     * either it never reached {@code ASSIGNED}, or T8 released whoever held it on the way back.
+     */
+    @Override
+    public List<ComplaintListItem> listTriage() {
+        return complaints.findByStatusOrderByReportedAtAsc(ComplaintStatus.TRIAGE).stream()
+                .map(complaint -> toItem(complaint, null))
                 .toList();
     }
 

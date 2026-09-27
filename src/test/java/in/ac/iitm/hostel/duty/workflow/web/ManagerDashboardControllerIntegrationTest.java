@@ -18,6 +18,7 @@ import in.ac.iitm.hostel.duty.identity.domain.AppUser;
 import in.ac.iitm.hostel.duty.identity.infrastructure.AppUserRepository;
 import in.ac.iitm.hostel.duty.support.AbstractIntegrationTest;
 import in.ac.iitm.hostel.duty.support.Fixtures;
+import in.ac.iitm.hostel.duty.workflow.domain.ComplaintDomain;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,11 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
             "Timestamp,Email Address,Name,Roll Number,Phone Number,Room Number,Describe the issue\n"
                     + "2026/02/14 11:00:00,screen@example.com,Screen Student,CE21B900,9000000900,1204,"
                     + "Water leaking from the ceiling fan\n";
+
+    /** `ceiling` is Civil and `fan` is Electrical, level: exactly what the triage panel is for. */
+    private static final String AMBIGUOUS_CSV =
+            "Timestamp,Email Address,Room Number,Describe the issue\n"
+                    + "2026/02/15 09:00:00,triage.screen@example.com,1205,water coming from ceiling fan\n";
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ComplaintRepository complaints;
@@ -169,6 +175,50 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
     @DisplayName("an attender posting straight at the assign URL is refused — section 11.3")
     void anAttenderCannotAssign() throws Exception {
         mockMvc.perform(post("/complaints/{id}/assign", 1L).param("attenderId", "1").with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "MANAGER")
+    @DisplayName("the triage panel lists an unclassifiable complaint and offers the four domains")
+    void theTriagePanelShowsWhatTheClassifierCouldNotPlace() throws Exception {
+        mockMvc.perform(multipart("/complaints/upload").file(file("t.csv", "text/csv", AMBIGUOUS_CSV)).with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        mockMvc.perform(get("/complaints"))
+                .andExpect(content().string(containsString("Triage queue")))
+                .andExpect(content().string(containsString("water coming from ceiling fan")))
+                .andExpect(content().string(containsString("RO_PLANT")));
+    }
+
+    @Test
+    @DisplayName("a manager sets the domain in one click and the complaint stops being unclassified")
+    void aManagerSetsTheDomainInOneClick() throws Exception {
+        AppUser manager = users.saveAndFlush(Fixtures.manager());
+        long complaintId = complaints.saveAndFlush(Fixtures.complaint()).getId();
+        TestingAuthenticationToken asManager = Fixtures.signIn(manager);
+        SecurityContextHolder.clearContext();
+
+        mockMvc.perform(
+                        post("/complaints/{id}/domain", complaintId)
+                                .param("domain", "NETWORK")
+                                .with(authentication(asManager))
+                                .with(csrf()))
+                .andExpect(redirectedUrl("/complaints"))
+                .andExpect(flash().attributeExists("message"));
+
+        assertThat(complaints.findById(complaintId).orElseThrow().getDomain())
+                .isEqualTo(ComplaintDomain.NETWORK);
+    }
+
+    @Test
+    @WithMockUser(roles = "ATTENDER")
+    @DisplayName("an attender can neither see the triage queue nor set a domain — section 11.3")
+    void anAttenderCannotReachTriage() throws Exception {
+        // The dashboard is where the panel lives, so being refused it is being refused the queue;
+        // the route behind the buttons is refused on its own too, for a caller that skips the screen.
+        mockMvc.perform(get("/complaints")).andExpect(status().isForbidden());
+        mockMvc.perform(post("/complaints/{id}/domain", 1L).param("domain", "ELECTRICAL").with(csrf()))
                 .andExpect(status().isForbidden());
     }
 

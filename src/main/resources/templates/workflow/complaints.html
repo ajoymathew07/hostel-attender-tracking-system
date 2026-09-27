@@ -2,10 +2,10 @@
 <!--
   The manager dashboard, `/` and `/complaints` (sections 10.3, 10.4).
 
-  Section 10.3's dashboard, as far as it is real: the CSV upload, the leaderboard and the
-  complaint list. Triage, live activity and the analytics strip each belong to the module that
-  owns them and arrive with it — a dashboard of empty placeholders would be worse than a short one
-  that is entirely real.
+  Section 10.3's dashboard, as far as it is real: the CSV upload, the leaderboard, the triage
+  queue and the complaint list. Live activity and the analytics strip each belong to the module
+  that owns them and arrive with it — a dashboard of empty placeholders would be worse than a
+  short one that is entirely real.
 
   Escaping: `th:text` throughout and `th:utext` nowhere. Complaint text is written by residents, so
   it is the one string on this screen an attacker can choose (section 11.6).
@@ -134,6 +134,64 @@
             </tbody>
           </table>
         </div>
+      </section>
+
+      <!--
+        TRIAGE QUEUE, section 10.3. Above the complaint list and not in a tab: it is the only part
+        of this screen that *requires* the manager's action, and the whole value proposition is
+        reducing their daily 30-45 minutes, so anything requiring action goes where the eye lands
+        first.
+
+        A card is here because the classifier was not confident, never because it failed (section
+        5.5). One press sets the domain and records the correction as MANUAL; the complaint stays
+        in triage until it is assigned, which is the control in the list below.
+      -->
+      <section class="mt-8" aria-labelledby="triage-heading">
+        <div class="flex items-center justify-between gap-4 mb-2">
+          <h2 id="triage-heading" class="text-2xl font-semibold text-slate-900">Triage queue</h2>
+          <p class="text-sm text-slate-600">
+            <span th:text="${#lists.size(triage)}">0</span> waiting
+          </p>
+        </div>
+
+        <p th:if="${#lists.isEmpty(triage)}" class="notice bg-white">
+          Nothing waiting. Every complaint so far cleared the classifier's confidence gate.
+        </p>
+
+        <ul th:unless="${#lists.isEmpty(triage)}" class="space-y-3">
+          <li
+            th:each="item : ${triage}"
+            class="bg-white border rounded-lg shadow-sm p-4">
+            <p class="text-sm text-slate-600">
+              <span class="font-mono" th:text="${item.publicRef()}">CAU-2026-0421</span>
+              <span aria-hidden="true"> · </span>
+              <span th:text="${item.reporterRoom()} ? 'Room ' + ${item.reporterRoom()} : 'room unknown'"
+                >Room 421</span
+              >
+            </p>
+            <!-- th:text, never th:utext: this string is written by a resident (section 11.6). -->
+            <p class="mt-1 text-slate-900" th:text="${item.rawText()}">what the resident wrote</p>
+
+            <form
+              class="mt-3 flex items-center gap-2 flex-wrap"
+              th:action="@{/complaints/{id}/domain(id=${item.id()})}"
+              method="post">
+              <span class="text-sm text-slate-600" th:id="'triage-label-' + ${item.id()}"
+                >Set the domain:</span
+              >
+              <button
+                th:each="domain : ${assignableDomains}"
+                class="btn btn-secondary"
+                type="submit"
+                name="domain"
+                th:value="${domain}"
+                th:aria-describedby="'triage-label-' + ${item.id()}">
+                <span aria-hidden="true" th:text="${domainGlyphs.get(domain.name())}">⚡</span>
+                <span th:text="${domain}">ELECTRICAL</span>
+              </button>
+            </form>
+          </li>
+        </ul>
       </section>
 
       <section class="mt-8" aria-labelledby="list-heading">
