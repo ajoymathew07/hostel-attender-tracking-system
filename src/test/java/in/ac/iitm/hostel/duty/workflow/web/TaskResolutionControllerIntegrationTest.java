@@ -77,6 +77,13 @@ class TaskResolutionControllerIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("file the docket, then resolve: the skeleton walks from the phone to the ledger")
     void docketThenResolve() throws Exception {
+        // START and DEFECT? — the two steps of section 10.2's flow that PR 11 adds. Before it,
+        // the docket could be filed straight from ASSIGNED because no table said otherwise.
+        mockMvc.perform(post("/m/tasks/{id}/start", taskId).with(authentication(asRavi)).with(csrf()))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(post("/m/tasks/{id}/defect", taskId).with(authentication(asRavi)).with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
         mockMvc.perform(
                         post("/m/tasks/{id}/docket", taskId)
                                 .param("docketNo", "EU/2026/00417")

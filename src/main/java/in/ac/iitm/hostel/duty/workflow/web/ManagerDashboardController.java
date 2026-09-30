@@ -4,13 +4,19 @@ import in.ac.iitm.hostel.duty.identity.application.UserProvisioningService;
 import in.ac.iitm.hostel.duty.identity.application.UserSummary;
 import in.ac.iitm.hostel.duty.ledger.application.LeaderboardService;
 import in.ac.iitm.hostel.duty.workflow.application.ComplaintQueryService;
+import in.ac.iitm.hostel.duty.workflow.application.GuardFailedException;
+import in.ac.iitm.hostel.duty.workflow.application.IllegalTransitionException;
 import in.ac.iitm.hostel.duty.workflow.application.ManualAssignmentService;
+import in.ac.iitm.hostel.duty.workflow.application.TransitionPayload;
+import in.ac.iitm.hostel.duty.workflow.application.WorkflowService;
+import in.ac.iitm.hostel.duty.workflow.domain.WorkflowEvent;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,16 +46,19 @@ class ManagerDashboardController {
     private final ManualAssignmentService assignment;
     private final UserProvisioningService users;
     private final LeaderboardService leaderboard;
+    private final WorkflowService workflow;
 
     ManagerDashboardController(
             ComplaintQueryService complaints,
             ManualAssignmentService assignment,
             UserProvisioningService users,
-            LeaderboardService leaderboard) {
+            LeaderboardService leaderboard,
+            WorkflowService workflow) {
         this.complaints = complaints;
         this.assignment = assignment;
         this.users = users;
         this.leaderboard = leaderboard;
+        this.workflow = workflow;
     }
 
     @GetMapping({"/", "/complaints"})
@@ -81,6 +90,35 @@ class ManagerDashboardController {
     String release(@PathVariable long complaintId, RedirectAttributes flash) {
         assignment.release(complaintId);
         flash.addFlashAttribute("message", "Released back to the pool.");
+        return REDIRECT;
+    }
+
+    /** Transition T15 — the manager signs off a resolved complaint. */
+    @PostMapping("/complaints/{complaintId}/close")
+    String close(@PathVariable long complaintId, RedirectAttributes flash) {
+        workflow.transition(complaintId, WorkflowEvent.MANAGER_CLOSE, TransitionPayload.none());
+        flash.addFlashAttribute("message", "Closed.");
+        return REDIRECT;
+    }
+
+    /**
+     * Transition T17 — it was not fixed after all.
+     *
+     * <p>The credit is reversed by a new ledger row, never a delete, so the attender's history
+     * shows both the +2 and the −2 and the leaderboard nets out correctly (section 7.3).
+     */
+    @PostMapping("/complaints/{complaintId}/reopen")
+    String reopen(
+            @PathVariable long complaintId, @RequestParam String reason, RedirectAttributes flash) {
+        workflow.transition(complaintId, WorkflowEvent.MANAGER_REOPEN, TransitionPayload.reason(reason));
+        flash.addFlashAttribute("message", "Reopened, and the points credited for it reversed.");
+        return REDIRECT;
+    }
+
+    /** A refused move is a sentence on the list, not a stack trace (section 11.6). */
+    @ExceptionHandler({IllegalTransitionException.class, GuardFailedException.class})
+    String refused(RuntimeException refusal, RedirectAttributes flash) {
+        flash.addFlashAttribute("error", refusal.getMessage());
         return REDIRECT;
     }
 

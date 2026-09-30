@@ -133,6 +133,21 @@ public class Complaint {
     @Column(name = "resolved_at")
     private Instant resolvedAt;
 
+    /** Transition T7's one side effect. */
+    @Column(name = "inspection_started_at")
+    private Instant inspectionStartedAt;
+
+    /**
+     * How many times a manager has reopened this (T17) — the {@code n} of the resolve credit's
+     * idempotency key, {@code RESOLVE:{task}:{attender}:r{n}} (section 7.3).
+     *
+     * <p>A counter of an event, not a balance. Section 7.3 forbids a stored <em>points</em> total
+     * because a balance is a SUM over immutable facts; this is a fact about the complaint, and the
+     * key that keeps re-credits honest is derived from it.
+     */
+    @Column(name = "reopen_count", nullable = false)
+    private int reopenCount;
+
     @Version
     @Column(name = "version", nullable = false)
     private long version;
@@ -162,7 +177,7 @@ public class Complaint {
     }
 
     /**
-     * The only mutator of {@code status}. In PR 11 this becomes reachable solely through
+     * The only mutator of {@code status}, and reached solely through
      * {@code WorkflowService.transition}, which owns the guarded transition table (section 4.1).
      */
     public void moveTo(ComplaintStatus newStatus, Instant at) {
@@ -188,6 +203,25 @@ public class Complaint {
     public boolean reporterVisibleToAttender(Instant at) {
         Objects.requireNonNull(at, "at");
         return resolvedAt == null || at.isBefore(resolvedAt.plus(ATTENDER_CONTACT_WINDOW));
+    }
+
+    /** Transition T7 — the attender is on site. */
+    public void startInspection(Instant at) {
+        this.inspectionStartedAt = Objects.requireNonNull(at, "at");
+        this.updatedAt = at;
+    }
+
+    /**
+     * Transition T17 — the work was not done after all.
+     *
+     * <p>Clearing {@code resolvedAt} is not bookkeeping tidiness. It is what stops the 7-day PII
+     * window (section 11.4) from expiring while the attender is back on live work, and what stops
+     * the auto-close clock (T16) running on a complaint that is no longer resolved.
+     */
+    public void reopen(Instant at) {
+        this.resolvedAt = null;
+        this.reopenCount++;
+        this.updatedAt = Objects.requireNonNull(at, "at");
     }
 
     /** Transition T11 — the docket gate that {@code mark_resolved} depends on. */
@@ -367,6 +401,14 @@ public class Complaint {
 
     public Instant getResolvedAt() {
         return resolvedAt;
+    }
+
+    public Instant getInspectionStartedAt() {
+        return inspectionStartedAt;
+    }
+
+    public int getReopenCount() {
+        return reopenCount;
     }
 
     public long getVersion() {

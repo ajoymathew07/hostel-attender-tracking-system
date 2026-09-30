@@ -7,9 +7,10 @@
   stranger. The one thing it does redact is the 7-day window of section 11.4, and that is done in
   the service too.
 
-  Of the resolution flow in section 10.2 — START, DEFECT?, DOCKET, DONE — this screen draws the
-  last two, which are the ones the +2 depends on (T11, T14). START and DEFECT? are steps of the
-  transition table and arrive with it in PR 11.
+  The resolution flow of section 10.2 — START, DEFECT?, DOCKET, DONE — drawn one step at a time.
+  Which step is shown is the complaint's state, not the template's opinion: the transition table
+  is the authority and the service refuses anything else, so a stale tab cannot skip a step by
+  still showing an old button.
 -->
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
   <head th:replace="~{layout/shell :: head('Task')}">
@@ -70,11 +71,39 @@
         ago.
       </p>
 
+      <!-- Transition T7 — the attender is on their way. -->
+      <section class="card mt-4" th:if="${task.canStart()}" aria-labelledby="start-heading">
+        <h2 id="start-heading" class="text-lg font-semibold">Start</h2>
+        <form class="mt-4" th:action="@{/m/tasks/{id}/start(id=${task.taskId()})}" method="post">
+          <button class="btn btn-lg" type="submit">
+            <span aria-hidden="true">→</span> I am on my way
+          </button>
+        </form>
+      </section>
+
+      <!--
+        Transitions T9 and T10 — the fork on site. "No defect" closes the complaint and credits
+        nothing, which is why it asks for a note: it is the one way to finish work without earning.
+      -->
+      <section class="card mt-4" th:if="${task.canReportInspection()}" aria-labelledby="defect-heading">
+        <h2 id="defect-heading" class="text-lg font-semibold">What did you find?</h2>
+        <form class="mt-4" th:action="@{/m/tasks/{id}/defect(id=${task.taskId()})}" method="post">
+          <button class="btn btn-lg" type="submit">
+            <span aria-hidden="true">🔧</span> There is a defect
+          </button>
+        </form>
+        <form class="mt-4" th:action="@{/m/tasks/{id}/no-defect(id=${task.taskId()})}" method="post">
+          <label class="label" for="note">Nothing wrong — say what you found</label>
+          <input class="input" type="text" id="note" name="note" autocomplete="off" required />
+          <button class="btn btn-secondary btn-lg mt-4" type="submit">No defect found</button>
+        </form>
+      </section>
+
       <!--
         Transition T11. A correction overwrites the number in place — the audit log keeps the old
         one, which is why there is no docket history here to draw (section 4.3, ADR-012).
       -->
-      <section class="card mt-4" aria-labelledby="docket-heading">
+      <section class="card mt-4" th:if="${task.canFileDocket()}" aria-labelledby="docket-heading">
         <h2 id="docket-heading" class="text-lg font-semibold">CMS docket</h2>
         <p class="mt-2 text-sm text-slate-600" th:if="${task.canResolve()}">
           Filed as <span class="font-mono" th:text="${task.docketNo()}">EU/2026/00417</span>.
@@ -107,7 +136,7 @@
         section 10.2's one-primary-action-per-task holds — the refusal in the service is what
         actually enforces it (section 4.3).
       -->
-      <section class="card mt-4" aria-labelledby="resolve-heading">
+      <section class="card mt-4" th:if="${task.canFileDocket()}" aria-labelledby="resolve-heading">
         <h2 id="resolve-heading" class="text-lg font-semibold">Resolve</h2>
         <p class="mt-2 text-sm text-slate-600" th:unless="${task.canResolve()}">
           Record the CMS docket number above first. No docket, no points.

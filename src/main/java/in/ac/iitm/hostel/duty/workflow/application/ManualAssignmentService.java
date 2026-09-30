@@ -9,6 +9,7 @@ import in.ac.iitm.hostel.duty.workflow.domain.AssignmentStatus;
 import in.ac.iitm.hostel.duty.workflow.domain.Complaint;
 import in.ac.iitm.hostel.duty.workflow.domain.Task;
 import in.ac.iitm.hostel.duty.workflow.domain.TaskAssignment;
+import in.ac.iitm.hostel.duty.workflow.domain.WorkflowEvent;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.TaskAssignmentRepository;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.TaskRepository;
@@ -26,11 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
  * attender who reaches this bean by any route at all is refused here rather than in whichever
  * controller happened to be in front of it.
  *
- * <p><strong>Complaint status is deliberately untouched.</strong> The transition table of section
- * 4.2 moves a complaint to {@code ASSIGNED} on T4/T6 along with its guards, its audit and its
- * notifications, and that table is PR 11's. Writing half of it here would be a second write path
- * to {@code complaint.status}, which section 4.1 says must not exist. What this PR owns is the
- * assignment itself.
+ * <p><strong>The complaint's state moves through the table, never from here.</strong> This class
+ * owns {@code task_assignment} rows; T4 and T6 own {@code complaint.status}, and it asks
+ * {@link WorkflowService} for them. Writing the status directly would be the second write path
+ * section 4.1 says must not exist.
  */
 @Service
 @Transactional
@@ -43,16 +43,19 @@ public class ManualAssignmentService {
     private final TaskRepository tasks;
     private final TaskAssignmentRepository assignments;
     private final AuditTrail audit;
+    private final WorkflowService workflow;
 
     ManualAssignmentService(
             ComplaintRepository complaints,
             TaskRepository tasks,
             TaskAssignmentRepository assignments,
-            AuditTrail audit) {
+            AuditTrail audit,
+            WorkflowService workflow) {
         this.complaints = complaints;
         this.tasks = tasks;
         this.assignments = assignments;
         this.audit = audit;
+        this.workflow = workflow;
     }
 
     /**
@@ -65,6 +68,9 @@ public class ManualAssignmentService {
     public void assign(long complaintId, long attenderId) {
         Instant now = Instant.now();
         Task task = taskFor(complaintId, now);
+
+        // Before the rows move, so T6's guard can still see who holds the work.
+        moveComplaint(complaintId, attenderId);
 
         // Whoever else holds it loses it. `uq_task_attender` is what makes this safe to express as
         // "release the others, then take the row for this one".
@@ -112,6 +118,45 @@ public class ManualAssignmentService {
                                                             assignment.getAttenderId(),
                                                             complaintId);
                                                 }));
+    }
+
+    /**
+     * T4 or T6, whichever this assignment is — or neither.
+     *
+     * <p>Three cases, and the table decides all three. Nobody holds it yet, so the complaint
+     * becomes {@code ASSIGNED} (T4). Somebody else holds it, so the work moves (T6). The same
+     * attender holds it already, so nothing about the complaint has changed and there is no
+     * transition to make — which is also what T6's guard says, in the other direction.
+     *
+     * <p>Once the attender has started, the complaint is past {@code ASSIGNED} and section 4.2
+     * draws no edge back: handing live work to somebody else changes who holds it, not how far
+     * along it is, so the status stays where the attender left it.
+     */
+    private void moveComplaint(long complaintId, long attenderId) {
+        Complaint complaint = complaints.findById(complaintId).orElseThrow();
+        TransitionPayload target = TransitionPayload.attender(attenderId);
+        switch (complaint.getStatus()) {
+            case NEW, TRIAGE -> workflow.transition(complaintId, WorkflowEvent.MANAGER_ASSIGN, target);
+            case ASSIGNED -> {
+                if (!alreadyHolds(complaintId, attenderId)) {
+                    workflow.transition(complaintId, WorkflowEvent.MANAGER_REASSIGN, target);
+                }
+            }
+            default -> {
+                // Work has started; the handover is the assignment's business, not the machine's.
+            }
+        }
+    }
+
+    private boolean alreadyHolds(long complaintId, long attenderId) {
+        return tasks.findByComplaintId(complaintId)
+                .map(
+                        task ->
+                                assignments
+                                        .findByTaskIdAndStatus(task.getId(), AssignmentStatus.ACTIVE)
+                                        .stream()
+                                        .anyMatch(held -> held.getAttenderId().equals(attenderId)))
+                .orElse(false);
     }
 
     /**
