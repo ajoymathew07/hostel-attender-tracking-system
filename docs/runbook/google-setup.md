@@ -128,13 +128,116 @@ A private key on a laptop is the one artefact of this whole setup that nobody ca
 though you can always delete the key in the console and make a new one, which is the right move if
 you are unsure where a copy ended up.
 
+---
+
+## Step 4 — the wake-up trigger (Apps Script)
+
+A free-tier instance sleeps when idle, and a sleeping instance has no scheduler running, so the
+three-minute poll stops happening exactly when nobody is looking (§2.5). A small script on the
+response sheet fixes that: when a Form response arrives it makes one HTTP request to the
+application, which is what causes the platform to wake the instance and reconcile immediately.
+
+The request **carries no complaint data**. It says only "the sheet changed"; the application then
+does its usual watermark comparison and works out for itself what is new. That is why nothing here
+has to be reliable — a trigger that fires twice, fires for a row already held, or never fires at
+all all end in the same place. If this step is skipped entirely the system still works; complaints
+just arrive up to three minutes later, or when the manager presses **Sync Now**.
+
+### 4a. Generate the shared secret
+
+The endpoint has no session to authenticate — its caller is a Google server — so it is guarded by
+a shared secret instead. Generate one:
+
+```bash
+openssl rand -base64 32
+```
+
+Keep the output on your clipboard for the next two steps. It goes in exactly two places and is
+**never** committed: the repository contains only the variable's name.
+
+| Where | As |
+|---|---|
+| The hosting platform's environment settings | `INGESTION_WAKE_SECRET` |
+| The Apps Script project's script properties | `WAKE_SECRET` |
+
+**Until `INGESTION_WAKE_SECRET` is set, the endpoint refuses every call.** An unset secret closes
+the door rather than opening it, so there is no window in which the URL is unguarded.
+
+### 4b. Add the script
+
+Open the Google Form's **response spreadsheet** → **Extensions** → **Apps Script**. Replace
+whatever is in `Code.gs` with this and save:
+
+```javascript
+/**
+ * Wakes the Duty Tracker when a Form response arrives (design §2.5).
+ *
+ * Sends no response data — only the fact that the sheet changed. The application does its own
+ * delta detection, so a duplicate call is harmless and a failed one costs nothing but a few
+ * minutes' latency.
+ */
+function wakeDutyTracker() {
+  var props = PropertiesService.getScriptProperties();
+  UrlFetchApp.fetch(props.getProperty('WAKE_URL'), {
+    method: 'post',
+    headers: { 'X-Wake-Secret': props.getProperty('WAKE_SECRET') },
+    // The app answers 202 immediately and ingests in the background, so there is nothing here
+    // worth retrying — and an uncaught failure would email you on every single response.
+    muteHttpExceptions: true
+  });
+}
+```
+
+### 4c. Give it the URL and the secret
+
+**Project Settings** (the gear on the left) → **Script properties** → **Add script property**,
+twice:
+
+| Property | Value |
+|---|---|
+| `WAKE_URL` | `https://<your-service>.onrender.com/api/ingestion/wake` |
+| `WAKE_SECRET` | The string from step 4a |
+
+Script properties rather than constants in the file: the secret then is not in the script's source,
+which is visible to anyone you ever share the spreadsheet's editing rights with.
+
+### 4d. Attach the trigger
+
+**Triggers** (the clock on the left) → **Add trigger**:
+
+| Field | Value |
+|---|---|
+| Function to run | `wakeDutyTracker` |
+| Event source | **From spreadsheet** |
+| Event type | **On form submit** |
+| Failure notification | Daily (weekly is easy to miss; immediate is noise) |
+
+**"On form submit", not "On change".** *On change* also fires when you or anyone else edits a cell
+by hand, which would wake the instance for nothing.
+
+Save. Google asks you to authorise the script the first time — it is your own script on your own
+sheet, and the "unverified app" warning is expected. `UrlFetchApp` is the only permission it wants.
+
+### 4e. Check it
+
+Submit a test response through the Form. Within a few seconds:
+
+- **Apps Script → Executions** shows `wakeDutyTracker` as *Completed*. A *Failed* line with a 403
+  means the two copies of the secret disagree; one with a timeout means `WAKE_URL` is wrong or the
+  service is not deployed.
+- The complaint appears on the manager's dashboard without anyone pressing **Sync Now**.
+
+Then delete the test complaint's row from the sheet if you like — it has already been ingested and
+the application will not re-read it (§5.3, deletions are not tracked).
+
 ## Every variable this runbook produces
 
 | Variable | From | Needed |
 |---|---|---|
 | `GOOGLE_CLIENT_ID` | Step 2b | Now — sign-in does not work without it |
 | `GOOGLE_CLIENT_SECRET` | Step 2b | Now — sign-in does not work without it |
-| `GOOGLE_SA_KEY` | Step 3e, base64 of the JSON key | When Sheets ingestion ships |
+| `GOOGLE_SA_KEY` | Step 3e, base64 of the JSON key | For Sheets ingestion |
+| `INGESTION_WAKE_SECRET` | Step 4a | Only for the wake-up trigger — without it the endpoint stays closed and the scheduled poll is the backstop |
 
 Back to [`deploy.md`](deploy.md) step 4.
 
@@ -145,4 +248,8 @@ Back to [`deploy.md`](deploy.md) step 4.
 - [ ] Service account created with **no project roles**
 - [ ] Response sheet shared with the service account as **Viewer**
 - [ ] Downloaded JSON key deleted from the machine
+- [ ] `INGESTION_WAKE_SECRET` set on the host, and the same value as the `WAKE_SECRET` script property
+- [ ] `WAKE_URL` points at the deployed service, path `/api/ingestion/wake`
+- [ ] Trigger is **On form submit**, from the spreadsheet
+- [ ] A test response reached the dashboard without pressing Sync Now
 - [ ] Nothing from this page committed to the repository

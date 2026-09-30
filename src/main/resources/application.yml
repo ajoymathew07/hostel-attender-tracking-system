@@ -115,6 +115,16 @@ ingestion:
     # ISO-8601, because `@Scheduled` reads this same string and accepts only that form.
     poll-interval: PT3M
 
+    # The shared secret the Google Apps Script trigger presents to wake a sleeping instance
+    # (sections 2.5, 11.5). Generate it, paste it into the script and into the platform's
+    # environment; see docs/runbook/google-setup.md.
+    #
+    # Absent here and on every developer machine, which *closes* the endpoint rather than opening
+    # it: with no secret configured there is nothing a caller can match. Read by
+    # SheetWakeController with @Value rather than bound onto SheetsProperties, because a
+    # controller may not depend on an infrastructure class (architecture section 2.4, rule 2).
+    wake-secret: ${INGESTION_WAKE_SECRET:}
+
 # The docket gate, transition T11 (OQ-1). There is no CMS API (section 1.8), so only the format can
 # be validated, and the exact format of an IITM EU CMS docket number is still an open question —
 # hence a property rather than a constant: a wrong guess costs a config edit, not a redeploy. The

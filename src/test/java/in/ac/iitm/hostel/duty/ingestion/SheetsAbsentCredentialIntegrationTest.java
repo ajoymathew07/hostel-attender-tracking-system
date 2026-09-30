@@ -47,6 +47,18 @@ class SheetsAbsentCredentialIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("and the startup catch-up is a no-op rather than a failed run on every boot")
+    void withoutAKeyTheStartupCatchUpDoesNothing() {
+        long runsBefore = runs.count();
+
+        // Section 2.5's third mitigation runs on every boot, including the boot of a machine that
+        // has no sheet. If that recorded a failure it would raise the degraded-ingestion banner on
+        // an instance where CSV is the intended and only path, and the banner would mean nothing.
+        assertThat(sheets.catchUp()).isEmpty();
+        assertThat(runs.count()).isEqualTo(runsBefore);
+    }
+
+    @Test
     @DisplayName("and the CSV path — the other half of the same port — still creates complaints")
     void theCsvPathStillWorks() {
         IngestionSummary summary =
