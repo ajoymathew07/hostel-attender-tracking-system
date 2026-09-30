@@ -371,6 +371,17 @@ table {
   background-color: var(--slate-100);
 }
 
+/*
+  The assign control sits in a flex row beside its button, and a plain `.input` there collapses to
+  whatever space is left — too narrow to read an attender's name. Give it a floor wide enough for a
+  full name and let it take the slack, while still wrapping on a narrow screen.
+*/
+.input-assign {
+  min-width: 14rem;
+  flex: 1 1 14rem;
+  width: auto;
+}
+
 .input,
 .file-input,
 select.input {

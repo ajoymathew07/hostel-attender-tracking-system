@@ -211,10 +211,7 @@
 
         <div th:unless="${#lists.isEmpty(complaints)}" class="bg-white border rounded-lg shadow-sm overflow-x-auto">
           <table class="table">
-            <caption>
-              Student names, roll numbers and phone numbers are the residents' personal data, shown
-              here for complaint handling and oversight (section 11.4).
-            </caption>
+            <caption class="sr-only">Complaints, newest first</caption>
             <thead>
               <tr>
                 <th scope="col">Reference</th>
@@ -284,12 +281,12 @@
                   <p class="text-sm text-slate-500" th:unless="${complaint.assigneeId()}">In the pool</p>
 
                   <form
-                    class="mt-2 flex items-center gap-2"
+                    class="mt-2 flex flex-wrap items-center gap-2"
                     th:action="@{/complaints/{id}/assign(id=${complaint.id()})}"
                     method="post">
                     <label class="sr-only" th:for="'attender-' + ${complaint.id()}">Assign to</label>
                     <select
-                      class="input"
+                      class="input input-assign"
                       name="attenderId"
                       th:id="'attender-' + ${complaint.id()}"
                       required>
