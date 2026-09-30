@@ -70,6 +70,10 @@ public class AttenderQueueService {
      *
      * <p>The three student fields are dropped here rather than in the template, so an expired
      * window means the values never enter the model at all.
+     *
+     * <p>{@code slaOverdue} is answered against {@code now} rather than read from
+     * {@code sla_breached}: the flag is written by the aging sweep on an interval, and the attender
+     * holding the phone wants to know whether the due date has passed this second.
      */
     private static QueuedTask toCard(TaskAssignment assignment, Instant now) {
         Complaint complaint = assignment.getTask().getComplaint();
@@ -80,6 +84,8 @@ public class AttenderQueueService {
                 complaint.getRawText(),
                 complaint.getDomain(),
                 complaint.getPriority(),
+                complaint.getBasePriority(),
+                complaint.getSlaDueAt() != null && now.isAfter(complaint.getSlaDueAt()),
                 complaint.getStatus(),
                 complaint.getReporterRoom(),
                 complaint.getDocketNo(),

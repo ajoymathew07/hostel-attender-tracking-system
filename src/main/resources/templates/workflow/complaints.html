@@ -248,6 +248,15 @@
                     >awaiting triage</span
                   >
                 </td>
+                <!--
+                  Priority and the SLA clock together, because neither means much alone: "P1" is a
+                  queue position, "P1, overdue" is a decision. Section 4.5's `base_priority` is what
+                  lets the cell say "aged from P3" — an aged P1 and a safety-keyword P1 are
+                  different facts.
+
+                  "Overdue" is spelled out in words beside the red, never carried by the colour
+                  alone (section 10.5).
+                -->
                 <td>
                   <span
                     class="badge"
@@ -255,6 +264,35 @@
                     th:text="${complaint.priority()}"
                     >P2</span
                   >
+                  <span
+                    class="block mt-1 text-xs text-slate-500"
+                    th:if="${complaint.aged()}"
+                    th:text="'aged from ' + ${complaint.basePriority()}"
+                    >aged from P3</span
+                  >
+                  <span
+                    class="block mt-1 text-xs text-slate-500"
+                    th:if="${complaint.slaDueAt()} and not ${complaint.slaOverdue()}"
+                    th:text="'due ' + ${complaint.slaDueAt()}"
+                    >due</span
+                  >
+                  <span
+                    class="block mt-1 text-xs text-red-700 font-medium"
+                    th:if="${complaint.slaOverdue()}"
+                    th:text="'overdue since ' + ${complaint.slaDueAt()}"
+                    >overdue</span
+                  >
+
+                  <!-- Section 4.5's only manager-set priority. One button, not a picker: P1 comes
+                       from the safety keywords and P2 is the default, and neither is a judgement
+                       this screen should be able to overwrite. -->
+                  <form
+                    class="mt-2"
+                    th:if="${complaint.priority().name() != 'P3'}"
+                    th:action="@{/complaints/{id}/downgrade(id=${complaint.id()})}"
+                    method="post">
+                    <button class="btn btn-secondary" type="submit">Downgrade to P3</button>
+                  </form>
                 </td>
                 <td class="whitespace-nowrap" th:text="${complaint.status()}">NEW</td>
                 <td class="text-sm">

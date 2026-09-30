@@ -146,6 +146,40 @@ categorization:
 workflow:
   docket-pattern: "^[A-Za-z0-9/-]{4,32}$"
 
+  # Priority, the SLA clock and aging (section 4.5). Configuration rather than constants because
+  # both sections that state these numbers say so outright — section 4.5 of the working calendar
+  # ("configurable by the manager rather than compiled in") and section 8.2 of the targets ("These
+  # are configuration, not constants") — and because both are still open questions: OQ-2 for the
+  # windows, OQ-6 for the working day. A revised figure is a config edit, not a redeploy.
+  sla:
+    # OQ-6's working answer. The SLA figures below are spent only inside this window, so a
+    # complaint submitted at 23:00 does not burn four hours of its window overnight while nobody
+    # is on duty. Seven days a week, which is why `non-working-days` is empty rather than absent:
+    # a hostel does not close on Sunday. Both lists exist because section 4.5 names weekends and
+    # holidays as part of what a manager may set.
+    working-day:
+      zone: Asia/Kolkata
+      start: "08:00"
+      end: "20:00"
+      non-working-days: []
+      holidays: []
+
+    # Section 8.2's table, in working hours. Section 4.5 states the same figures more coarsely
+    # ("Electrical 4h · Other 8h" for P1) and section 8.2 spells out every cell, so these are
+    # section 8.2's: the breach metric and the due date on the attender's card must not be able to
+    # disagree about what "late" means. UNCLASSIFIED has no row — a complaint nobody has placed is
+    # waiting on a manager in the triage queue, and it gets its due date when it gets its domain.
+    targets:
+      ELECTRICAL: { P1: PT4H, P2: PT8H, P3: PT72H }
+      RO_PLANT: { P1: PT6H, P2: PT12H, P3: PT72H }
+      CIVIL: { P1: PT8H, P2: PT24H, P3: PT72H }
+      NETWORK: { P1: PT8H, P2: PT24H, P3: PT72H }
+
+    # How often the aging sweep runs. Far finer than the shortest window it polices, so an
+    # escalation is late by at most one tick, and cheap: one indexed query over the overdue set.
+    # ISO-8601, because `@Scheduled` reads this same string and accepts only that form.
+    ageing-interval: PT15M
+
 # A lost or shared phone exposes a session, not a secret — so the session is the thing that
 # expires (sections 11.1, 11.2). `Secure` is set by the `cloud` profile below, where TLS
 # terminates; setting it here would break sign-in over plain http on a developer machine.

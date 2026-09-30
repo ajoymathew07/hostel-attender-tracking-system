@@ -24,6 +24,8 @@ public record QueuedTask(
         String rawText,
         ComplaintDomain domain,
         Priority priority,
+        Priority basePriority,
+        boolean slaOverdue,
         ComplaintStatus status,
         String room,
         String docketNo,
@@ -32,6 +34,11 @@ public record QueuedTask(
         String studentName,
         String studentRollNo,
         String studentPhone) {
+
+    /** Whether the clock raised this priority rather than intake setting it (section 4.5). */
+    public boolean aged() {
+        return priority != basePriority;
+    }
 
     /** T7 — the attender is on their way. */
     public boolean canStart() {

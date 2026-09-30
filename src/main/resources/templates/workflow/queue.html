@@ -49,6 +49,14 @@
               th:text="${task.priority()}"
               >P2</span
             >
+            <!-- Section 4.5: an aged priority says so, so a card that jumped the queue explains
+                 itself rather than looking like a mistake. -->
+            <span
+              class="badge"
+              th:if="${task.aged()}"
+              th:text="'aged from ' + ${task.basePriority()}"
+              >aged from P3</span
+            >
             <span class="badge">
               <span aria-hidden="true" th:text="${domainGlyphs.get(task.domain().name())} ?: '❓'">❓</span>
               <span th:text="${task.domain()}">UNCLASSIFIED</span>
@@ -63,8 +71,15 @@
 
           <p class="mt-2 text-base font-medium" th:text="${task.rawText()}">what the resident wrote</p>
 
-          <p class="mt-1 text-xs text-slate-500" th:if="${task.slaDueAt()}">
+          <!-- The word "Overdue" carries the meaning; the red is the second signal, never the only
+               one (section 10.5). Hold time has already been added to the due date (T13), so a card
+               that waited on the Engineering Unit is not shown as late for it. -->
+          <p class="mt-1 text-xs text-slate-500" th:if="${task.slaDueAt()} and not ${task.slaOverdue()}">
             <span aria-hidden="true">⏱</span> <span th:text="'Due ' + ${task.slaDueAt()}">due</span>
+          </p>
+          <p class="mt-1 text-xs text-red-700 font-medium" th:if="${task.slaOverdue()}">
+            <span aria-hidden="true">⏱</span>
+            <span th:text="'Overdue since ' + ${task.slaDueAt()}">overdue</span>
           </p>
 
           <!-- Section 11.4: present while the work is live and for 7 days after it is resolved,

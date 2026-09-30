@@ -120,6 +120,10 @@ public class Complaint {
     @Column(name = "sla_breached", nullable = false)
     private boolean slaBreached;
 
+    /** When the SLA clock was paused by T12; {@code null} while it is running (section 4.5). */
+    @Column(name = "hold_started_at")
+    private Instant holdStartedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -259,8 +263,46 @@ public class Complaint {
         this.updatedAt = Objects.requireNonNull(at, "at");
     }
 
+    /**
+     * A manager's downgrade — section 4.5's third row, the one source of {@link Priority#P3}.
+     *
+     * <p>This moves {@code basePriority} as well as {@code priority}, because it is a judgement
+     * about the work itself rather than an effect of the clock: the aging job must be able to raise
+     * it again from P3, and the dashboard must not read the result as "aged from P2".
+     */
+    public void downgrade(Instant at) {
+        this.basePriority = Priority.P3;
+        this.priority = Priority.P3;
+        this.updatedAt = Objects.requireNonNull(at, "at");
+    }
+
+    /** Whether the current priority was reached by aging rather than assigned (section 4.5). */
+    public boolean aged() {
+        return priority != basePriority;
+    }
+
     public void scheduleSla(Instant dueAt) {
         this.slaDueAt = dueAt;
+    }
+
+    /** T12 — the SLA clock stops while the work is blocked. */
+    public void pauseSlaClock(Instant at) {
+        this.holdStartedAt = Objects.requireNonNull(at, "at");
+    }
+
+    /**
+     * T13 — the clock restarts, and the due date moves by however long the hold lasted.
+     *
+     * <p>Wall-clock elapsed time, which is what section 4.5 says: "extend due date by hold
+     * duration". A complaint held for a day is due a day later, whatever part of that day was
+     * inside working hours — the attender was not able to act during any of it.
+     */
+    public void resumeSlaClock(Instant at) {
+        Objects.requireNonNull(at, "at");
+        if (holdStartedAt != null && slaDueAt != null) {
+            this.slaDueAt = slaDueAt.plus(Duration.between(holdStartedAt, at));
+        }
+        this.holdStartedAt = null;
     }
 
     public void markSlaBreached() {
@@ -385,6 +427,10 @@ public class Complaint {
 
     public boolean isSlaBreached() {
         return slaBreached;
+    }
+
+    public Instant getHoldStartedAt() {
+        return holdStartedAt;
     }
 
     public Instant getCreatedAt() {

@@ -8,6 +8,7 @@ import in.ac.iitm.hostel.duty.workflow.application.ComplaintQueryService;
 import in.ac.iitm.hostel.duty.workflow.application.GuardFailedException;
 import in.ac.iitm.hostel.duty.workflow.application.IllegalTransitionException;
 import in.ac.iitm.hostel.duty.workflow.application.ManualAssignmentService;
+import in.ac.iitm.hostel.duty.workflow.application.PriorityService;
 import in.ac.iitm.hostel.duty.workflow.application.TransitionPayload;
 import in.ac.iitm.hostel.duty.workflow.application.TriageService;
 import in.ac.iitm.hostel.duty.workflow.application.WorkflowService;
@@ -57,6 +58,7 @@ class ManagerDashboardController {
     private final WorkflowService workflow;
     private final IngestionHealth ingestion;
     private final TriageService triage;
+    private final PriorityService priorities;
 
     ManagerDashboardController(
             ComplaintQueryService complaints,
@@ -65,7 +67,8 @@ class ManagerDashboardController {
             LeaderboardService leaderboard,
             WorkflowService workflow,
             IngestionHealth ingestion,
-            TriageService triage) {
+            TriageService triage,
+            PriorityService priorities) {
         this.complaints = complaints;
         this.assignment = assignment;
         this.users = users;
@@ -73,6 +76,7 @@ class ManagerDashboardController {
         this.workflow = workflow;
         this.ingestion = ingestion;
         this.triage = triage;
+        this.priorities = priorities;
     }
 
     @GetMapping({"/", "/complaints"})
@@ -124,6 +128,21 @@ class ManagerDashboardController {
             RedirectAttributes flash) {
         triage.classify(complaintId, domain);
         flash.addFlashAttribute("message", "Domain set to " + domain + ".");
+        return REDIRECT;
+    }
+
+    /**
+     * Section 4.5's third priority row: the manager judges this less urgent than it arrived.
+     *
+     * <p>One button and no priority picker, because P3 is the only priority a manager sets. P1 is
+     * the safety keywords' and P2 is the default; letting the screen choose either would let a
+     * judgement about urgency overwrite a fact about a hazard. Aging can raise a P3 again, and the
+     * list will then say "aged from P3".
+     */
+    @PostMapping("/complaints/{complaintId}/downgrade")
+    String downgrade(@PathVariable long complaintId, RedirectAttributes flash) {
+        priorities.downgrade(complaintId);
+        flash.addFlashAttribute("message", "Downgraded to P3, and the due date recomputed.");
         return REDIRECT;
     }
 

@@ -9,6 +9,7 @@ import in.ac.iitm.hostel.duty.workflow.domain.Complaint;
 import in.ac.iitm.hostel.duty.workflow.domain.ComplaintDomain;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
 import java.time.Instant;
+import java.util.Objects;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,17 +41,27 @@ public class TriageService {
 
     private final ComplaintRepository complaints;
     private final AuditTrail audit;
+    private final SlaClock sla;
 
-    TriageService(ComplaintRepository complaints, AuditTrail audit) {
+    TriageService(ComplaintRepository complaints, AuditTrail audit, SlaClock sla) {
         this.complaints = complaints;
         this.audit = audit;
+        this.sla = sla;
     }
 
-    /** Sets the domain the classifier could not settle, as {@code classified_by = MANUAL}. */
+    /**
+     * Sets the domain the classifier could not settle, as {@code classified_by = MANUAL}.
+     *
+     * <p>The SLA due date is computed here and not at intake, because until now there was no target
+     * to compute it against: section 8.2's table has a row per domain and {@code UNCLASSIFIED} is
+     * not one of them. The window runs from {@code reportedAt} all the same — the resident should not
+     * be charged for the time the complaint spent waiting in triage, nor credited for it.
+     */
     public void classify(long complaintId, ComplaintDomain domain) {
         Complaint complaint = complaints.findById(complaintId).orElseThrow();
         ComplaintDomain previous = complaint.getDomain();
         complaint.classifyManually(domain, Instant.now());
+        sla.schedule(complaint);
         complaints.saveAndFlush(complaint);
 
         // Ids, names and enum values — never the resident's words (section 11.4).
@@ -62,6 +73,7 @@ public class TriageService {
                         AuditDetail.of("from", previous.name())
                                 .and("to", domain.name())
                                 .and("classifiedBy", ClassificationMethod.MANUAL.name())
+                                .and("slaDueAt", Objects.toString(complaint.getSlaDueAt(), null))
                                 .json(),
                         CurrentUser.idOrNull(),
                         CurrentUser.roleOrNull()));
