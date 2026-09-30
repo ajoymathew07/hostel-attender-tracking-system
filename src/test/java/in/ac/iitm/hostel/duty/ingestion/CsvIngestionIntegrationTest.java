@@ -171,7 +171,7 @@ class CsvIngestionIntegrationTest extends AbstractIntegrationTest {
     // ---- normalization --------------------------------------------------
 
     @Test
-    @DisplayName("an ingested complaint carries the resident's wording and details, unclassified and P2")
+    @DisplayName("an ingested complaint carries the resident's wording and details, classified and P2")
     void anIngestedComplaintIsShapedAsSection54Says() {
         String body =
                 HEADERS
@@ -189,11 +189,29 @@ class CsvIngestionIntegrationTest extends AbstractIntegrationTest {
         assertThat(complaint.getReporterContact()).isEqualTo("carry@example.com");
         assertThat(complaint.getPublicRef()).matches("CAU-2026-\\d{4,}");
 
-        // Nothing has classified it yet (PR 10) and no priority rules exist yet (PR 12).
-        assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.UNCLASSIFIED);
-        assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.FALLBACK);
+        // The weighted lexicon ran on the way in: `ceiling` and `leaking` are both Civil and
+        // nothing else fired, so the confidence gate accepted it (section 5.5). No priority rules
+        // exist yet, so P2 is still the flat default (PR 12).
+        assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.CIVIL);
+        assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.RULES);
         assertThat(complaint.getPriority()).isEqualTo(Priority.P2);
         assertThat(complaint.getStatus()).isEqualTo(ComplaintStatus.NEW);
+    }
+
+    @Test
+    @DisplayName("the CSV path classifies too, and what the gate refuses arrives in triage")
+    void theCsvPathIsClassifiedAndCanRouteToTriage() {
+        String body =
+                HEADERS
+                        + "\n2026/04/03 07:45:00,triage@example.com,,,,410,water coming from ceiling fan,\n";
+
+        Complaint complaint = complaintsFrom(uploads.upload(csv(body))).get(0);
+
+        // Civil's `ceiling` and Electrical's `fan` score level, so the separation gate refuses to
+        // pick one and the complaint reaches the manager instead of an attender on the wrong job.
+        assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.UNCLASSIFIED);
+        assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.FALLBACK);
+        assertThat(complaint.getStatus()).isEqualTo(ComplaintStatus.TRIAGE);
     }
 
     @Test

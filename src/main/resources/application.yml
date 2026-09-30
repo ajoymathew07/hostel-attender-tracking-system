@@ -125,6 +125,20 @@ ingestion:
     # controller may not depend on an infrastructure class (architecture section 2.4, rule 2).
     wake-secret: ${INGESTION_WAKE_SECRET:}
 
+# The classifier's confidence gate, section 5.5. Both numbers are the defaults the design states
+# outright, and both are properties rather than constants because section 5.5 says they are tuned
+# against the gold set of section 12.3 — which is a later PR, so nothing has moved them yet.
+#
+#   minimum-score        S_min — absolute evidence: the winning domain's total must reach this
+#   confidence-threshold τ     — separation: (S₁ − S₂) / S₁ must reach this
+#
+# Both gates must pass. One absolute threshold alone accepts a complaint that scores equally for
+# two domains; one margin threshold alone accepts a complaint where a single weak term matched and
+# nothing else did. Requiring both routes exactly the uncertain cases to the manager's triage queue.
+categorization:
+  minimum-score: 1.0
+  confidence-threshold: 0.40
+
 # The docket gate, transition T11 (OQ-1). There is no CMS API (section 1.8), so only the format can
 # be validated, and the exact format of an IITM EU CMS docket number is still an open question —
 # hence a property rather than a constant: a wrong guess costs a config edit, not a redeploy. The

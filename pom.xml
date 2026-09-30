@@ -27,6 +27,7 @@
     <!-- Overrides the version managed by spring-boot-dependencies. -->
     <testcontainers.version>1.21.4</testcontainers.version>
     <archunit.version>1.4.2</archunit.version>
+    <commons-text.version>1.12.0</commons-text.version>
     <jacoco.version>0.8.13</jacoco.version>
     <google-api-sheets.version>v4-rev20250603-2.0.0</google-api-sheets.version>
     <google-auth.version>1.48.0</google-auth.version>
@@ -138,6 +139,18 @@
       <groupId>net.javacrumbs.shedlock</groupId>
       <artifactId>shedlock-provider-jdbc-template</artifactId>
       <version>${shedlock.version}</version>
+    </dependency>
+
+    <!--
+      Categorization: Jaro–Winkler for the classifier's fuzzy matching (§5.5, ADR-004). Complaint
+      text is short, misspelled and often code-mixed Tamil/English transliteration, so a near-miss
+      has to still hit the lexicon. This is the only thing commons-text is used for — there is
+      deliberately no OpenNLP dependency, because ADR-004 puts the model in the backlog.
+    -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-text</artifactId>
+      <version>${commons-text.version}</version>
     </dependency>
 
     <!-- Test: JUnit 5, AssertJ, Mockito. -->

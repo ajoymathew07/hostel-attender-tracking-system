@@ -9,8 +9,11 @@ import in.ac.iitm.hostel.duty.workflow.application.GuardFailedException;
 import in.ac.iitm.hostel.duty.workflow.application.IllegalTransitionException;
 import in.ac.iitm.hostel.duty.workflow.application.ManualAssignmentService;
 import in.ac.iitm.hostel.duty.workflow.application.TransitionPayload;
+import in.ac.iitm.hostel.duty.workflow.application.TriageService;
 import in.ac.iitm.hostel.duty.workflow.application.WorkflowService;
+import in.ac.iitm.hostel.duty.workflow.domain.ComplaintDomain;
 import in.ac.iitm.hostel.duty.workflow.domain.WorkflowEvent;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,10 +30,10 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 /**
  * The manager's desktop: {@code /} and {@code /complaints} (section 10.4).
  *
- * <p>The complaint list, manual assignment and the leaderboard are all of it for now. Triage, the
- * live activity feed and the analytics strip of section 10.3 each belong to the module that owns
- * them and arrive with it; a dashboard full of empty placeholder panels would be worse than a
- * short one that is entirely real.
+ * <p>The complaint list, manual assignment, the triage panel and the leaderboard are all of it for
+ * now. The live activity feed and the analytics strip of section 10.3 each belong to the module
+ * that owns them and arrive with it; a dashboard full of empty placeholder panels would be worse
+ * than a short one that is entirely real.
  *
  * <p>The class-level {@code @PreAuthorize} is defence in depth. The same rules are on {@code
  * ComplaintQueryService} and {@link ManualAssignmentService}, which is where section 11.3 requires
@@ -43,12 +46,17 @@ class ManagerDashboardController {
     private static final String VIEW = "workflow/complaints";
     private static final String REDIRECT = "redirect:/complaints";
 
+    /** The four buttons on a triage card: every domain a manager may actually pick. */
+    private static final List<ComplaintDomain> ASSIGNABLE_DOMAINS =
+            Arrays.stream(ComplaintDomain.values()).filter(ComplaintDomain::isDispatchable).toList();
+
     private final ComplaintQueryService complaints;
     private final ManualAssignmentService assignment;
     private final UserProvisioningService users;
     private final LeaderboardService leaderboard;
     private final WorkflowService workflow;
     private final IngestionHealth ingestion;
+    private final TriageService triage;
 
     ManagerDashboardController(
             ComplaintQueryService complaints,
@@ -56,18 +64,25 @@ class ManagerDashboardController {
             UserProvisioningService users,
             LeaderboardService leaderboard,
             WorkflowService workflow,
-            IngestionHealth ingestion) {
+            IngestionHealth ingestion,
+            TriageService triage) {
         this.complaints = complaints;
         this.assignment = assignment;
         this.users = users;
         this.leaderboard = leaderboard;
         this.workflow = workflow;
         this.ingestion = ingestion;
+        this.triage = triage;
     }
 
     @GetMapping({"/", "/complaints"})
     String list(Model model) {
         model.addAttribute("complaints", complaints.listAll());
+        // Above the list in the template, not in a tab: it is the only part of this screen that
+        // requires the manager's action, and anything requiring action goes where the eye lands
+        // first (section 10.3).
+        model.addAttribute("triage", complaints.listTriage());
+        model.addAttribute("assignableDomains", ASSIGNABLE_DOMAINS);
         model.addAttribute("domainGlyphs", DomainGlyphs.BY_DOMAIN);
         // Only active attenders can be given work; the name map covers everyone, so a complaint
         // held by someone since deactivated still shows who holds it rather than a bare id.
@@ -92,6 +107,23 @@ class ManagerDashboardController {
             RedirectAttributes flash) {
         assignment.assign(complaintId, attenderId);
         flash.addFlashAttribute("message", "Assignment updated.");
+        return REDIRECT;
+    }
+
+    /**
+     * The triage card's one-click correction (sections 5.5, 10.3).
+     *
+     * <p>Four buttons in one form, each submitting its own {@code domain} value, so the gesture is
+     * a single press rather than pick-then-confirm. The complaint stays in {@code TRIAGE} until
+     * somebody is assigned to it, which is the control beside these.
+     */
+    @PostMapping("/complaints/{complaintId}/domain")
+    String setDomain(
+            @PathVariable long complaintId,
+            @RequestParam ComplaintDomain domain,
+            RedirectAttributes flash) {
+        triage.classify(complaintId, domain);
+        flash.addFlashAttribute("message", "Domain set to " + domain + ".");
         return REDIRECT;
     }
 
