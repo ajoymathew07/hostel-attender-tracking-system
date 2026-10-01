@@ -123,4 +123,14 @@ class SecurityFilterChainIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(post("/admin/attenders").param("displayName", "Selvi").param("email", "csrf@example.com").param("role", "ATTENDER"))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    @WithMockUser(roles = "ATTENDER")
+    @DisplayName("an attender who opens the dashboard is sent to their queue, not an error page")
+    void anAttenderOpeningTheDashboardIsRedirectedToTheirQueue() throws Exception {
+        // The landing handler only fires at sign-in, so a bookmark or the back button would
+        // otherwise drop an attender on an error page for a screen they never chose to open.
+        mockMvc.perform(get("/")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/m"));
+        mockMvc.perform(get("/complaints")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/m"));
+    }
 }
