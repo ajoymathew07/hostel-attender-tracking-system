@@ -9,7 +9,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
@@ -17,9 +16,9 @@ import java.util.Objects;
 /**
  * A resident's maintenance complaint — the central aggregate (data model section 3.5).
  *
- * <p>{@code rawText} keeps the resident's original wording verbatim. The classifier's output is
- * stored <em>alongside</em> it with a confidence score and the method used, never in place of it,
- * so a misclassification is always recoverable.
+ * <p>{@code rawText} keeps the resident's original wording verbatim. The domain is stored
+ * <em>alongside</em> it with the method that set it, never in place of it, so a complaint filed
+ * under the wrong heading is always recoverable.
  *
  * <p>The docket lives in three columns here rather than a child table: corrections overwrite
  * {@code docketNo} and {@code audit_event} holds the old and new values (section 4.3, ADR-012).
@@ -92,10 +91,6 @@ public class Complaint {
     @Enumerated(EnumType.STRING)
     @Column(name = "domain", nullable = false, length = 16)
     private ComplaintDomain domain;
-
-    /** 0.000 .. 1.000, guarded by {@code ck_conf}. */
-    @Column(name = "domain_confidence", precision = 4, scale = 3)
-    private BigDecimal domainConfidence;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "classified_by", nullable = false, length = 16)
@@ -245,16 +240,7 @@ public class Complaint {
     public void classifyManually(ComplaintDomain newDomain, Instant at) {
         this.domain = Objects.requireNonNull(newDomain, "domain");
         this.classifiedBy = ClassificationMethod.MANUAL;
-        this.domainConfidence = null;
         this.updatedAt = Objects.requireNonNull(at, "at");
-    }
-
-    public void recordClassifierConfidence(BigDecimal confidence) {
-        if (confidence != null
-                && (confidence.signum() < 0 || confidence.compareTo(BigDecimal.ONE) > 0)) {
-            throw new IllegalArgumentException("domainConfidence must lie in [0, 1]");
-        }
-        this.domainConfidence = confidence;
     }
 
     /** One step of priority aging; {@code basePriority} is deliberately left alone. */
@@ -399,10 +385,6 @@ public class Complaint {
 
     public ComplaintDomain getDomain() {
         return domain;
-    }
-
-    public BigDecimal getDomainConfidence() {
-        return domainConfidence;
     }
 
     public ClassificationMethod getClassifiedBy() {

@@ -32,13 +32,20 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest
 class SchemaMigrationIntegrationTest extends AbstractIntegrationTest {
 
-    /** The thirteen tables of data model section 3. */
+    /**
+     * The tables of data model section 3, less {@code category_term} and plus {@code app_setting}.
+     *
+     * <p>{@code category_term} held the classifier's lexicon and was dropped when the Form started
+     * asking the resident for the domain outright: there is nothing left to match against.
+     * {@code app_setting} is not in section 3 at all — it holds the overrides that sections 4.5,
+     * 6.2 and 8.2 each say the manager may make without a redeploy.
+     */
     private static final List<String> EXPECTED_TABLES =
             List.of(
                     "app_user",
                     "audit_event",
+                    "app_setting",
                     "availability_window",
-                    "category_term",
                     "complaint",
                     "floor",
                     "floor_assignment",
@@ -60,14 +67,13 @@ class SchemaMigrationIntegrationTest extends AbstractIntegrationTest {
                     "uq_complaint_ref",
                     "uq_task_attender",
                     "uq_ledger_idem",
-                    "uq_term",
+                    "uq_setting_name",
                     "ck_user_role",
                     "ck_coverage",
                     "ck_avail_status",
                     "ck_sr_state",
                     "ck_domain",
                     "ck_priority",
-                    "ck_conf",
                     "ck_task_type",
                     "ck_task_link",
                     // Not in section 3: added by this PR alongside `task.slots`, because section
@@ -116,8 +122,8 @@ class SchemaMigrationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("all thirteen tables of data model section 3 exist")
-    void allThirteenTablesExist() throws SQLException {
+    @DisplayName("every table the application maps exists, and nothing maps a table that does not")
+    void everyExpectedTableExists() throws SQLException {
         List<String> actual = queryStrings("select table_name from information_schema.tables where table_schema = 'public'");
 
         assertThat(actual).containsAll(EXPECTED_TABLES);

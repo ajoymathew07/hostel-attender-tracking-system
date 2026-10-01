@@ -41,12 +41,12 @@ complaint; the attender opens it on a phone and taps Resolve; the leaderboard sh
 |---|---|---|---|
 | 8 | Sheets ingestion | Sheets v4 adapter, service-account auth, header-name mapping, `response_key` delta detection, `ingestion_run` records | 4 |
 | 9 | Wake and sync | Apps Script trigger endpoint, `Sync Now`, scheduled poll with ShedLock | 8 |
-| 10 | Classifier + triage | Weighted lexicon, Jaro–Winkler fuzzy matching, confidence gate, triage queue with one-click domain and assign | 8 |
+| 10 | ~~Classifier~~ + triage | Shipped a weighted lexicon with fuzzy matching and a confidence gate; the classifier half was **removed** once the Form began asking the resident for the domain (ADR-013). The triage queue it fed is untouched | 8 |
 | 11 | State machine + docket gate | Full transition table, `WorkflowService.transition()`, `RECORD_DOCKET`, configurable docket pattern, the `mark_resolved` guard | 6 |
 | 12 | Priority, SLA, aging | Base priority rules, working-hours calendar, due dates, escalation at 1.5× capped at `P1`, hold time excluded | 11 |
 | 13 | Auto-dispatch | Eligibility filter, Floor and Load scoring, tie-break chain, `score_snapshot` persistence | 12, 5 |
 | 14 | Config + live dashboard | Manager-editable weights, SLA windows, working hours, thresholds and load caps; polling auto-refresh for task lists and counters | 13, 12 |
-| 15 | Gold set | ~200 labelled complaints, 70/30 development and holdout split, accuracy and coverage harness | 10 |
+| 15 | ~~Gold set~~ | **Withdrawn** with the classifier it existed to measure (ADR-013). Coverage is now read off the dashboard's triage counter instead (§5.6) | 10 |
 | 16 | Demo hardening | Seed data, error states, mobile pass, deploy rehearsal | all |
 
 **Phase 2 exit criterion**, met at PR 16: a complaint submitted to the Google Form appears

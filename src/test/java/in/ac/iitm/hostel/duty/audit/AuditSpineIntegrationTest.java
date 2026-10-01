@@ -8,8 +8,8 @@ import in.ac.iitm.hostel.duty.audit.application.AuditTrail;
 import in.ac.iitm.hostel.duty.audit.application.CorrelationId;
 import in.ac.iitm.hostel.duty.audit.domain.AuditEvent;
 import in.ac.iitm.hostel.duty.audit.infrastructure.AuditEventRepository;
-import in.ac.iitm.hostel.duty.categorization.domain.CategoryTerm;
-import in.ac.iitm.hostel.duty.categorization.infrastructure.CategoryTermRepository;
+import in.ac.iitm.hostel.duty.dispatch.domain.Floor;
+import in.ac.iitm.hostel.duty.dispatch.infrastructure.FloorRepository;
 import in.ac.iitm.hostel.duty.identity.infrastructure.AppUserRepository;
 import in.ac.iitm.hostel.duty.support.AbstractIntegrationTest;
 import in.ac.iitm.hostel.duty.support.Fixtures;
@@ -37,64 +37,64 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       audit write ran in a transaction of its own after the commit.
  * </ol>
  *
- * <p>{@code CategoryTerm} stands in for "some business change": it is the simplest entity in the
- * schema with no foreign keys, so the test is about the transaction and nothing else.
+ * <p>{@code Floor} stands in for "some business change": it is the simplest entity in the schema
+ * with no foreign keys, so the test is about the transaction and nothing else.
  */
 @SpringBootTest
 class AuditSpineIntegrationTest extends AbstractIntegrationTest {
 
-    private static final String ENTITY_TYPE = "category_term";
+    private static final String ENTITY_TYPE = "floor";
 
     @Autowired private AuditTrail auditTrail;
     @Autowired private AuditEventRepository auditEvents;
-    @Autowired private CategoryTermRepository terms;
+    @Autowired private FloorRepository floors;
     @Autowired private AppUserRepository users;
     @Autowired private TransactionTemplate tx;
 
     @Test
     @DisplayName("the audit row commits atomically with the change it records")
     void auditRowCommitsWithItsChange() {
-        String term = Fixtures.unique("leaking");
+        String wing = Fixtures.unique("W");
 
-        Long termId =
+        Long floorId =
                 tx.execute(
                         status -> {
-                            CategoryTerm saved = terms.saveAndFlush(categoryTerm(term));
+                            Floor saved = floors.saveAndFlush(floor(wing));
                             auditTrail.record(
                                     AuditEntry.change(
                                             ENTITY_TYPE,
                                             saved.getId(),
-                                            "TERM_ADDED",
-                                            "{\"term\":\"" + term + "\"}",
+                                            "FLOOR_ADDED",
+                                            "{\"wing\":\"" + wing + "\"}",
                                             null,
                                             "MANAGER"));
                             return saved.getId();
                         });
 
-        assertThat(terms.findById(termId)).isPresent();
+        assertThat(floors.findById(floorId)).isPresent();
         List<AuditEvent> recorded =
-                auditEvents.findByEntityTypeAndEntityIdOrderByOccurredAtAsc(ENTITY_TYPE, termId);
+                auditEvents.findByEntityTypeAndEntityIdOrderByOccurredAtAsc(ENTITY_TYPE, floorId);
         assertThat(recorded).hasSize(1);
-        assertThat(recorded.get(0).getEventType()).isEqualTo("TERM_ADDED");
-        assertThat(recorded.get(0).getDetail()).contains(term);
+        assertThat(recorded.get(0).getEventType()).isEqualTo("FLOOR_ADDED");
+        assertThat(recorded.get(0).getDetail()).contains(wing);
     }
 
     @Test
     @DisplayName("a rolled-back change leaves no audit row behind")
     void rolledBackChangeLeavesNoAuditRow() {
-        String term = Fixtures.unique("phantom");
+        String wing = Fixtures.unique("W");
         long auditRowsBefore = auditEvents.count();
 
         assertThatThrownBy(
                         () ->
                                 tx.executeWithoutResult(
                                         status -> {
-                                            CategoryTerm saved = terms.saveAndFlush(categoryTerm(term));
+                                            Floor saved = floors.saveAndFlush(floor(wing));
                                             auditTrail.record(
                                                     AuditEntry.change(
                                                             ENTITY_TYPE,
                                                             saved.getId(),
-                                                            "TERM_ADDED",
+                                                            "FLOOR_ADDED",
                                                             null,
                                                             null,
                                                             "MANAGER"));
@@ -102,7 +102,7 @@ class AuditSpineIntegrationTest extends AbstractIntegrationTest {
                                         }))
                 .isInstanceOf(IllegalStateException.class);
 
-        assertThat(terms.findByDomainAndTerm("CIVIL", term))
+        assertThat(floors.findByWingAndFloorNumber(wing, 1))
                 .describedAs("the change itself rolled back")
                 .isEmpty();
         assertThat(auditEvents.count())
@@ -113,7 +113,7 @@ class AuditSpineIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("a rejected audit row rolls the change back with it — proof the write shares the transaction")
     void aFailedAuditWriteRollsBackTheChange() {
-        String term = Fixtures.unique("doomed");
+        String wing = Fixtures.unique("W");
         // event_type is VARCHAR(48); this one cannot be stored, so the audit insert fails at flush
         // inside BEFORE_COMMIT, while the business transaction is still open.
         String tooLongForTheColumn = "X".repeat(64);
@@ -122,7 +122,7 @@ class AuditSpineIntegrationTest extends AbstractIntegrationTest {
                         () ->
                                 tx.executeWithoutResult(
                                         status -> {
-                                            CategoryTerm saved = terms.saveAndFlush(categoryTerm(term));
+                                            Floor saved = floors.saveAndFlush(floor(wing));
                                             auditTrail.record(
                                                     AuditEntry.change(
                                                             ENTITY_TYPE,
@@ -138,7 +138,7 @@ class AuditSpineIntegrationTest extends AbstractIntegrationTest {
                                 + " this test pass for the wrong reason")
                 .isInstanceOf(DataIntegrityViolationException.class);
 
-        assertThat(terms.findByDomainAndTerm("CIVIL", term))
+        assertThat(floors.findByWingAndFloorNumber(wing, 1))
                 .describedAs(
                         "under AFTER_COMMIT this row would have survived; under BEFORE_COMMIT the"
                                 + " change cannot commit without its audit row")
@@ -149,16 +149,16 @@ class AuditSpineIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("correlation_id ties every row written by one request or ingestion run together")
     void correlationIdGroupsOneUnitOfWork() {
         String correlationId = CorrelationId.generate();
-        String first = Fixtures.unique("seepage");
-        String second = Fixtures.unique("cracked");
+        String first = Fixtures.unique("W");
+        String second = Fixtures.unique("W");
 
         CorrelationId.runWith(
                 correlationId,
                 () ->
                         tx.executeWithoutResult(
                                 status -> {
-                                    CategoryTerm a = terms.saveAndFlush(categoryTerm(first));
-                                    CategoryTerm b = terms.saveAndFlush(categoryTerm(second));
+                                    Floor a = floors.saveAndFlush(floor(first));
+                                    Floor b = floors.saveAndFlush(floor(second));
                                     auditTrail.record(
                                             AuditEntry.systemAction(
                                                     ENTITY_TYPE, a.getId(), "TERM_IMPORTED", null));
@@ -192,13 +192,13 @@ class AuditSpineIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("a state transition records both ends of the move, and its actor")
     void transitionRecordsFromAndToState() {
-        String term = Fixtures.unique("transition");
+        String wing = Fixtures.unique("W");
         Long managerId = users.saveAndFlush(Fixtures.manager()).getId();
 
-        Long termId =
+        Long floorId =
                 tx.execute(
                         status -> {
-                            CategoryTerm saved = terms.saveAndFlush(categoryTerm(term));
+                            Floor saved = floors.saveAndFlush(floor(wing));
                             auditTrail.record(
                                     AuditEntry.transition(
                                             ENTITY_TYPE,
@@ -213,7 +213,7 @@ class AuditSpineIntegrationTest extends AbstractIntegrationTest {
 
         AuditEvent event =
                 auditEvents
-                        .findByEntityTypeAndEntityIdOrderByOccurredAtAsc(ENTITY_TYPE, termId)
+                        .findByEntityTypeAndEntityIdOrderByOccurredAtAsc(ENTITY_TYPE, floorId)
                         .get(0);
         assertThat(event.isStateTransition()).isTrue();
         assertThat(event.getFromState()).isEqualTo("ACTIVE");
@@ -246,15 +246,15 @@ class AuditSpineIntegrationTest extends AbstractIntegrationTest {
                                                         AuditEntry.change(
                                                                 ENTITY_TYPE,
                                                                 1L,
-                                                                "TERM_ADDED",
+                                                                "FLOOR_ADDED",
                                                                 null,
                                                                 999_999_999L,
                                                                 "MANAGER"))))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    private CategoryTerm categoryTerm(String term) {
-        return new CategoryTerm(
-                "CIVIL", term, new BigDecimal("1.00"), Instant.parse("2026-02-01T00:00:00Z"));
+    /** A wing nobody else uses, so a parallel class's floor cannot collide on {@code uq_floor}. */
+    private Floor floor(String wing) {
+        return new Floor(wing, 1, "Ground");
     }
 }

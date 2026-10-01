@@ -8,7 +8,7 @@ import java.util.List;
  * <p><strong>Exact matching, deliberately.</strong> There is no fuzzy match, no stemming and no
  * edit distance here, and that is not an omission. A false {@code P1} from a near-miss spelling
  * jumps a routine complaint over genuine safety work and distorts the whole queue — so a word
- * either is one of these or it is not. The classifier of section 5.5 is where tolerance belongs; it
+ * either is one of these or it is not. Tolerance belongs in the Form's drop-down, not here; it
  * is choosing a domain, and being roughly right about "electrical" costs nothing like this.
  *
  * <p>Matching is on whole words for the same reason: "sparkling water is not available" is not a

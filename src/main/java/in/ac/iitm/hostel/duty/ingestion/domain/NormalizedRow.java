@@ -5,9 +5,9 @@ import java.time.Instant;
 /**
  * A raw row turned into the fields a complaint carries (section 5.4).
  *
- * <p>{@code rawText} is the description cell <em>verbatim</em>, never modified: the classifier's
- * output is stored alongside the resident's wording, never in place of it, so a misclassification
- * is always recoverable.
+ * <p>{@code rawText} is the description cell <em>verbatim</em>, never modified: the domain is
+ * stored alongside the resident's wording, never in place of it, so a complaint filed under the
+ * wrong heading is always recoverable.
  *
  * @param rawText the description cell, untouched
  * @param reportedAt the form timestamp, read in Asia/Kolkata and held as UTC (NFR-7)
@@ -16,7 +16,8 @@ import java.time.Instant;
  * @param reporterRollNo the student's roll number, upper-cased; optional
  * @param reporterPhone the student's phone, digits normalised; optional
  * @param reporterContact the resident's email; purged after 90 days (NFR-9)
- * @param categoryHint the resident's own guess at the category, for the classifier in PR 10
+ * @param reportedDomain the category the resident chose on the form — Civil, Electrical, LAN,
+ *     RO or Others. Held as the resident's own text; the workflow module decides what it means
  */
 public record NormalizedRow(
         String rawText,
@@ -26,7 +27,7 @@ public record NormalizedRow(
         String reporterRollNo,
         String reporterPhone,
         String reporterContact,
-        String categoryHint) {
+        String reportedDomain) {
 
     /**
      * Carries no reporter details.

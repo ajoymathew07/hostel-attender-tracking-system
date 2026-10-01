@@ -101,6 +101,7 @@ class SourceRowIngestor {
                                 normalized.reporterPhone(),
                                 normalized.reporterContact(),
                                 normalized.reporterRoom(),
+                                normalized.reportedDomain(),
                                 sourceRow.getId()));
 
         sourceRow.linkToComplaint(complaint.id());

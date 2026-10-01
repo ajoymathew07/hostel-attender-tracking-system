@@ -200,11 +200,10 @@ class SheetsIngestionIntegrationTest extends AbstractIntegrationTest {
         assertThat(complaint.getReporterContact()).isEqualTo("carry@example.com");
         assertThat(complaint.getPublicRef()).matches("CAU-2026-\\d{4,}");
 
-        // The classifier runs in the shared intake, so the Sheets path is classified exactly as the
-        // CSV path is: "Ceiling leaking badly" is a confident CIVIL and never reaches triage.
+        // The form's answer is read in the shared intake, so the Sheets path lands the domain
+        // exactly as the CSV path does.
         assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.CIVIL);
-        assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.RULES);
-        assertThat(complaint.getDomainConfidence()).isNotNull();
+        assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.REPORTED);
         assertThat(complaint.getPriority()).isEqualTo(Priority.P2);
         // Room 612 is on no floor this hostel has, so dispatch sent it to triage rather than
         // guessing a location (sections 6.2, 6.4). Either way it does not stay at NEW.

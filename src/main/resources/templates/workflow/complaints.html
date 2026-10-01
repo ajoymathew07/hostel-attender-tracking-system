@@ -185,9 +185,10 @@
         reducing their daily 30-45 minutes, so anything requiring action goes where the eye lands
         first.
 
-        A card is here because the classifier was not confident, never because it failed (section
-        5.5). One press sets the domain and records the correction as MANUAL; the complaint stays
-        in triage until it is assigned, which is the control in the list below.
+        A card is here because the resident answered "Others", left the question blank, or chose
+        something the Form offers that we do not map (section 5.5) — never because anything
+        failed. One press sets the domain and records it as MANUAL; the complaint stays in triage
+        until it is assigned, which is the control in the list below.
       -->
       <section class="mt-8" aria-labelledby="triage-heading">
         <div class="flex items-center justify-between gap-4 mb-2">
@@ -198,7 +199,7 @@
         </div>
 
         <p th:if="${#lists.isEmpty(triage)}" class="notice bg-white">
-          Nothing waiting. Every complaint so far cleared the classifier's confidence gate.
+          Nothing waiting. Every complaint so far arrived with a domain the resident chose.
         </p>
 
         <ul th:unless="${#lists.isEmpty(triage)}" class="space-y-3">

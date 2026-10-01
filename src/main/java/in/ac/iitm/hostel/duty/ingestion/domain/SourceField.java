@@ -23,7 +23,7 @@ public enum SourceField {
     ROOM("room"),
     DESCRIPTION("description"),
 
-    /** The resident's own guess at the category — a hint for the classifier, never a decision. */
+    /** The category the resident chose on the form: Civil, Electrical, LAN, RO or Others. */
     CATEGORY("category");
 
     private final String configKey;

@@ -105,7 +105,7 @@ decide *what they may do*:
 | View another attender's point detail | ✅ | ❌ |
 | Provision users, edit the allowlist, deactivate accounts | ✅ | ❌ |
 | Export reports | ✅ | ❌ |
-| Edit lexicon, weights, SLA table | ✅ | ❌ |
+| Edit weights, SLA table, working day | ✅ | ❌ |
 
 **Ownership** is checked in addition to role: an attender acting on a task must hold an `ACTIVE`
 `task_assignment` for it (`NOT_ASSIGNED` → 403). Role alone is never sufficient for a task action —

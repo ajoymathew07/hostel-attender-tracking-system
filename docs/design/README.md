@@ -20,14 +20,14 @@ Do not edit either PDF by hand.
 | 2 | [System Architecture](02-architecture.md) | Module breakdown, layering, ports & adapters, deployment |
 | 3 | [Data Model](03-data-model.md) | ERD, DDL, optimistic locking, audit tables |
 | 4 | [State Machines](04-state-machines.md) | Complaint lifecycle, CMS docket sub-state, transition tables |
-| 5 | [Ingestion & Categorization](05-ingestion-categorization.md) | Delta algorithm, idempotency, classifier, triage |
+| 5 | [Ingestion & Categorization](05-ingestion-categorization.md) | Delta algorithm, idempotency, the Form's domain question, triage |
 | 6 | [Dispatch Heuristic](06-dispatch.md) | Scoring formulation, weights, degenerate cases |
 | 7 | [Points Ledger & Concurrency](07-ledger-concurrency.md) | Append-only ledger, OCC, shared tasks, leaderboard |
 | 8 | [Analytics & Telemetry](08-analytics.md) | MTTR, bottlenecks, anomaly detection, small-sample caveats |
 | 9 | [API & Data Contracts](09-api-contracts.md) | REST endpoints, DTOs, SSE envelope, Web Push, error model |
 | 10 | [Frontend Design](10-frontend.md) | Manager desktop and attender mobile layouts |
 | 11 | [Security & Privacy](11-security-privacy.md) | AuthN/AuthZ, threat model, PII handling |
-| 12 | [Test Plan](12-test-plan.md) | Fixtures, gold set, concurrency stress, traceability |
+| 12 | [Test Plan](12-test-plan.md) | Fixtures, corner cases, concurrency stress, traceability |
 | 13 | [Delivery Plan](13-timeline.md) | Five phases, walking skeleton first, backlog and cut line |
 | 14 | [Decision Record](14-decisions.md) | ADRs for the choices that shaped this design |
 | — | [PR Plan](pr-plan.md) | The sixteen pull requests to the mid-demo, in merge order |

@@ -14,7 +14,6 @@ import in.ac.iitm.hostel.duty.workflow.domain.ComplaintDomain;
 import in.ac.iitm.hostel.duty.workflow.domain.ComplaintStatus;
 import in.ac.iitm.hostel.duty.workflow.domain.Priority;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -48,7 +47,7 @@ class ComplaintIntegrationTest extends AbstractIntegrationTest {
                         "Another complaint entirely",
                         Instant.parse("2026-02-02T05:30:00Z"),
                         ComplaintDomain.CIVIL,
-                        ClassificationMethod.RULES,
+                        ClassificationMethod.REPORTED,
                         Priority.P3,
                         Instant.parse("2026-02-02T06:00:00Z"));
 
@@ -103,7 +102,7 @@ class ComplaintIntegrationTest extends AbstractIntegrationTest {
                                 "Tube light flickering",
                                 Instant.parse("2026-02-01T05:30:00Z"),
                                 ComplaintDomain.ELECTRICAL,
-                                ClassificationMethod.RULES,
+                                ClassificationMethod.REPORTED,
                                 Priority.P3,
                                 Instant.parse("2026-02-01T06:00:00Z")));
 
@@ -150,8 +149,8 @@ class ComplaintIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("a manager classifying from triage sets MANUAL and drops the classifier's confidence — T4")
-    void manualClassificationReplacesTheGuess() {
+    @DisplayName("a manager classifying from triage sets the domain and records that it was MANUAL — T4")
+    void manualClassificationReplacesWhatTheResidentSaid() {
         Complaint complaint =
                 complaints.saveAndFlush(
                         new Complaint(
@@ -162,37 +161,23 @@ class ComplaintIntegrationTest extends AbstractIntegrationTest {
                                 ClassificationMethod.FALLBACK,
                                 Priority.P2,
                                 Instant.parse("2026-02-01T06:00:00Z")));
-        complaint.recordClassifierConfidence(new BigDecimal("0.412"));
-        complaint = complaints.saveAndFlush(complaint);
 
-        assertThat(complaints.findById(complaint.getId()).orElseThrow().getDomainConfidence())
-                .isEqualByComparingTo(new BigDecimal("0.412"));
-        assertThat(complaint.getDomain().isDispatchable()).isFalse();
+        assertThat(complaint.getDomain().isDispatchable())
+                .describedAs("the resident answered Others, so nobody can be sent yet")
+                .isFalse();
 
         complaint.classifyManually(ComplaintDomain.RO_PLANT, Instant.parse("2026-02-01T09:00:00Z"));
         complaints.saveAndFlush(complaint);
 
         Complaint reloaded = complaints.findById(complaint.getId()).orElseThrow();
         assertThat(reloaded.getDomain()).isEqualTo(ComplaintDomain.RO_PLANT);
-        assertThat(reloaded.getClassifiedBy()).isEqualTo(ClassificationMethod.MANUAL);
-        assertThat(reloaded.getDomainConfidence())
-                .describedAs("a human decision has no classifier confidence")
-                .isNull();
+        assertThat(reloaded.getClassifiedBy())
+                .describedAs("who decided is kept, so a manager's call is never read as the resident's")
+                .isEqualTo(ClassificationMethod.MANUAL);
+        assertThat(reloaded.getRawText())
+                .describedAs("the resident's own wording survives the correction")
+                .isEqualTo("thanni varala");
         assertThat(reloaded.getDomain().isDispatchable()).isTrue();
-    }
-
-    @Test
-    @DisplayName("ck_conf: confidence outside [0, 1] is rejected before it ever reaches the column")
-    void confidenceIsBounded() {
-        Complaint complaint = Fixtures.complaint();
-
-        assertThatThrownBy(() -> complaint.recordClassifierConfidence(new BigDecimal("1.001")))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> complaint.recordClassifierConfidence(new BigDecimal("-0.001")))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        complaint.recordClassifierConfidence(null);
-        assertThat(complaint.getDomainConfidence()).isNull();
     }
 
     @Test

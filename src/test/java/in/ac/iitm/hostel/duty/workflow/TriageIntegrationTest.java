@@ -20,7 +20,6 @@ import in.ac.iitm.hostel.duty.workflow.domain.Complaint;
 import in.ac.iitm.hostel.duty.workflow.domain.ComplaintDomain;
 import in.ac.iitm.hostel.duty.workflow.domain.ComplaintStatus;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -32,16 +31,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.test.context.support.WithMockUser;
 
 /**
- * Classification at ingest, and the manager's correction afterwards (sections 5.5, 10.3).
+ * The domain the resident chose, and the manager's correction afterwards (sections 5.4, 10.3).
  *
  * <p>Every complaint is created through {@link ComplaintIntake} — the workflow module's one
  * published entry point, which the CSV fallback and the Sheets poller both reconcile through
- * (section 5.8). Driving it directly here is what makes "classification happens on ingest, for
+ * (section 5.8). Driving it directly here is what makes "the form's answer is read on ingest, for
  * both sources" a property of one call rather than a claim about two; {@code
  * CsvIngestionIntegrationTest} covers the CSV end of the same path over HTTP-shaped input.
  *
- * <p>The headline behaviour is the last two tests: what the classifier could not settle reaches
- * the manager as work to do, and the manager's answer is recorded as theirs.
+ * <p>The headline behaviour is the last two tests: what the resident could not place reaches the
+ * manager as work to do, and the manager's answer is recorded as theirs.
  */
 @SpringBootTest
 @WithMockUser(roles = "MANAGER")
@@ -59,7 +58,7 @@ class TriageIntegrationTest extends AbstractIntegrationTest {
         SecurityContextHolder.clearContext();
     }
 
-    private Complaint ingest(String rawText) {
+    private Complaint ingest(String rawText, String reportedDomain) {
         IngestedComplaint ingested =
                 intake.record(
                         new NewComplaint(
@@ -70,6 +69,7 @@ class TriageIntegrationTest extends AbstractIntegrationTest {
                                 null,
                                 null,
                                 "214",
+                                reportedDomain,
                                 null));
         return complaints.findById(ingested.id()).orElseThrow();
     }
@@ -79,23 +79,34 @@ class TriageIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("a confidently classified complaint is created with its domain and RULES")
-    void classificationHappensOnIngest() {
-        Complaint complaint = ingest("Water leaking from the bathroom ceiling");
+    @DisplayName("the resident's answer is the domain, and it is recorded as theirs")
+    void theFormsAnswerIsTheDomain() {
+        Complaint complaint = ingest("Water leaking from the bathroom ceiling", "Civil");
 
         assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.CIVIL);
-        assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.RULES);
-        assertThat(complaint.getDomainConfidence()).isEqualByComparingTo(BigDecimal.ONE);
+        assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.REPORTED);
         // Where it went next is the dispatcher's business and AutoDispatchIntegrationTest's
-        // subject. What matters here is that a classified complaint does not stay at NEW: T2 and
-        // T3 run inside the same transaction as the classification.
+        // subject. What matters here is that a placed complaint does not stay at NEW: T2 and T3
+        // run inside the same transaction as the intake.
         assertThat(complaint.getStatus()).isNotEqualTo(ComplaintStatus.NEW);
     }
 
     @Test
-    @DisplayName("what the gate refuses lands in triage as UNCLASSIFIED, through transition T3")
-    void ambiguityLandsInTriage() {
-        Complaint complaint = ingest("water coming from ceiling fan");
+    @DisplayName("LAN is the form's word and NETWORK is the database's; both mean the same floor call")
+    void theFormsVocabularyIsNotTheDatabases() {
+        assertThat(ingest("wifi down in my room", "LAN").getDomain())
+                .isEqualTo(ComplaintDomain.NETWORK);
+        assertThat(ingest("no drinking water", "RO").getDomain())
+                .isEqualTo(ComplaintDomain.RO_PLANT);
+        assertThat(ingest("fan not working", " electrical ").getDomain())
+                .describedAs("case and space are the resident's typing, not their meaning")
+                .isEqualTo(ComplaintDomain.ELECTRICAL);
+    }
+
+    @Test
+    @DisplayName("\"Others\" lands in triage as UNCLASSIFIED, through transition T3")
+    void othersLandsInTriage() {
+        Complaint complaint = ingest("water coming from ceiling fan", "Others");
 
         assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.UNCLASSIFIED);
         assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.FALLBACK);
@@ -110,10 +121,20 @@ class TriageIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("the triage queue shows exactly what the classifier could not place")
+    @DisplayName("an unanswered question is the same as Others — and so is a word nobody mapped")
+    void anythingUnrecognisedLandsInTriage() {
+        assertThat(ingest("there is a problem", null).getDomain())
+                .isEqualTo(ComplaintDomain.UNCLASSIFIED);
+        assertThat(ingest("lift is stuck", "Lift / Elevator").getDomain())
+                .describedAs("a Form option nobody mapped fills the triage queue, it does not guess")
+                .isEqualTo(ComplaintDomain.UNCLASSIFIED);
+    }
+
+    @Test
+    @DisplayName("the triage queue shows exactly what the resident could not place")
     void theTriageQueueListsUnclassifiedComplaints() {
-        Complaint triaged = ingest("water coming from ceiling fan");
-        Complaint classified = ingest("No water in the RO plant since yesterday");
+        Complaint triaged = ingest("water coming from ceiling fan", "Others");
+        Complaint classified = ingest("No water in the RO plant since yesterday", "RO");
 
         List<Long> waiting = queries.listTriage().stream().map(ComplaintListItem::id).toList();
 
@@ -125,15 +146,13 @@ class TriageIntegrationTest extends AbstractIntegrationTest {
     void aManagerCorrectsTheDomain() {
         AppUser manager = users.saveAndFlush(Fixtures.manager());
         Fixtures.signIn(manager);
-        Complaint complaint = ingest("water coming from ceiling fan");
+        Complaint complaint = ingest("water coming from ceiling fan", "Others");
 
         triage.classify(complaint.getId(), ComplaintDomain.ELECTRICAL);
 
         Complaint corrected = complaints.findById(complaint.getId()).orElseThrow();
         assertThat(corrected.getDomain()).isEqualTo(ComplaintDomain.ELECTRICAL);
         assertThat(corrected.getClassifiedBy()).isEqualTo(ClassificationMethod.MANUAL);
-        // The classifier's number no longer describes the domain on the record, so it is cleared.
-        assertThat(corrected.getDomainConfidence()).isNull();
         // Still in triage: the domain is set, but nobody has been given the work yet (T4).
         assertThat(corrected.getStatus()).isEqualTo(ComplaintStatus.TRIAGE);
 

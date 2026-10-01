@@ -160,103 +160,73 @@ carry no wing letter and the first digit is the floor in both shapes; the rule a
 building uses. The wing is configuration (`dispatch.wing`), because the number does not carry it.
 
 
-## 5.5 Categorization
+## 5.5 The domain comes from the form
 
-**Approach (ADR-004): a weighted lexicon with fuzzy matching, gated on confidence.** Apache OpenNLP
-document categorization is designed in as an optional second stage (§5.7) but is *not* on the
-critical path.
+**Approach: the Form asks, and the resident answers.** A required question — Civil, Electrical,
+LAN, RO, Others — and the answer is the complaint's domain. `ClassificationMethod.REPORTED`
+records that it was the resident's call, so a manager's later correction is distinguishable from
+it.
 
-The reasoning is about data, not sophistication. A supervised classifier needs a few hundred
-labelled examples per class; we do not yet know we will have them, complaint text is short
-(often under 10 words), frequently misspelled, and often code-mixed Tamil/English transliteration.
-A weighted lexicon degrades gracefully in exactly those conditions, needs no training data, is
-editable by the manager without a redeploy, and — decisive for a viva — every decision it makes can
-be explained by pointing at the terms that fired.
+This replaces ADR-004's weighted lexicon with fuzzy matching and a confidence gate, which was
+designed, built and then removed. The reasoning that produced it was sound and the conclusion was
+still wrong, which is worth keeping:
 
-### Pipeline
+- The lexicon existed to **infer** something the resident already knows. Its accuracy ceiling was
+  the quality of a term list over short, misspelled, often code-mixed text; a drop-down's ceiling
+  is whether the resident reads five options. One of those is much higher.
+- It was **not cheap**. A `category_term` table and its seed, an n-gram tokeniser, Jaro–Winkler
+  matching, two thresholds nobody could set from first principles, and a 200-item gold set whose
+  only purpose was to find out whether the whole apparatus worked. All of it to avoid asking.
+- The thing the lexicon protected — **nothing is auto-assigned on a guess** — does not depend on
+  the lexicon at all. It is the triage queue, and the triage queue stays.
 
-```
-raw text
-  → lowercase, Unicode NFKC, strip punctuation, collapse whitespace
-  → expand abbreviations ("ac"→"air conditioner", "wtr"→"water", "elec"→"electrical")
-  → tokenize (whitespace + n-grams up to 3, so phrases can be matched)
-  → match against category_term
-  → score per domain
-  → confidence gate
-  → DOMAIN or UNCLASSIFIED
-```
-
-### Matching and scoring
-
-For each domain *d*, over matched terms *t*:
-
-```
-S(d) = Σ  w(t) · m(t)
-     t∈T(d)
-
-where  m(t) = 1.00   exact token/phrase match
-             0.70   fuzzy match  (Damerau-Levenshtein ≤ 2 on tokens of length ≥ 4,
-                                  or Jaro-Winkler ≥ 0.90)
-             0.00   otherwise
-```
-
-Multi-word phrases carry higher weights than single tokens because they disambiguate: `water` alone
-is nearly useless (it appears in RO Plant, Civil and Electrical complaints), while `no water` and
-`water leaking` are decisive. Phrase matches suppress their constituent single-token matches so a
-phrase is not double-counted.
-
-Let `S₁ ≥ S₂` be the top two domain scores. Confidence combines **absolute evidence** and
-**separation**:
-
-```
-confidence = 0  if S₁ < S_min                          (nothing meaningful matched)
-             0  if S₁ = 0
-             (S₁ − S₂) / S₁    otherwise               (margin over the runner-up)
-
-accept if confidence ≥ τ  AND  S₁ ≥ S_min
-```
-
-Defaults: `S_min = 1.0`, `τ = 0.40`. Both are configuration, tuned against the gold set (§12.3).
-
-Two gates rather than one matters. A single absolute threshold accepts a complaint that scores
-strongly for *two* domains equally — precisely the ambiguous cases where a human should decide. A
-single margin threshold accepts a complaint where one weak term matched and nothing else did.
-Requiring both routes exactly the uncertain cases to triage.
+**Mapping.** The Form's words are not the database's. `LAN` is `NETWORK`, `RO` is `RO_PLANT`, and
+matching ignores case and surrounding space, because those are the resident's typing rather than
+their meaning. The Form's wording is still OQ-4 — not ours to control — so the mapping is lenient
+and anything unrecognised is `UNCLASSIFIED` rather than an error: a Form option somebody adds
+without telling us fills the triage queue, which is visible, instead of stopping the run or
+guessing.
 
 ### Failing to triage, on purpose
 
-Anything not accepted becomes `UNCLASSIFIED` and lands in the manager's triage queue (T3) — the
-proposal's Risk 2 Plan B. The manager sets the domain in one click, and that correction is
-recorded. This is a deliberate precision-over-recall stance: a wrongly-auto-assigned complaint
-sends an attender to the wrong job and erodes trust in the whole system, whereas a triaged one
-costs the manager three seconds.
+`Others`, an unanswered question, and a value we do not recognise all become `UNCLASSIFIED` and
+land in the manager's triage queue (T3) — the proposal's Risk 2 Plan B, unchanged. The manager
+sets the domain in one click, and that correction is recorded. The precision-over-recall stance
+is the same one the gate used to serve: a wrongly-assigned complaint sends an attender to the
+wrong job and erodes trust in the whole system, whereas a triaged one costs the manager three
+seconds.
 
 ### Priority extraction
 
-Independent of domain, a separate keyword set raises base priority (§4.5). `shock`, `spark`,
-`short circuit`, `sewage`, `no water`, `overflow` → `P1`. These are matched **exactly only** — no
-fuzzy matching — because a false P1 from a near-miss spelling would distort the whole queue.
+Priority is **not** on the form, and is still inferred from the text. A separate keyword set
+raises base priority (§4.5): `shock`, `spark`, `short circuit`, `sewage`, `no water`, `overflow`
+→ `P1`. These are matched **exactly only** — no fuzzy matching — because a false P1 from a
+near-miss spelling would distort the whole queue.
 
-## 5.6 Meeting the 90% accuracy criterion
+Asking the resident instead would be the obvious symmetry and is the wrong call: a resident
+reporting their own problem has every incentive to call it urgent, and nobody is wrong to. The
+keyword set is about hazard, not about urgency, and it is ours to judge.
 
-The acceptance criterion needs a testable definition, so we fix one now:
+## 5.6 The 90% accuracy criterion
 
-> Accuracy is measured over the **auto-accepted** subset (confidence ≥ τ) of a held-out labelled
-> gold set, as the fraction whose predicted domain equals the human label.
+The criterion was written for a classifier and is met by construction now: the domain is what the
+resident selected, so there is no prediction to be wrong. What remains worth measuring is
+**coverage** — the fraction of complaints that arrive with a usable domain rather than `Others` or
+a blank — because that is what decides how much of the manager's 30–45 minutes the system actually
+removes.
 
-Items routed to triage are excluded from the denominator but tracked separately as **coverage**
-(the fraction auto-accepted). Reporting both is what makes the number honest — a classifier that
-accepts nothing would otherwise score 100%. Targets: **accuracy ≥ 90%, coverage ≥ 70%**. Full
-methodology, dataset construction and the confusion matrix live in §12.3.
+Coverage is observable without a gold set: it is the share of ingested complaints that reach
+`ASSIGNED` without a manager touching them, which the dashboard's triage counter shows directly.
+A low figure means the Form's options do not match the complaints people actually have, and the
+fix is an option, not a threshold.
 
-## 5.7 OpenNLP as a deferred second stage
+The gold set of §12.3 is withdrawn with the classifier it existed to measure.
 
-Once enough manager triage corrections have accumulated, they form a labelled corpus for free —
-every triage decision is `(text, human label)`. At that point an OpenNLP `DocumentCategorizer`
-can be trained and consulted **only for items the lexicon routes to triage**, with its own
-confidence gate. This is upside without risk: the rule engine stays the primary path, so a poorly
-trained model can only convert triage items into accepted ones, never corrupt a decision the rules
-were already confident about. Tagged **Extended** in §13 — it ships only if the schedule allows.
+## 5.7 Withdrawn: OpenNLP as a deferred second stage
+
+This section proposed training an OpenNLP `DocumentCategorizer` on accumulated triage corrections,
+to be consulted only for items the lexicon could not place. With no lexicon and no inference, it
+has nothing to improve on. Withdrawn.
 
 ## 5.8 CSV fallback
 

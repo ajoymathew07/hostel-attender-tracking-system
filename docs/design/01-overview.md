@@ -17,7 +17,7 @@ spreadsheet that is easily corrupted when edited from mobile devices.
 | G | Goal | Measured by |
 |---|---|---|
 | G1 | Eliminate manual copy-paste from the Form response sheet | Zero manual transcription; no duplicate complaints across polls |
-| G2 | Auto-categorize complaints into the correct domain | ≥90% accuracy on the labelled gold set (§12.3) |
+| G2 | Every complaint carries its domain without the manager sorting it | The resident selects it on the Form (§5.5); anything unanswered reaches triage, never a wrong domain |
 | G3 | Assign each complaint to the most appropriate attender automatically | Dispatch produces an assignment or an explicit triage reason, 100% of the time |
 | G4 | Give attenders a usable mobile queue | Attender can log a CMS docket and resolve a ticket in ≤3 taps from the queue |
 | G5 | Make point accounting correct and auditable | No double-credit under concurrent updates; every point movement traceable to an actor and a cause |
@@ -58,7 +58,7 @@ Explicitly **out of scope** for this project, to keep the solo build tractable:
 | **Task** | The unit of work dispatched to attender(s). One complaint yields one task; special duties are tasks with no complaint |
 | **Domain** | Category of work: `ELECTRICAL`, `CIVIL`, `RO_PLANT`, `NETWORK`, or `UNCLASSIFIED` |
 | **CMS docket** | The tracking number issued by the IITM EU Campus Management System when an attender files the issue officially |
-| **Triage queue** | Holding area for complaints the classifier could not confidently categorize, or that dispatch could not assign |
+| **Triage queue** | Holding area for complaints the resident did not categorize, or that dispatch could not assign |
 | **Ledger entry** | An immutable row recording a point movement, with actor, cause and effective date |
 | **Special duty** | A manager-posted ad-hoc task with a custom point value, claimable by any attender |
 | **Penalty** | A manager-logged infraction carrying a negative point value |

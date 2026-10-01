@@ -77,8 +77,11 @@ ingestion:
     phone: ["Phone Number", "Contact Number", "Mobile"]
     room: ["Room Number", "Room No", "Room"]
     description: ["Describe the issue", "Complaint", "Issue"]
-    # Optional resident-supplied hint; consumed by the classifier in PR 10.
-    category: ["Type of issue"]
+    # The resident's own answer — Civil, Electrical, LAN, RO or Others — which is what decides
+    # the complaint's domain. Deliberately not in `required` below: a Form that stopped asking
+    # must still ingest, and every complaint then lands in triage, which is visible and fixable.
+    # Silently rejecting the rows instead would lose them.
+    category: ["Type of issue", "Category", "Type of complaint"]
 
   # An unresolvable *required* column fails the whole run loudly rather than ingesting garbage.
   # `name`, `rollNo` and `phone` are deliberately absent: a Form that does not ask for them still
@@ -124,20 +127,6 @@ ingestion:
     # SheetWakeController with @Value rather than bound onto SheetsProperties, because a
     # controller may not depend on an infrastructure class (architecture section 2.4, rule 2).
     wake-secret: ${INGESTION_WAKE_SECRET:}
-
-# The classifier's confidence gate, section 5.5. Both numbers are the defaults the design states
-# outright, and both are properties rather than constants because section 5.5 says they are tuned
-# against the gold set of section 12.3 — which is a later PR, so nothing has moved them yet.
-#
-#   minimum-score        S_min — absolute evidence: the winning domain's total must reach this
-#   confidence-threshold τ     — separation: (S₁ − S₂) / S₁ must reach this
-#
-# Both gates must pass. One absolute threshold alone accepts a complaint that scores equally for
-# two domains; one margin threshold alone accepts a complaint where a single weak term matched and
-# nothing else did. Requiring both routes exactly the uncertain cases to the manager's triage queue.
-categorization:
-  minimum-score: 1.0
-  confidence-threshold: 0.40
 
 # The docket gate, transition T11 (OQ-1). There is no CMS API (section 1.8), so only the format can
 # be validated, and the exact format of an IITM EU CMS docket number is still an open question —

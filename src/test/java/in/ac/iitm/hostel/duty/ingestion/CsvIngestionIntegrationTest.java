@@ -192,7 +192,7 @@ class CsvIngestionIntegrationTest extends AbstractIntegrationTest {
         // The weighted lexicon ran on the way in: `ceiling` and `leaking` are both Civil and
         // nothing else fired, so the confidence gate accepted it (section 5.5).
         assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.CIVIL);
-        assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.RULES);
+        assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.REPORTED);
         assertThat(complaint.getPriority()).isEqualTo(Priority.P2);
         // Classified, but room 612 is on no floor this hostel has, so dispatch declined to guess
         // and the complaint is in triage rather than at NEW (sections 6.2, 6.4).
