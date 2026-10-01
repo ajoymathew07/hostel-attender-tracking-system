@@ -26,8 +26,22 @@ public record ComplaintListItem(
         ComplaintDomain domain,
         ClassificationMethod classifiedBy,
         Priority priority,
+        Priority basePriority,
+        Instant slaDueAt,
+        boolean slaOverdue,
         ComplaintStatus status,
         Long assigneeId) {
+
+    /**
+     * Whether the clock raised this priority rather than intake setting it (section 4.5).
+     *
+     * <p>{@code base_priority} is kept precisely so the list can say "P1 (aged from P3)": a P1 that
+     * the safety keywords produced and a P1 that waited three days are different facts, and a
+     * manager deciding what to do next needs to be able to tell them apart.
+     */
+    public boolean aged() {
+        return priority != basePriority;
+    }
 
     /** The room is not personal data on its own; the other three are (section 11.4). */
     @Override

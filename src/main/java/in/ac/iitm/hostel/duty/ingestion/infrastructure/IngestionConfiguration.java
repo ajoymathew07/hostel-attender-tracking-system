@@ -22,10 +22,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * Declaring them as beans here is how a framework-free object still reaches a Spring constructor,
  * and it keeps the "which YAML key means what" knowledge in one readable place.
  *
- * <p><strong>Scheduling is enabled here</strong> rather than in a configuration of its own,
- * because the Sheets poll is the only scheduled job in the system today. When the analytics and
- * SLA jobs of section 2.3 arrive, the two {@code @Enable} annotations and the lock provider move
- * up to a shared configuration; until then a second file would only be a place to look.
+ * <p><strong>Scheduling is enabled here</strong> rather than in a configuration of its own. The two
+ * {@code @Enable} annotations and the lock provider are application-wide in effect, so the SLA
+ * aging job of section 4.5 runs and locks under them without a line of its own; moving them to a
+ * shared configuration would add a file that only redirects the reader. They move if a module ever
+ * needs to schedule something on different terms.
  *
  * <p>The lock lives in the one database (section 2.6) and is read with the <em>database's</em>
  * clock, not the instance's: the whole point is to serialise two instances, and two instances are

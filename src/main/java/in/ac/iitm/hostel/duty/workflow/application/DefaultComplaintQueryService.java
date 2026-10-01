@@ -6,6 +6,7 @@ import in.ac.iitm.hostel.duty.workflow.domain.ComplaintStatus;
 import in.ac.iitm.hostel.duty.workflow.domain.TaskAssignment;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.TaskAssignmentRepository;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,7 @@ class DefaultComplaintQueryService implements ComplaintQueryService {
 
     @Override
     public List<ComplaintListItem> listAll() {
+        Instant now = Instant.now();
         // One query for every live assignment, not one per row: the manager's list is the screen
         // section 10.6 names when it says "no N+1, fetch joins on queue and dashboard".
         Map<Long, Long> assignee = new HashMap<>();
@@ -47,7 +49,7 @@ class DefaultComplaintQueryService implements ComplaintQueryService {
             assignee.put(assignment.getTask().getComplaint().getId(), assignment.getAttenderId());
         }
         return complaints.findAll(NEWEST_FIRST).stream()
-                .map(complaint -> toItem(complaint, assignee.get(complaint.getId())))
+                .map(complaint -> toItem(complaint, assignee.get(complaint.getId()), now))
                 .toList();
     }
 
@@ -58,7 +60,7 @@ class DefaultComplaintQueryService implements ComplaintQueryService {
     @Override
     public List<ComplaintListItem> listTriage() {
         return complaints.findByStatusOrderByReportedAtAsc(ComplaintStatus.TRIAGE).stream()
-                .map(complaint -> toItem(complaint, null))
+                .map(complaint -> toItem(complaint, null, Instant.now()))
                 .toList();
     }
 
@@ -67,7 +69,14 @@ class DefaultComplaintQueryService implements ComplaintQueryService {
         return complaints.count();
     }
 
-    private static ComplaintListItem toItem(Complaint complaint, Long assigneeId) {
+    /**
+     * {@code slaOverdue} is computed here rather than read from {@code sla_breached}.
+     *
+     * <p>The flag is written by the aging sweep, which runs on an interval; the manager looking at
+     * the list wants to know whether the due date has passed <em>now</em>. Reading the column would
+     * show a complaint as on time for up to one tick after it stopped being so.
+     */
+    private static ComplaintListItem toItem(Complaint complaint, Long assigneeId, Instant now) {
         return new ComplaintListItem(
                 complaint.getId(),
                 complaint.getPublicRef(),
@@ -80,6 +89,9 @@ class DefaultComplaintQueryService implements ComplaintQueryService {
                 complaint.getDomain(),
                 complaint.getClassifiedBy(),
                 complaint.getPriority(),
+                complaint.getBasePriority(),
+                complaint.getSlaDueAt(),
+                complaint.getSlaDueAt() != null && now.isAfter(complaint.getSlaDueAt()),
                 complaint.getStatus(),
                 assigneeId);
     }

@@ -11,11 +11,13 @@ import in.ac.iitm.hostel.duty.workflow.domain.Complaint;
 import in.ac.iitm.hostel.duty.workflow.domain.ComplaintDomain;
 import in.ac.iitm.hostel.duty.workflow.domain.ComplaintStatus;
 import in.ac.iitm.hostel.duty.workflow.domain.Priority;
+import in.ac.iitm.hostel.duty.workflow.domain.SafetyKeywords;
 import in.ac.iitm.hostel.duty.workflow.domain.WorkflowEvent;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintReferenceGenerator;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,8 +41,11 @@ import org.springframework.transaction.annotation.Transactional;
  * firing T3 on it would file work the classifier was confident about into the queue of work it was
  * not, which is the opposite of what the triage panel is for.
  *
- * <p>{@link Priority#P2} is still the flat default that section 4.5 gives. P1 comes from the
- * safety keyword set and P3 from a manager downgrade, and neither exists yet.
+ * <p>Base priority and the SLA due date are T1's remaining side effects (section 4.5).
+ * {@link Priority#P2} is the default, {@link Priority#P1} comes from {@link SafetyKeywords} — an
+ * exact match, never a fuzzy one — and P3 only from a manager's downgrade, which is not an intake
+ * decision. The due date is measured in working hours from {@code reportedAt}; an
+ * {@code UNCLASSIFIED} complaint has no target yet and gets one when a manager sets its domain.
  *
  * <p>{@code @Transactional} with the default propagation, so this <em>joins</em> the caller's
  * per-row transaction: the complaint, its source row and the audit entry commit together or not at
@@ -61,18 +66,21 @@ class DefaultComplaintIntake implements ComplaintIntake {
     private final AuditTrail audit;
     private final ComplaintClassifier classifier;
     private final WorkflowService workflow;
+    private final SlaClock sla;
 
     DefaultComplaintIntake(
             ComplaintRepository complaints,
             ComplaintReferenceGenerator references,
             AuditTrail audit,
             ComplaintClassifier classifier,
-            WorkflowService workflow) {
+            WorkflowService workflow,
+            SlaClock sla) {
         this.complaints = complaints;
         this.references = references;
         this.audit = audit;
         this.classifier = classifier;
         this.workflow = workflow;
+        this.sla = sla;
     }
 
     @Override
@@ -92,7 +100,7 @@ class DefaultComplaintIntake implements ComplaintIntake {
                         domain.isDispatchable()
                                 ? ClassificationMethod.RULES
                                 : ClassificationMethod.FALLBACK,
-                        Priority.P2,
+                        SafetyKeywords.basePriorityFor(command.rawText()),
                         now);
         // Stored whether or not the gate accepted it: section 12.3 measures accuracy over the
         // accepted subset and coverage over the rest, so the rejected items need their number too.
@@ -104,6 +112,7 @@ class DefaultComplaintIntake implements ComplaintIntake {
                 command.reporterContact(),
                 command.reporterRoom());
         complaint.linkSourceRow(command.sourceRowId());
+        sla.schedule(complaint);
 
         Complaint saved = complaints.saveAndFlush(complaint);
 
@@ -124,6 +133,8 @@ class DefaultComplaintIntake implements ComplaintIntake {
                                 .and("roomKnown", command.reporterRoom() != null)
                                 .and("domain", domain.name())
                                 .and("confidence", classification.confidence())
+                                .and("priority", saved.getPriority().name())
+                                .and("slaDueAt", Objects.toString(saved.getSlaDueAt(), null))
                                 .json(),
                         null));
 

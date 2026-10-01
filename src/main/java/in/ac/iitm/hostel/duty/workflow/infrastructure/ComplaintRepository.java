@@ -3,6 +3,7 @@ package in.ac.iitm.hostel.duty.workflow.infrastructure;
 import in.ac.iitm.hostel.duty.workflow.domain.Complaint;
 import in.ac.iitm.hostel.duty.workflow.domain.ComplaintStatus;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,13 +19,21 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
 
     List<Complaint> findByStatusOrderByReportedAtAsc(ComplaintStatus status);
 
-    /** Backed by {@code ix_complaint_sla}: candidates for the aging and breach sweep. */
+    /**
+     * Candidates for the aging and breach sweep of section 4.5, backed by {@code ix_complaint_sla}.
+     *
+     * <p>Scoped by status rather than by the breach flag: a complaint that was flagged on an earlier
+     * run may still be due its <em>next</em> escalation step, so filtering the flagged ones out here
+     * would cap aging at one step per complaint. {@code statuses} is what excludes the complaints
+     * whose clock is not running — resolved, finished, or on hold.
+     */
     @Query(
             """
             select c from Complaint c
-             where c.slaBreached = false
+             where c.status in :statuses
                and c.slaDueAt is not null
                and c.slaDueAt < :at
             """)
-    List<Complaint> findOverdue(@Param("at") Instant at);
+    List<Complaint> findByStatusInAndSlaDueAtBefore(
+            @Param("statuses") Collection<ComplaintStatus> statuses, @Param("at") Instant at);
 }

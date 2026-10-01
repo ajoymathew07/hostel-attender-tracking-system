@@ -16,6 +16,7 @@ import in.ac.iitm.hostel.duty.workflow.domain.Priority;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,21 +126,25 @@ class ComplaintIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("SLA due date and breach flag drive the overdue sweep")
+    @DisplayName("the due date and the status together select the sweep's candidates")
     void slaColumnsDriveTheSweep() {
         Complaint complaint = complaints.saveAndFlush(Fixtures.complaint());
         complaint.scheduleSla(Instant.parse("2026-02-01T14:00:00Z"));
         complaint = complaints.saveAndFlush(complaint);
+        Instant afterTheDueDate = Instant.parse("2026-02-01T15:00:00Z");
 
-        assertThat(complaints.findOverdue(Instant.parse("2026-02-01T15:00:00Z")))
+        assertThat(complaints.findByStatusInAndSlaDueAtBefore(List.of(ComplaintStatus.NEW), afterTheDueDate))
                 .extracting(Complaint::getId)
                 .contains(complaint.getId());
 
+        // Still a candidate once flagged: an escalation is one step, and the next step is due
+        // later (section 4.5). It is the status, not the flag, that takes a complaint out.
         complaint.markSlaBreached();
+        complaint.moveTo(ComplaintStatus.ON_HOLD, afterTheDueDate);
         complaints.saveAndFlush(complaint);
 
-        assertThat(complaints.findOverdue(Instant.parse("2026-02-01T15:00:00Z")))
-                .describedAs("already flagged, so it is not swept again")
+        assertThat(complaints.findByStatusInAndSlaDueAtBefore(List.of(ComplaintStatus.NEW), afterTheDueDate))
+                .describedAs("hold time does not count toward the SLA, so a held complaint is skipped")
                 .extracting(Complaint::getId)
                 .doesNotContain(complaint.getId());
     }

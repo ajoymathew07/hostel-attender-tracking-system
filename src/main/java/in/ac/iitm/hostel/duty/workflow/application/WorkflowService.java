@@ -23,6 +23,7 @@ import in.ac.iitm.hostel.duty.workflow.infrastructure.TaskRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
@@ -50,9 +51,9 @@ import org.springframework.transaction.annotation.Transactional;
  * it, for the same reason.
  *
  * <p><strong>What the table cannot do yet.</strong> T2 and T3 are rows here, but their side
- * effects — snapshot the dispatch score, record the triage reason — belong to the dispatcher, and
- * T12/T13 name the SLA clock, which belongs to the aging job. Both are later PRs. The states move
- * correctly today; what is missing is marked in {@link #applySideEffects}.
+ * effects — snapshot the dispatch score, record the triage reason — belong to the dispatcher, which
+ * is a later PR. The states move correctly today; what is missing is marked in
+ * {@link #applySideEffects}.
  */
 @Service
 @Transactional
@@ -220,10 +221,9 @@ public class WorkflowService {
     /**
      * The Side effects column of section 4.2, and the audit detail they produce.
      *
-     * <p>Three effects in the design are not here, each because it belongs to a module that does
-     * not exist yet: T2's score snapshot and T3's triage reason are the dispatcher's, and
-     * T12/T13's pause and resume of the SLA clock is the aging job's. The state moves are right;
-     * the clock arithmetic arrives with the clock.
+     * <p>Two effects in the design are not here, each because it belongs to a module that does not
+     * exist yet: T2's score snapshot and T3's triage reason are the dispatcher's. The state moves are
+     * right; the score arrives with the dispatcher.
      *
      * <p>Assignment rows are not created here either. {@link ManualAssignmentService} owns them and
      * calls this method for the status move, which is what section 4.1 says must be single —
@@ -232,6 +232,14 @@ public class WorkflowService {
     private String applySideEffects(WorkflowEvent event, Context context, Instant now) {
         switch (event) {
             case ATTENDER_START -> context.complaint().startInspection(now);
+            // T12 and T13 — the SLA clock stops while the work is blocked and the due date moves by
+            // however long the block lasted (section 4.5). Without this, "waiting three days for the
+            // Engineering Unit" would be recorded as attender slowness and would point section 8's
+            // bottleneck analysis at exactly the wrong stage.
+            case BLOCK -> context.complaint().pauseSlaClock(now);
+            case UNBLOCK -> {
+                return resumeTheClock(context, now);
+            }
             case ATTENDER_RELEASE -> releaseHolders(context.task());
             case DOCKET_RECORDED -> {
                 return recordDocket(context, now);
@@ -245,6 +253,22 @@ public class WorkflowService {
         return hasText(context.payload().reason())
                 ? AuditDetail.of("reason", context.payload().reason()).json()
                 : null;
+    }
+
+    /**
+     * T13 — the clock restarts, and the audit row says what the hold cost.
+     *
+     * <p>The hold's length is on the audit row rather than in a column of its own: the complaint can
+     * be blocked more than once, {@code sla_due_at} carries the accumulated effect, and the
+     * individual spans belong in the log (section 4.3's argument, applied again).
+     */
+    private String resumeTheClock(Context context, Instant now) {
+        Complaint complaint = context.complaint();
+        Instant heldSince = complaint.getHoldStartedAt();
+        complaint.resumeSlaClock(now);
+        return AuditDetail.of("heldSince", Objects.toString(heldSince, null))
+                .and("slaDueAt", Objects.toString(complaint.getSlaDueAt(), null))
+                .json();
     }
 
     /** T11, and section 4.3's correction: the audit row is the docket's whole history. */
