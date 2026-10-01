@@ -98,10 +98,13 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
 
     @Test
     @WithMockUser(roles = "ATTENDER")
-    @DisplayName("an attender is refused the manager dashboard — section 11.3")
+    @DisplayName("an attender is never served the manager dashboard — section 11.3")
     void anAttenderIsRefusedTheDashboard() throws Exception {
-        mockMvc.perform(get("/")).andExpect(status().isForbidden());
-        mockMvc.perform(get("/complaints")).andExpect(status().isForbidden());
+        // Refused, and sent where they can work. The manager's screen is never rendered either
+        // way; landing an attender on an error page for a screen they reached from a bookmark
+        // would be a worse answer to the same refusal.
+        mockMvc.perform(get("/")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/m"));
+        mockMvc.perform(get("/complaints")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/m"));
     }
 
     @Test
@@ -233,7 +236,9 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
     void anAttenderCannotReachTriage() throws Exception {
         // The dashboard is where the panel lives, so being refused it is being refused the queue;
         // the route behind the buttons is refused on its own too, for a caller that skips the screen.
-        mockMvc.perform(get("/complaints")).andExpect(status().isForbidden());
+        mockMvc.perform(get("/complaints")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/m"));
+        // The route behind the buttons stays a hard 403: a caller skipping the screen is not a
+        // person who took a wrong turn, and turning that into a redirect would hide the attempt.
         mockMvc.perform(post("/complaints/{id}/domain", 1L).param("domain", "ELECTRICAL").with(csrf()))
                 .andExpect(status().isForbidden());
     }

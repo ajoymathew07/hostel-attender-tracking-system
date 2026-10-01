@@ -63,7 +63,10 @@ class SecurityConfig {
 
     @Bean
     SecurityFilterChain filterChain(
-            HttpSecurity http, AllowlistOidcUserService allowlist, RoleBasedLanding landing)
+            HttpSecurity http,
+            AllowlistOidcUserService allowlist,
+            RoleBasedLanding landing,
+            RoleAwareAccessDenied accessDenied)
             throws Exception {
         return http.authorizeHttpRequests(
                         requests -> requests.requestMatchers(PUBLIC_PATHS).permitAll().anyRequest().authenticated())
@@ -81,6 +84,9 @@ class SecurityConfig {
                 // every browser form. The wake-up trigger is exempt because its caller is not a
                 // browser and has no session to ride: CSRF defends a session, and there is none
                 // here to defend. The shared secret is what stands in its place.
+                // An attender who reaches a manager screen is sent to their queue rather
+                // than shown an error page; everything else keeps its 403.
+                .exceptionHandling(e -> e.accessDeniedHandler(accessDenied))
                 .csrf(csrf -> csrf.ignoringRequestMatchers(WAKE_PATH))
                 .headers(
                         headers ->
