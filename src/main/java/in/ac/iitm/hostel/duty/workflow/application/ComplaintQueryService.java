@@ -20,4 +20,7 @@ public interface ComplaintQueryService {
 
     /** How many complaints exist — the dashboard's headline count. */
     long count();
+
+    /** The tiles across the top of the dashboard, counted now rather than read from a flag. */
+    DashboardCounters counters();
 }

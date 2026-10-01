@@ -1,5 +1,7 @@
 package in.ac.iitm.hostel.duty.workflow.application;
 
+import in.ac.iitm.hostel.duty.settings.application.Settings;
+import in.ac.iitm.hostel.duty.settings.application.SettingsStore;
 import in.ac.iitm.hostel.duty.workflow.domain.Complaint;
 import in.ac.iitm.hostel.duty.workflow.domain.SlaTargets;
 import in.ac.iitm.hostel.duty.workflow.domain.WorkingCalendar;
@@ -18,12 +20,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class SlaClock {
 
-    private final SlaTargets targets;
-    private final WorkingCalendar calendar;
+    private final SlaSettings settings;
+    private final SettingsStore store;
 
-    SlaClock(SlaTargets targets, WorkingCalendar calendar) {
-        this.targets = targets;
-        this.calendar = calendar;
+    SlaClock(SlaSettings settings, SettingsStore store) {
+        this.settings = settings;
+        this.store = store;
     }
 
     /**
@@ -39,6 +41,10 @@ public class SlaClock {
      * rather than an attender; it gets a due date when it gets a domain.
      */
     public void schedule(Complaint complaint) {
+        // One read, so the table and the calendar that produce a due date are the same edit.
+        Settings current = store.current();
+        SlaTargets targets = settings.targetsFrom(current);
+        WorkingCalendar calendar = settings.calendarFrom(current);
         targets
                 .window(complaint.getDomain(), complaint.getPriority())
                 .ifPresent(
@@ -65,7 +71,10 @@ public class SlaClock {
         if (complaint.getSlaDueAt() == null) {
             return Optional.empty();
         }
-        return targets
+        Settings current = store.current();
+        WorkingCalendar calendar = settings.calendarFrom(current);
+        return settings
+                .targetsFrom(current)
                 .window(complaint.getDomain(), complaint.getBasePriority())
                 .map(window -> calendar.dueAt(complaint.getSlaDueAt(), halfOf(window)));
     }

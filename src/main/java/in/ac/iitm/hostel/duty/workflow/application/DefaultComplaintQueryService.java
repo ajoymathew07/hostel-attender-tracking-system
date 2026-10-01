@@ -7,9 +7,13 @@ import in.ac.iitm.hostel.duty.workflow.domain.TaskAssignment;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.TaskAssignmentRepository;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -30,13 +34,37 @@ class DefaultComplaintQueryService implements ComplaintQueryService {
     /** Newest report first: the manager is looking for what just arrived (section 10.3). */
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "reportedAt", "id");
 
+    /** Somebody is on it — including held work, which is still theirs to come back to. */
+    private static final Set<ComplaintStatus> LIVE =
+            EnumSet.of(
+                    ComplaintStatus.ASSIGNED,
+                    ComplaintStatus.INSPECTING,
+                    ComplaintStatus.AWAITING_CMS,
+                    ComplaintStatus.IN_PROGRESS,
+                    ComplaintStatus.ON_HOLD);
+
+    /** The clock runs in these, so only these can be overdue (section 4.5). */
+    private static final Set<ComplaintStatus> CLOCK_RUNNING =
+            EnumSet.of(
+                    ComplaintStatus.TRIAGE,
+                    ComplaintStatus.ASSIGNED,
+                    ComplaintStatus.INSPECTING,
+                    ComplaintStatus.AWAITING_CMS,
+                    ComplaintStatus.IN_PROGRESS);
+
     private final ComplaintRepository complaints;
     private final TaskAssignmentRepository assignments;
+    private final ZoneId zone;
 
     DefaultComplaintQueryService(
-            ComplaintRepository complaints, TaskAssignmentRepository assignments) {
+            ComplaintRepository complaints,
+            TaskAssignmentRepository assignments,
+            SlaSettings sla) {
         this.complaints = complaints;
         this.assignments = assignments;
+        // "Today" is the manager's day: a complaint resolved at 02:00 IST belongs to that date,
+        // not to the UTC one before it.
+        this.zone = sla.calendar().zone();
     }
 
     @Override
@@ -67,6 +95,25 @@ class DefaultComplaintQueryService implements ComplaintQueryService {
     @Override
     public long count() {
         return complaints.count();
+    }
+
+    /**
+     * Four counts, not a scan of the list.
+     *
+     * <p>{@link #listAll()} already loads every complaint, so the tiles could be derived from it
+     * for free today. They are not, because the list is the thing that will grow a filter and a
+     * page, and a tile that silently started counting one page of complaints would be worse than
+     * wrong — it would be plausible.
+     */
+    @Override
+    public DashboardCounters counters() {
+        Instant now = Instant.now();
+        return new DashboardCounters(
+                complaints.countByStatus(ComplaintStatus.TRIAGE),
+                complaints.countByStatusIn(LIVE),
+                complaints.countByStatusAndResolvedAtAfter(
+                        ComplaintStatus.RESOLVED, LocalDate.ofInstant(now, zone).atStartOfDay(zone).toInstant()),
+                complaints.countOverdue(CLOCK_RUNNING, now));
     }
 
     /**

@@ -502,6 +502,19 @@ select.input {
   padding: 1rem;
 }
 
+/* A counter tile is sometimes a link. Without this it inherits the anchor's underline and blue,
+   and reads as a sentence rather than as a number. */
+a.card {
+  color: inherit;
+  text-decoration: none;
+  display: block;
+  min-width: 9rem;
+}
+
+a.card:hover {
+  border-color: var(--slate-300);
+}
+
 .list-plain {
   list-style: none;
   margin: 0;

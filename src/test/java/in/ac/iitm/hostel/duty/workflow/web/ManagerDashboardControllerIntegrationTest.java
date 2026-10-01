@@ -62,6 +62,22 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
 
     @Test
     @WithMockUser(roles = "MANAGER")
+    @DisplayName("the tiles are counted now, and the screen says it refreshes itself")
+    void theDashboardCountsAndRefreshes() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(model().attributeExists("counters"))
+                // Polling stands in for the SSE the design schedules for Phase 4 (section 13.6).
+                .andExpect(content().string(containsString("data-refresh-seconds=\"30\"")))
+                .andExpect(content().string(containsString("/js/auto-refresh.js")))
+                // There is no NEW tile, because auto-dispatch leaves no complaint in NEW to count.
+                .andExpect(content().string(containsString("Triage")))
+                .andExpect(content().string(containsString("Resolved today")))
+                .andExpect(content().string(containsString("Past due")));
+    }
+
+    @Test
+    @WithMockUser(roles = "MANAGER")
     @DisplayName("a signed-in manager lands on the dashboard at / — the route PR 3 left to this PR")
     void theRootRouteRenders() throws Exception {
         mockMvc.perform(get("/"))

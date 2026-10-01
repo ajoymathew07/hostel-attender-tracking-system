@@ -14,11 +14,54 @@
   <head th:replace="~{layout/shell :: head('Complaints')}">
     <title>Complaints · Hostel Duty Tracker</title>
   </head>
-  <body class="min-h-screen bg-slate-50 text-slate-900">
+  <!--
+    Polling auto-refresh, section 10.3's "live" without SSE, which the design schedules for
+    Phase 4 (section 13.6). The script stands down while a control has focus, so a reload never
+    lands under the manager's hands.
+  -->
+  <body class="min-h-screen bg-slate-50 text-slate-900" data-refresh-seconds="30">
     <header th:replace="~{layout/shell :: masthead('complaints')}"></header>
 
     <main id="main" class="mx-auto max-w-7xl px-6 py-8">
       <div th:replace="~{layout/shell :: flashes}"></div>
+
+      <!--
+        The counter tiles of section 10.3. There is no NEW tile because there is no NEW state to
+        count any more: auto-dispatch runs at ingest, so a complaint is assigned or in triage
+        before anybody could see it. Triage leads, because it is the only one of the four that
+        asks the manager for something.
+
+        Each tile is a count taken now, not a stored total — there is nothing here to go stale
+        and no counter to reconcile (section 7.8).
+      -->
+      <section class="mt-6" aria-labelledby="counters-heading">
+        <h2 id="counters-heading" class="sr-only">Today at a glance</h2>
+        <div class="flex gap-4 flex-wrap">
+          <a class="card p-4" th:href="@{/complaints(focus='triage')}">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Triage</p>
+            <p class="text-2xl font-semibold" th:text="${counters.triage}">0</p>
+            <p class="text-xs text-slate-500">waiting for you</p>
+          </a>
+          <div class="card p-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Active</p>
+            <p class="text-2xl font-semibold" th:text="${counters.active}">0</p>
+            <p class="text-xs text-slate-500">somebody is on it</p>
+          </div>
+          <div class="card p-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Resolved today</p>
+            <p class="text-2xl font-semibold" th:text="${counters.resolvedToday}">0</p>
+            <p class="text-xs text-slate-500">since midnight</p>
+          </div>
+          <div class="card p-4" th:classappend="${counters.overdue > 0} ? 'bg-red-50' : ''">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Past due</p>
+            <p class="text-2xl font-semibold" th:text="${counters.overdue}">0</p>
+            <p class="text-xs text-slate-500">open and late</p>
+          </div>
+        </div>
+        <p class="mt-2 text-xs text-slate-500">
+          This screen refreshes itself every 30 seconds, and waits while you are typing.
+        </p>
+      </section>
 
       <!--
         The degraded-ingestion banner, section 5.3. It appears after three consecutive unattended
@@ -394,5 +437,6 @@
 
       <footer th:replace="~{layout/shell :: footer}"></footer>
     </main>
+      <script th:src="@{/js/auto-refresh.js}" defer></script>
   </body>
 </html>
