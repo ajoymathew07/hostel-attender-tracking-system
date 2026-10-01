@@ -308,14 +308,15 @@ class ComplaintStateMachineIntegrationTest extends AbstractIntegrationTest {
     /**
      * A complaint sitting in one state, with a task and an {@code ACTIVE} assignment for Ravi.
      *
-     * <p>{@code NEW} is the exception: assigning is what leaves {@code NEW}, so a complaint that
-     * is still there has no task yet — which is also true in production.
+     * <p>{@code NEW} is the exception: it is the state auto-dispatch moves a complaint out of
+     * during ingestion, so a complaint still there has no task and nobody has been assigned —
+     * which is also true in production, for the instant T2 and T3 act on.
      */
     private long complaintIn(ComplaintStatus state) {
-        long complaintId = complaints.saveAndFlush(Fixtures.complaint()).getId();
         if (state == ComplaintStatus.NEW) {
-            return complaintId;
+            return complaints.saveAndFlush(Fixtures.complaint()).getId();
         }
+        long complaintId = complaints.saveAndFlush(Fixtures.complaintInTriage()).getId();
         Fixtures.signIn(manager);
         assignment.assign(complaintId, ravi.getId());
         force(complaintId, state);

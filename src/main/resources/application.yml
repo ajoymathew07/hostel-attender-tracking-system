@@ -180,6 +180,34 @@ workflow:
     # ISO-8601, because `@Scheduled` reads this same string and accepts only that form.
     ageing-interval: PT15M
 
+# The dispatch heuristic, section 6.2. Every number here is a tunable rather than a constant
+# because section 6.2 says so outright (R5: "tunable without a redeploy") and because the manager
+# edits them from the configuration screen. The defaults are the figures the design states.
+dispatch:
+  # Cauvery room numbers carry a floor but not a wing (section 5.4), while `floor` is keyed
+  # (wing, floor_number). One wing, named here, is how a room number resolves to a floor_id.
+  wing: CAUVERY
+
+  # w_f and w_l. Floor is the stakeholder's stated primary criterion; load is weighted strongly
+  # enough to override it when somebody is badly overloaded. They must sum to 1, or the score
+  # would not be in [0, 1] and the weights would stop reading as percentages.
+  weights:
+    floor: 0.60
+    load: 0.40
+
+  # L_cap. Above this an attender scores 0 on load; at or over it for everyone, the work is
+  # assigned anyway and the manager is told the queue is saturated (section 6.4).
+  load-cap: 8
+
+  # Section 6.2's floor-proximity table. Distant attenders score above zero deliberately: when the
+  # primary is unavailable somebody still has to go.
+  proximity:
+    primary: 1.00
+    secondary: 0.70
+    adjacent: 0.40
+    step: 0.05
+    minimum: 0.10
+
 # A lost or shared phone exposes a session, not a secret — so the session is the thing that
 # expires (sections 11.1, 11.2). `Secure` is set by the `cloud` profile below, where TLS
 # terminates; setting it here would break sign-in over plain http on a developer machine.

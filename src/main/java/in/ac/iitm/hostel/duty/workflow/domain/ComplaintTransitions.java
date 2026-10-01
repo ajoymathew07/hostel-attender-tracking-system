@@ -39,9 +39,14 @@ import java.util.List;
  * caller applies the first row whose guard holds. Every row for one pair names the same actor, so
  * authorization does not depend on which branch wins.
  *
- * <p>Three rows here are not literally in section 4.2's table, and each is marked below:
- * {@code (NEW, MANAGER_ASSIGN)} and the docket correction. Nothing else has been added, and no row
- * of section 4.2 that acts on an existing complaint has been left out.
+ * <p>One row here is not literally in section 4.2's table and is marked below: the docket
+ * correction of section 4.3. Nothing else has been added, and no row of section 4.2 that acts on
+ * an existing complaint has been left out.
+ *
+ * <p>There is no {@code (NEW, MANAGER_ASSIGN)} row, and that absence is load-bearing.
+ * {@code NEW} is transient: auto-dispatch runs inside the intake transaction, so a complaint is
+ * {@code ASSIGNED} or in {@code TRIAGE} before anybody can look at it. A manager assigning from
+ * the list is therefore always T4, out of {@code TRIAGE}.
  */
 public final class ComplaintTransitions {
 
@@ -51,11 +56,6 @@ public final class ComplaintTransitions {
                     // not a row of this table (see WorkflowEvent).
                     row(NEW, WorkflowEvent.AUTO_DISPATCH, ASSIGNED, SYSTEM, DISPATCH_CANDIDATE), // T2
                     row(NEW, WorkflowEvent.AUTO_DISPATCH, TRIAGE, SYSTEM, NO_DISPATCH_CANDIDATE), // T3
-                    // NOT IN SECTION 4.2. The table assumes auto_dispatch runs at ingest, so a
-                    // manager never sees a NEW complaint. There is no dispatcher yet, so today
-                    // every complaint sits at NEW and the manager assigns straight from the list.
-                    // Delete this row once dispatch lands and T4's TRIAGE row is reachable.
-                    row(NEW, WorkflowEvent.MANAGER_ASSIGN, ASSIGNED, MANAGER, TARGET_ATTENDER),
                     row(TRIAGE, WorkflowEvent.MANAGER_ASSIGN, ASSIGNED, MANAGER, TARGET_ATTENDER), // T4
                     row(TRIAGE, WorkflowEvent.MANAGER_REJECT, REJECTED, MANAGER, REASON), // T5
                     row(ASSIGNED, WorkflowEvent.MANAGER_REASSIGN, ASSIGNED, MANAGER, DIFFERENT_ATTENDER), // T6

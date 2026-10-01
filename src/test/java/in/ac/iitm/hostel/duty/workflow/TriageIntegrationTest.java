@@ -86,8 +86,10 @@ class TriageIntegrationTest extends AbstractIntegrationTest {
         assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.CIVIL);
         assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.RULES);
         assertThat(complaint.getDomainConfidence()).isEqualByComparingTo(BigDecimal.ONE);
-        // No dispatcher yet, so a classified complaint waits at NEW for the manager to assign it.
-        assertThat(complaint.getStatus()).isEqualTo(ComplaintStatus.NEW);
+        // Where it went next is the dispatcher's business and AutoDispatchIntegrationTest's
+        // subject. What matters here is that a classified complaint does not stay at NEW: T2 and
+        // T3 run inside the same transaction as the classification.
+        assertThat(complaint.getStatus()).isNotEqualTo(ComplaintStatus.NEW);
     }
 
     @Test

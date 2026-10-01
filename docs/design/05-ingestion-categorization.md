@@ -147,12 +147,18 @@ manager must find out from the UI, not by noticing complaints stopped arriving.
 | `raw_text` | The description cell, verbatim, never modified |
 | `reported_at` | Parsed form timestamp, interpreted in Asia/Kolkata, stored UTC |
 | `reporter_room` | Regex `\b([A-Z]{0,2}[-\s]?\d{3,4})\b` over the room cell, then the description as fallback |
-| `floor_id` | Derived from room number via a configurable rule (default: first digit of a 3-digit room, first two of a 4-digit). Unmapped → `NULL`, which routes to triage |
+| `floor_id` | **The first digit of the room number**, for 3-digit (100–399) and 4-digit (1000–3099) rooms alike — 169 and 1099 are both floor 1. Unmapped → `NULL`, which routes to triage |
 | `reporter_name` | Name cell, trimmed; optional — `NULL` when the Form does not ask (§11.4) |
 | `reporter_roll_no` | Roll-number cell, upper-cased and trimmed; optional |
 | `reporter_phone` | Phone cell, digits normalised; optional |
 | `reporter_contact` | Email cell; purged after 90 days (NFR-9) |
 | `public_ref` | `CAU-{year}-{zero-padded sequence}` |
+
+An earlier draft of this table read "first digit of a 3-digit room, first two of a 4-digit", which
+maps room 1000 to floor 10 and would send every four-digit room to triage. Cauvery room numbers
+carry no wing letter and the first digit is the floor in both shapes; the rule above is the one the
+building uses. The wing is configuration (`dispatch.wing`), because the number does not carry it.
+
 
 ## 5.5 Categorization
 

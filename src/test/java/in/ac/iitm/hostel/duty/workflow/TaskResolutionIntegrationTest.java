@@ -78,7 +78,7 @@ class TaskResolutionIntegrationTest extends AbstractIntegrationTest {
         ravi = users.saveAndFlush(Fixtures.attender());
         kumar = users.saveAndFlush(Fixtures.attender());
 
-        complaintId = complaints.saveAndFlush(Fixtures.complaint()).getId();
+        complaintId = complaints.saveAndFlush(Fixtures.complaintInTriage()).getId();
         Fixtures.signIn(manager);
         assignment.assign(complaintId, ravi.getId());
         taskId = tasks.findByComplaintId(complaintId).orElseThrow().getId();
