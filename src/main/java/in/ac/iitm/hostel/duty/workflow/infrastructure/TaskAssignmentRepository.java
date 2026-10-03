@@ -2,6 +2,7 @@ package in.ac.iitm.hostel.duty.workflow.infrastructure;
 
 import in.ac.iitm.hostel.duty.workflow.domain.AssignmentStatus;
 import in.ac.iitm.hostel.duty.workflow.domain.TaskAssignment;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,6 +24,12 @@ public interface TaskAssignmentRepository extends JpaRepository<TaskAssignment, 
     List<TaskAssignment> findByAttenderIdAndStatus(Long attenderId, AssignmentStatus status);
 
     long countByTaskIdAndStatus(Long taskId, AssignmentStatus status);
+
+    /** The anti-starvation tie-break of section 6.2: how much this attender was given today. */
+    long countByAttenderIdAndAssignedAtGreaterThanEqual(Long attenderId, Instant from);
+
+    /** The second tie-break: longest since the last assignment, whatever became of it. */
+    Optional<TaskAssignment> findFirstByAttenderIdOrderByAssignedAtDesc(Long attenderId);
 
     /**
      * One attender's queue, complaint and all (section 10.2).

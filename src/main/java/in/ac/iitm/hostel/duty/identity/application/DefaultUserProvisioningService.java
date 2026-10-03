@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-class DefaultUserProvisioningService implements UserProvisioningService {
+class DefaultUserProvisioningService implements UserProvisioningService, AttenderDirectory {
 
     private static final String ENTITY_TYPE = "app_user";
 
@@ -47,6 +47,19 @@ class DefaultUserProvisioningService implements UserProvisioningService {
                         Comparator.comparing(AppUser::getRole)
                                 .thenComparing(AppUser::getDisplayName, String.CASE_INSENSITIVE_ORDER))
                 .map(UserSummary::of)
+                .toList();
+    }
+
+    /**
+     * No {@code @PreAuthorize}, deliberately: the caller is the dispatcher, which runs on a
+     * scheduled poll with no signed-in user (see {@link AttenderDirectory}).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> activeAttenderIds() {
+        return users.findByRoleAndActiveIsTrueOrderByDisplayNameAsc(UserRole.ATTENDER).stream()
+                .map(AppUser::getId)
+                .sorted()
                 .toList();
     }
 

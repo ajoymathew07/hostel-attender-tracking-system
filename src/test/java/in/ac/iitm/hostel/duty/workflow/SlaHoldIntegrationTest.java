@@ -119,7 +119,7 @@ class SlaHoldIntegrationTest extends AbstractIntegrationTest {
 
     /** The real walk: assigned, started, defect confirmed, docket filed — then a due date. */
     private long inProgressWithADueDate() {
-        long complaintId = complaints.saveAndFlush(Fixtures.complaint()).getId();
+        long complaintId = complaints.saveAndFlush(Fixtures.complaintInTriage()).getId();
         Fixtures.signIn(manager);
         assignment.assign(complaintId, ravi.getId());
 

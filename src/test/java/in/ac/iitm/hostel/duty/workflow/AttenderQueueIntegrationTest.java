@@ -58,7 +58,7 @@ class AttenderQueueIntegrationTest extends AbstractIntegrationTest {
         ravi = users.saveAndFlush(Fixtures.attender());
         kumar = users.saveAndFlush(Fixtures.attender());
 
-        Complaint complaint = Fixtures.complaint();
+        Complaint complaint = Fixtures.complaintInTriage();
         complaint.recordReporter(NAME, ROLL_NO, PHONE, "resident@example.com", "0214");
         complaintId = complaints.saveAndFlush(complaint).getId();
 

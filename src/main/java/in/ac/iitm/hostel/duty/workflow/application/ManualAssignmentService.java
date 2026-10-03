@@ -123,10 +123,10 @@ public class ManualAssignmentService {
     /**
      * T4 or T6, whichever this assignment is — or neither.
      *
-     * <p>Three cases, and the table decides all three. Nobody holds it yet, so the complaint
-     * becomes {@code ASSIGNED} (T4). Somebody else holds it, so the work moves (T6). The same
-     * attender holds it already, so nothing about the complaint has changed and there is no
-     * transition to make — which is also what T6's guard says, in the other direction.
+     * <p>Three cases, and the table decides all three. It is in triage, so the complaint becomes
+     * {@code ASSIGNED} (T4). Somebody else holds it, so the work moves (T6). The same attender
+     * holds it already, so nothing about the complaint has changed and there is no transition to
+     * make — which is also what T6's guard says, in the other direction.
      *
      * <p>Once the attender has started, the complaint is past {@code ASSIGNED} and section 4.2
      * draws no edge back: handing live work to somebody else changes who holds it, not how far
@@ -136,7 +136,7 @@ public class ManualAssignmentService {
         Complaint complaint = complaints.findById(complaintId).orElseThrow();
         TransitionPayload target = TransitionPayload.attender(attenderId);
         switch (complaint.getStatus()) {
-            case NEW, TRIAGE -> workflow.transition(complaintId, WorkflowEvent.MANAGER_ASSIGN, target);
+            case TRIAGE -> workflow.transition(complaintId, WorkflowEvent.MANAGER_ASSIGN, target);
             case ASSIGNED -> {
                 if (!alreadyHolds(complaintId, attenderId)) {
                     workflow.transition(complaintId, WorkflowEvent.MANAGER_REASSIGN, target);

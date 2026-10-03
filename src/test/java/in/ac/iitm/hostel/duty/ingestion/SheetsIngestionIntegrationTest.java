@@ -206,7 +206,9 @@ class SheetsIngestionIntegrationTest extends AbstractIntegrationTest {
         assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.RULES);
         assertThat(complaint.getDomainConfidence()).isNotNull();
         assertThat(complaint.getPriority()).isEqualTo(Priority.P2);
-        assertThat(complaint.getStatus()).isEqualTo(ComplaintStatus.NEW);
+        // Room 612 is on no floor this hostel has, so dispatch sent it to triage rather than
+        // guessing a location (sections 6.2, 6.4). Either way it does not stay at NEW.
+        assertThat(complaint.getStatus()).isEqualTo(ComplaintStatus.TRIAGE);
     }
 
     // ---- the watermark, section 5.3 --------------------------------------

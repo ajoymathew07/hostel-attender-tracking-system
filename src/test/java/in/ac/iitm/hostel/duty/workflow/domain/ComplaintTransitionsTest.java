@@ -23,8 +23,8 @@ class ComplaintTransitionsTest {
     @DisplayName("every row of section 4.2 that moves an existing complaint is in the table")
     void theTableMatchesTheDesign() {
         // T1 is creation and has no source state (see WorkflowEvent), so 16 design rows remain,
-        // plus the two marked additions: manager_assign from NEW, and section 4.3's correction.
-        assertThat(ComplaintTransitions.all()).hasSize(18);
+        // plus the one marked addition: section 4.3's docket correction.
+        assertThat(ComplaintTransitions.all()).hasSize(17);
 
         assertThat(ComplaintTransitions.all())
                 .describedAs("every event in the vocabulary is reachable from somewhere")
@@ -40,6 +40,11 @@ class ComplaintTransitionsTest {
                 .isEmpty();
         assertThat(ComplaintTransitions.matching(ComplaintStatus.CLOSED, WorkflowEvent.MANAGER_REOPEN))
                 .describedAs("CLOSED is terminal in section 4.2")
+                .isEmpty();
+        assertThat(ComplaintTransitions.matching(ComplaintStatus.NEW, WorkflowEvent.MANAGER_ASSIGN))
+                .describedAs(
+                        "auto_dispatch runs at ingest, so a manager never sees a NEW complaint and"
+                                + " assigning one is always T4, out of TRIAGE")
                 .isEmpty();
         assertThat(
                         ComplaintTransitions.matching(

@@ -101,7 +101,8 @@ public class Task {
         this.title = Objects.requireNonNull(title, "title");
         this.pointValue = pointValue;
         this.status = TaskStatus.OPEN;
-        this.createdBy = Objects.requireNonNull(createdBy, "createdBy");
+        // Null is the dispatcher: T2 creates a task during ingestion with nobody signed in.
+        this.createdBy = createdBy;
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
         this.shared = false;
         this.slots = 1;

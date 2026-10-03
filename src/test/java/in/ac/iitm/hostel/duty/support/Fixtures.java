@@ -9,6 +9,7 @@ import in.ac.iitm.hostel.duty.ingestion.domain.TriggerType;
 import in.ac.iitm.hostel.duty.workflow.domain.ClassificationMethod;
 import in.ac.iitm.hostel.duty.workflow.domain.Complaint;
 import in.ac.iitm.hostel.duty.workflow.domain.ComplaintDomain;
+import in.ac.iitm.hostel.duty.workflow.domain.ComplaintStatus;
 import in.ac.iitm.hostel.duty.workflow.domain.Priority;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
@@ -85,6 +86,20 @@ public final class Fixtures {
                 TriggerType.SCHEDULED,
                 Instant.parse("2026-02-01T06:03:00Z"),
                 null);
+    }
+
+    /**
+     * A complaint sitting in the triage queue, which is where a manager picks one up.
+     *
+     * <p>Auto-dispatch runs inside the intake transaction, so a complaint is {@code ASSIGNED} or
+     * in {@code TRIAGE} before anybody sees it and {@code (NEW, MANAGER_ASSIGN)} is not a row of
+     * section 4.2's table. A test about manual assignment therefore starts here, and what it
+     * exercises is T4.
+     */
+    public static Complaint complaintInTriage() {
+        Complaint complaint = complaint();
+        complaint.moveTo(ComplaintStatus.TRIAGE, Instant.parse("2026-02-01T06:03:00Z"));
+        return complaint;
     }
 
     public static Complaint complaint() {

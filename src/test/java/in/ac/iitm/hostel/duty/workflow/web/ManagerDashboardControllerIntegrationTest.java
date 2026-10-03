@@ -148,7 +148,7 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
     void aManagerAssignsAndReleasesFromTheScreen() throws Exception {
         AppUser manager = users.saveAndFlush(Fixtures.manager());
         AppUser ravi = users.saveAndFlush(Fixtures.attender());
-        long complaintId = complaints.saveAndFlush(Fixtures.complaint()).getId();
+        long complaintId = complaints.saveAndFlush(Fixtures.complaintInTriage()).getId();
         // A real SignedInUser, not @WithMockUser: creating the task records who created it.
         TestingAuthenticationToken asManager = Fixtures.signIn(manager);
         SecurityContextHolder.clearContext();
@@ -198,7 +198,7 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
     @DisplayName("a manager sets the domain in one click and the complaint stops being unclassified")
     void aManagerSetsTheDomainInOneClick() throws Exception {
         AppUser manager = users.saveAndFlush(Fixtures.manager());
-        long complaintId = complaints.saveAndFlush(Fixtures.complaint()).getId();
+        long complaintId = complaints.saveAndFlush(Fixtures.complaintInTriage()).getId();
         TestingAuthenticationToken asManager = Fixtures.signIn(manager);
         SecurityContextHolder.clearContext();
 

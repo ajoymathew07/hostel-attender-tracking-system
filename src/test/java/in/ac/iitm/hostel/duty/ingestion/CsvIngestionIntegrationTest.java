@@ -190,12 +190,14 @@ class CsvIngestionIntegrationTest extends AbstractIntegrationTest {
         assertThat(complaint.getPublicRef()).matches("CAU-2026-\\d{4,}");
 
         // The weighted lexicon ran on the way in: `ceiling` and `leaking` are both Civil and
-        // nothing else fired, so the confidence gate accepted it (section 5.5). No priority rules
-        // exist yet, so P2 is still the flat default (PR 12).
+        // nothing else fired, so the confidence gate accepted it (section 5.5).
         assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.CIVIL);
         assertThat(complaint.getClassifiedBy()).isEqualTo(ClassificationMethod.RULES);
         assertThat(complaint.getPriority()).isEqualTo(Priority.P2);
-        assertThat(complaint.getStatus()).isEqualTo(ComplaintStatus.NEW);
+        // Classified, but room 612 is on no floor this hostel has, so dispatch declined to guess
+        // and the complaint is in triage rather than at NEW (sections 6.2, 6.4).
+        assertThat(complaint.getFloorId()).isNull();
+        assertThat(complaint.getStatus()).isEqualTo(ComplaintStatus.TRIAGE);
     }
 
     @Test
