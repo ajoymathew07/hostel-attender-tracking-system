@@ -11,8 +11,9 @@ There are two separate things here and they are easy to confuse:
 | **OAuth client** (step 2) | Signing people in | The *application*, asking Google to identify a person |
 | **Service account** (step 3) | Reading the Form response sheet | A robot account with its own address, which you grant read access to one sheet |
 
-The OAuth client is needed to deploy at all. The service account is only needed once Google Sheets
-ingestion ships; until then complaints arrive by CSV upload. Doing both now saves a second visit.
+The OAuth client is needed to deploy at all. The service account is what Google Sheets ingestion
+reads the response sheet with; without it the application still starts and complaints arrive by CSV
+upload instead. Do both now — a deployment with no service account has half its intake missing.
 
 ---
 
@@ -70,7 +71,9 @@ same client and update the Render variable — the client ID does not change.
 
 ## Step 3 — the Sheets service account (ingestion)
 
-Only needed when Google Sheets ingestion ships. Nothing reads `GOOGLE_SA_KEY` today.
+`GOOGLE_SA_KEY` is read by `GoogleApiSheetReader`, which base64-decodes it straight into Google's
+credential parser — the key never becomes a file. Without it the poll skips with a debug line and
+the CSV fallback keeps working, which is a deliberate fallback and not a degraded mode.
 
 ### 3a. Enable the API
 
@@ -94,7 +97,28 @@ Only needed when Google Sheets ingestion ships. Nothing reads `GOOGLE_SA_KEY` to
 On the service account → **Keys** → **Add key** → **Create new key** → **JSON**. A `.json` file
 downloads. It is a private key: treat it as you would a password.
 
-### 3d. Share the sheet with it — read-only
+### 3d. The response sheet, and its id
+
+Nothing can be read until the Form is writing somewhere. In the Google Form → **Responses** →
+**Link to Sheets** → create a spreadsheet. The tab it makes is called `Form Responses 1`, which is
+what `GOOGLE_SHEET_NAME` defaults to; rename that tab and you must set the variable as well.
+
+The spreadsheet's id is the middle segment of its URL:
+
+```
+https://docs.google.com/spreadsheets/d/1a2B3cD4eF5gH6iJ7kL8mN9oP0qR/edit
+                                      └──────── GOOGLE_SHEET_ID ────────┘
+```
+
+Set it as `GOOGLE_SHEET_ID`. It is an identifier and not a secret — the sheet is protected by who
+it is shared with, not by the id being hard to guess — but it belongs in the environment with the
+rest of the configuration rather than in the repository, because it differs per deployment.
+
+**Without this variable there is no ingestion and no error.** `spreadsheet-id` defaults to empty,
+the poll finds nothing configured, and **Sync Now** reports that the response sheet is not
+configured on this instance. That reads like a missing feature rather than a missing variable.
+
+### 3e. Share the sheet with it — read-only
 
 Open the Google Form's **response spreadsheet** → **Share** → paste the service account's email
 address → role **Viewer** → uncheck "Notify people" → Share.
@@ -103,7 +127,7 @@ address → role **Viewer** → uncheck "Notify people" → Share.
 attacker gets is a copy of complaints we already have; with Editor they could alter or destroy the
 source of record (§11.5).
 
-### 3e. Base64 the key and store it
+### 3f. Base64 the key and store it
 
 The key is JSON with newlines in it, which does not survive a dashboard environment-variable box,
 so it goes in base64-encoded. Secrets are environment variables and never files (§11.5).
@@ -117,7 +141,7 @@ base64 -w 0 ~/Downloads/<project>-<id>.json                        # Linux, prin
 
 Paste the result into Render as `GOOGLE_SA_KEY`.
 
-### 3f. Delete the downloaded file
+### 3g. Delete the downloaded file
 
 ```bash
 rm ~/Downloads/<project>-<id>.json
@@ -222,9 +246,15 @@ sheet, and the "unverified app" warning is expected. `UrlFetchApp` is the only p
 
 Submit a test response through the Form. Within a few seconds:
 
-- **Apps Script → Executions** shows `wakeDutyTracker` as *Completed*. A *Failed* line with a 403
-  means the two copies of the secret disagree; one with a timeout means `WAKE_URL` is wrong or the
-  service is not deployed.
+- **Apps Script → Executions** shows `wakeDutyTracker` with type *Trigger* and status *Completed*.
+  Note what that does **not** tell you: `muteHttpExceptions: true` means a refused call completes
+  just like an accepted one, so this line confirms only that the script ran and reached something.
+  A *Failed* line means it could not reach the service at all.
+- **The hosting platform's own logs** are the only place a rejected call is visible.
+  `Refused a wake-up call: the shared secret did not match` means the two copies of the secret
+  differ — most often a trailing newline on one of them, since `openssl rand -base64 32` emits one.
+  An accepted call logs no warning and is followed within seconds by an ingestion run on the
+  `task-1` thread, which is the executor the endpoint hands the work to.
 - The complaint appears on the manager's dashboard without anyone pressing **Sync Now**.
 
 Then delete the test complaint's row from the sheet if you like — it has already been ingested and
@@ -236,7 +266,9 @@ the application will not re-read it (§5.3, deletions are not tracked).
 |---|---|---|
 | `GOOGLE_CLIENT_ID` | Step 2b | Now — sign-in does not work without it |
 | `GOOGLE_CLIENT_SECRET` | Step 2b | Now — sign-in does not work without it |
-| `GOOGLE_SA_KEY` | Step 3e, base64 of the JSON key | For Sheets ingestion |
+| `GOOGLE_SHEET_ID` | Step 3d, the id in the sheet's URL | For Sheets ingestion — without it there is no ingestion and no error |
+| `GOOGLE_SHEET_NAME` | Step 3d | Only if the response tab is not named `Form Responses 1` |
+| `GOOGLE_SA_KEY` | Step 3f, base64 of the JSON key | For Sheets ingestion |
 | `INGESTION_WAKE_SECRET` | Step 4a | Only for the wake-up trigger — without it the endpoint stays closed and the scheduled poll is the backstop |
 
 Back to [`deploy.md`](deploy.md) step 4.
@@ -246,10 +278,13 @@ Back to [`deploy.md`](deploy.md) step 4.
 - [ ] Both redirect URIs registered, including `http://localhost:8080/login/oauth2/code/google`
 - [ ] Every real user's Google address added as a test user on the consent screen
 - [ ] Service account created with **no project roles**
+- [ ] Form linked to a response spreadsheet, and its id set as `GOOGLE_SHEET_ID`
+- [ ] Response tab still named `Form Responses 1`, or `GOOGLE_SHEET_NAME` set to match
 - [ ] Response sheet shared with the service account as **Viewer**
 - [ ] Downloaded JSON key deleted from the machine
 - [ ] `INGESTION_WAKE_SECRET` set on the host, and the same value as the `WAKE_SECRET` script property
 - [ ] `WAKE_URL` points at the deployed service, path `/api/ingestion/wake`
 - [ ] Trigger is **On form submit**, from the spreadsheet
 - [ ] A test response reached the dashboard without pressing Sync Now
+- [ ] The platform log shows no `Refused a wake-up call` line for that submission
 - [ ] Nothing from this page committed to the repository
