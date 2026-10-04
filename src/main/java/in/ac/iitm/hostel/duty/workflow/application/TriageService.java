@@ -50,7 +50,7 @@ public class TriageService {
     }
 
     /**
-     * Sets the domain the classifier could not settle, as {@code classified_by = MANUAL}.
+     * Sets the domain the resident did not settle, as {@code classified_by = MANUAL}.
      *
      * <p>The SLA due date is computed here and not at intake, because until now there was no target
      * to compute it against: section 8.2's table has a row per domain and {@code UNCLASSIFIED} is

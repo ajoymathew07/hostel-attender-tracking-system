@@ -128,7 +128,7 @@ state. SSE is limited to ~6 concurrent connections per browser origin, irrelevan
 
 ## ADR-004 · Rule-based lexicon as the primary classifier; OpenNLP deferred
 
-**Status:** Accepted · 8 Sep 2026
+**Status:** Accepted 8 Sep 2026 · **Superseded by ADR-013, 1 Oct 2026**
 
 **Context.** The proposal names Apache OpenNLP for "rule-assisted text categorization", with an
 acceptance criterion of ≥90% accuracy.
@@ -152,6 +152,9 @@ items to triage rather than guessing. Production triage corrections accumulate t
 that would make stage two viable later, so nothing is foreclosed.
 
 **Revisit if:** holdout accuracy stalls below 90% with coverage above 70%.
+
+**What happened.** It was built, it worked, and it was removed. Accuracy was never the thing that
+failed — see ADR-013.
 
 ---
 
@@ -373,3 +376,41 @@ and where a framework already solves something, use its solution.
 
 **Revisit if:** user count grows past ~20, or a removed mechanism turns out to be load-bearing for
 a requirement we have not anticipated.
+
+---
+
+## ADR-013 · The resident selects the domain; the classifier is removed
+
+**Status:** Accepted · 1 Oct 2026 · supersedes ADR-004
+
+**Context.** ADR-004's weighted lexicon shipped in PR 10 and the gold set to measure it in PR 15.
+Separately, the Google Form gained a question asking the resident which kind of problem it is —
+Civil, Electrical, LAN, RO or Others. Both are now in the system, answering the same question, and
+one of them is asking the person who knows.
+
+**Decision.** The domain is the resident's answer. `category_term`, the n-gram tokeniser, the
+Jaro–Winkler matching, the two confidence thresholds and the gold set are all removed.
+`ClassificationMethod.RULES` becomes `REPORTED`; `complaint.domain_confidence` is dropped.
+
+**Rationale.**
+- The lexicon existed to **infer** something the resident already knows. A term list over short,
+  misspelled, code-mixed text has a much lower ceiling than a drop-down with five options.
+- It was not cheap: a table and its seed, a tokeniser, a fuzzy matcher, two thresholds nobody
+  could set from first principles, and a 200-item gold set whose only purpose was to find out
+  whether the rest of it worked.
+- **Every line of it had to be defensible, and "we built a classifier to avoid asking a question
+  the form could ask" is not a defence.**
+- What the lexicon protected — nothing is auto-assigned on a guess — never depended on the
+  lexicon. It is the triage queue, and the triage queue is untouched: `Others`, a blank and an
+  unrecognised value all reach the manager exactly as a failed confidence gate used to.
+
+**Consequences.** G2's acceptance criterion changes from classifier accuracy to coverage, which is
+observable from the dashboard without a gold set (§5.6). §5.7's OpenNLP second stage has nothing
+left to improve on and is withdrawn. The Form becomes a harder dependency: an option added to it
+without a matching entry in `ComplaintDomain.reported` sends those complaints to triage — visible
+and one-line to fix, and deliberately preferred to guessing or to failing the run. Existing
+`RULES` rows are migrated to `REPORTED` rather than left to fail the enum read (V15).
+
+**Revisit if:** residents routinely pick the wrong option, which the manager's triage corrections
+would show. The corrections are still `(text, human label)` pairs, so a classifier remains
+buildable from real data — which is a better position than ADR-004 ever reached.

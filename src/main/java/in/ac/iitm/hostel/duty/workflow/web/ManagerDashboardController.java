@@ -81,6 +81,8 @@ class ManagerDashboardController {
 
     @GetMapping({"/", "/complaints"})
     String list(Model model) {
+        // Above everything, and counted now rather than read from a stored total (section 10.3).
+        model.addAttribute("counters", complaints.counters());
         model.addAttribute("complaints", complaints.listAll());
         // Above the list in the template, not in a tab: it is the only part of this screen that
         // requires the manager's action, and anything requiring action goes where the eye lands

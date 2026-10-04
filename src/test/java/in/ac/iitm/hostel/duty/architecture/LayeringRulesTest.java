@@ -43,7 +43,11 @@ class LayeringRulesTest {
                     "notification",
                     "reporting",
                     "identity",
-                    "audit");
+                    "audit",
+                    // Not in section 2.3's list. It stores what the manager may change without a
+                    // redeploy, which section 4.5, section 6.2 (R5) and section 8.2 each require
+                    // of a different module's numbers; see its package-info.
+                    "settings");
 
     private static final String SPRING_TRANSACTIONAL =
             "org.springframework.transaction.annotation.Transactional";

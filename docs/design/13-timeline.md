@@ -86,8 +86,8 @@ push, analytics, Excel.
 |---|---|---|
 | 2.1 | `ComplaintSource` port; Google Sheets adapter with header mapping (§5.2) | 1.4's CSV-only input (CSV stays as the fallback adapter) |
 | 2.2 | `response_key` dedupe + single-mode scan (§5.3); scheduled poll + **Sync Now** | Manual copy-paste |
-| 2.3 | Rule + fuzzy lexicon classifier with confidence gate (§5.5) | Manual sorting into domains |
-| 2.4 | **Triage queue** — one-click domain + assign for low-confidence items | The safety net that makes 2.3 trustworthy |
+| 2.3 | ~~Rule + fuzzy lexicon classifier with confidence gate~~ — **built, then removed** (ADR-013). The Form asks the resident instead (§5.5) | Manual sorting into domains |
+| 2.4 | **Triage queue** — one-click domain + assign | The safety net, unchanged: it now catches `Others` rather than low confidence |
 | 2.5 | Auto-dispatch: Floor + Load scoring, tie-breaks, `score_snapshot` (§6) | 1.5's manual assignment |
 | 2.6 | Full state machine + transition table (§4), replacing ad-hoc status writes | Ad-hoc updates |
 | 2.7 | Docket entry + the `mark_resolved` guard (T11, T14) | Verbal chasing of inspection IDs |
@@ -159,9 +159,7 @@ listed so the decision to skip them is visible rather than silent.
 |---|---|
 | **Amendment tracking** for edited Form responses (§5.3) | Only if the Form has "edit response" enabled. Schema already reserves the `AMENDED` state |
 | **Offline replay queue** (IndexedDB + service worker) | If attenders report losing actions in poor signal. Push already needs the service worker; this is the replay half only |
-| **OpenNLP second stage** (§5.7) | Once enough triage corrections have accumulated to train on |
 | Detectors **A4** (SLA cluster) and **A5** (workload imbalance) | Both need ≥4 weeks of history to emit anything, so neither can be demonstrated before 6 Nov anyway |
-| Manager-editable lexicon UI | If the manager wants to tune categorization without a redeploy. Seeded by migration until then |
 | Deletion detection (`VANISHED`) | Only if the manager reports deleting rows and wanting to know |
 
 ## 13.9 Changes from the original proposal
@@ -185,8 +183,7 @@ useful at every point, which is the whole reason for slicing it this way.
 | Risk | Trigger | Response |
 |---|---|---|
 | Sheets API credentials not granted in time | Nothing by 22 Sep | Phase 1 already ships on CSV; build 2.1 against a personal test sheet |
-| Real complaint data unavailable for the gold set | Nothing by 22 Sep | Use a synthetic corpus and state that caveat with the accuracy figure |
-| Categorization misses 90% | Holdout below target at Phase 2 exit | Expand the lexicon from observed misses; raise τ, trading coverage for accuracy since accuracy is the stated criterion |
+| Residents routinely pick the wrong Form option | Triage corrections cluster on one domain | Reword the option. The corrections are `(text, label)` pairs, so a classifier stays buildable from real data if it ever earns its place (ADR-013) |
 | Free-tier deploy proves unusable | Failure during Phase 1 | Found on day 10 rather than day 40 — that is why 1.8 is in Phase 1 |
 | Coursework crunch | Any phase slips >3 days | Drop from the bottom of Phase 4, then Phase 5.5. Never cut Phases 1–3 |
 

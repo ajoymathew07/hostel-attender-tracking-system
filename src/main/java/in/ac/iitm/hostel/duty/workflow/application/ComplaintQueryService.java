@@ -9,8 +9,8 @@ public interface ComplaintQueryService {
     List<ComplaintListItem> listAll();
 
     /**
-     * The triage queue: complaints the classifier could not confidently place (sections 5.5,
-     * 10.3).
+     * The triage queue: complaints the resident did not place — "Others", a blank, or a Form
+     * option nobody mapped (sections 5.5, 10.3).
      *
      * <p><strong>Oldest first</strong>, unlike {@link #listAll()}. This is a work queue rather
      * than a news feed — the complaint that has been waiting longest is the one to settle next —
@@ -20,4 +20,7 @@ public interface ComplaintQueryService {
 
     /** How many complaints exist — the dashboard's headline count. */
     long count();
+
+    /** The tiles across the top of the dashboard, counted now rather than read from a flag. */
+    DashboardCounters counters();
 }

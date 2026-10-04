@@ -43,6 +43,12 @@
             th:attr="aria-current=${active == 'attenders'} ? 'page' : null"
             >Users</a
           >
+          <a
+            class="btn btn-secondary"
+            th:href="@{/settings}"
+            th:attr="aria-current=${active == 'settings'} ? 'page' : null"
+            >Settings</a
+          >
           <form th:action="@{/logout}" method="post">
             <button class="btn btn-secondary" type="submit">Sign out</button>
           </form>

@@ -33,7 +33,7 @@ JaCoCo in CI.
 
 | Fixture | Source | Size | Used by |
 |---|---|---|---|
-| **F1 — Real anonymised complaints** | Cauvery Hostel logs, PII replaced with dummy data | ~200 rows | Classifier gold set, realistic dispatch |
+| **F1 — Real anonymised complaints** | Cauvery Hostel logs, PII replaced with dummy data | ~200 rows | Realistic dispatch, volume behaviour |
 | **F2 — Synthetic edge cases** | Hand-authored | ~60 rows | Corner-case suite (§12.4) |
 | **F3 — Concurrency workload** | Generated | 4 attenders × 25 tasks | Race tests (§12.5) |
 | **F4 — Volume/telemetry** | Generated, 90 days | ~1800 complaints | Analytics, anomaly detectors |
@@ -45,33 +45,23 @@ committed fixture is effectively permanent, so the scrub cannot be a later step:
 preserves floor structure (so dispatch tests stay meaningful) while breaking identifiability. The
 mapping table is not committed.
 
-## 12.3 Categorization gold set
+## 12.3 Withdrawn: the categorization gold set
 
-The proposal's "≥90% accuracy" needs a defensible methodology, not a spot check.
+This section specified a ~200-item labelled corpus, a 70/30 development and holdout split, and an
+accuracy-and-coverage harness, to give the proposal's "≥90% accuracy" a defensible methodology
+rather than a spot check. It was built and it worked.
 
-**Construction.** From F1, 200 complaints labelled by hand into `ELECTRICAL`, `CIVIL`, `RO_PLANT`,
-`NETWORK`, `AMBIGUOUS`. Split **70/30 into development and holdout**. Lexicon terms and thresholds
-are tuned *only* against development; the holdout is scored once per milestone. Tuning against the
-holdout would produce a number that means nothing.
+It is withdrawn because there is no longer a prediction to measure: the resident selects the
+domain on the Form (ADR-013), so the domain is their answer and the only way it can be wrong is
+if they chose wrongly — which a gold set we labelled ourselves could not detect anyway.
 
-**Metrics.** Reported together, never in isolation:
+What replaces it is **coverage**, and it needs no fixture: the share of ingested complaints that
+reach `ASSIGNED` without a manager touching them, which the dashboard's triage counter shows
+directly (§5.6). A low figure means the Form's options do not match the complaints people have,
+and the fix is an option rather than a threshold.
 
-```
-coverage  = auto-accepted / total
-accuracy  = correct predictions / auto-accepted          ← the ≥90% criterion
-recall_d  = correctly predicted as d / truly d
-```
-
-Plus a per-domain confusion matrix.
-
-Coverage is reported alongside accuracy because **accuracy alone is trivially gameable**: a
-classifier that refuses to classify anything scores 100%. Targets: **accuracy ≥ 90%, coverage ≥ 70%**
-on the holdout. Complaints labelled `AMBIGUOUS` by the human labeller are expected to land in
-triage; if one is auto-accepted, that is counted as an error.
-
-**Continuous evaluation.** Every manager triage correction in production is `(text, true label)` —
-a free growing labelled set. A monthly re-scoring job reports drift, and this corpus is also what
-would eventually make the OpenNLP stage (§5.7) viable.
+F1's ~200 anonymised rows stay in §12.2. They were always doing two jobs, and the second one —
+realistic dispatch and volume behaviour — is untouched.
 
 ## 12.4 Corner-case suite
 
@@ -79,7 +69,7 @@ Every case named in the proposal's verification plan, plus what the design surfa
 
 | # | Case | Expected |
 |---|---|---|
-| E1 | Ambiguous text scoring two domains equally | `UNCLASSIFIED` → triage, both scores shown |
+| E1 | Resident answers `Others` | `UNCLASSIFIED` → triage, their answer shown on the card |
 | E2 | Identical simultaneous submissions (different residents) | Two complaints — distinct `response_key` (§5.3) |
 | E3 | Byte-identical resubmission by the same resident | One complaint — `response_key` collides |
 | E4 | Same CSV uploaded twice | Zero duplicates |
@@ -91,8 +81,8 @@ Every case named in the proposal's verification plan, plus what the design surfa
 | E10 | Sheet row edited after ingestion | Skipped and logged; original text retained. *(Amendment handling is backlog, §13.8)* |
 | E11 | Row deleted causing all indices to shift | Zero spurious amendments (§5.1) |
 | E12 | Required column renamed | Run fails loudly with `INGESTION_COLUMN_MISSING` |
-| E13 | Empty / whitespace-only complaint text | `UNCLASSIFIED` → triage |
-| E14 | Tamil-transliterated text ("thanni varala") | Fuzzy/lexicon hit or triage — never a wrong confident domain |
+| E13 | Category question unanswered, or an option nobody mapped | `UNCLASSIFIED` → triage; the run does not fail |
+| E14 | Tamil-transliterated text ("thanni varala") | Ingested verbatim and dispatched on the selected domain — the text is never parsed for meaning |
 | E15 | Resolve attempted with no docket | `GUARD_FAILED` 422 |
 | E16 | Docket failing the configured pattern | `INVALID_DOCKET` 422 |
 | E17 | Docket corrected after entry | `docket_no` updated; `audit_event` holds the old and new values |

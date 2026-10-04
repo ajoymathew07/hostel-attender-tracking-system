@@ -95,6 +95,10 @@ class AutoDispatchIntegrationTest extends AbstractIntegrationTest {
     }
 
     private Complaint arrive(String text, String room) {
+        return arrive(text, room, "Electrical");
+    }
+
+    private Complaint arrive(String text, String room, String reportedDomain) {
         long id =
                 intake.record(
                                 new NewComplaint(
@@ -105,6 +109,7 @@ class AutoDispatchIntegrationTest extends AbstractIntegrationTest {
                                         "9000000000",
                                         "resident@example.com",
                                         room,
+                                        reportedDomain,
                                         null))
                         .id();
         return complaints.findById(id).orElseThrow();
@@ -199,11 +204,11 @@ class AutoDispatchIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("what the classifier could not place never reaches the heuristic — T3")
+    @DisplayName("what the resident could not place never reaches the heuristic — T3")
     void anUnclassifiedComplaintIsTriagedBeforeDispatch() {
         covers(ravi, groundFloor, Coverage.PRIMARY);
 
-        Complaint complaint = arrive("qwerty zxcvb", "169");
+        Complaint complaint = arrive("something is wrong in my room", "169", "Others");
 
         assertThat(complaint.getStatus()).isEqualTo(ComplaintStatus.TRIAGE);
         assertThat(tasks.findByComplaintId(complaint.getId())).isEmpty();
@@ -231,8 +236,8 @@ class AutoDispatchIntegrationTest extends AbstractIntegrationTest {
         List<Complaint> arrived =
                 List.of(
                         arrive("light flickering", "101"),
-                        arrive("qwerty zxcvb", "202"),
-                        arrive("seepage on the wall", "unknown"));
+                        arrive("something is wrong in my room", "202", "Others"),
+                        arrive("seepage on the wall", "unknown", "Civil"));
 
         assertThat(arrived)
                 .extracting(Complaint::getStatus)

@@ -172,9 +172,10 @@ browser permission entirely, which would be irreversible from inside the app.
 that *requires* the manager's action, and the entire value proposition is reducing their daily
 30–45 minutes. Anything requiring action goes where the eye lands first.
 
-**The triage card shows the classifier's runner-up scores** (`CIVIL 0.31 / ELEC 0.28`). This turns
-an opaque failure into useful information: the manager sees *why* the system was unsure, which
-makes the one-click correction feel like collaboration rather than cleanup after a dumb machine.
+**The triage card shows what the resident answered.** Usually `Others`, sometimes a Form option
+nobody has mapped. That is more useful than a classifier's runner-up scores ever were: a run of
+cards all saying the same unmapped word is the Form telling the manager to add an option, which
+is a fix, not a tuning exercise.
 
 **Live activity and the leaderboard are SSE-driven.** No polling, no refresh button — the proposal's
 "real-time duty updates" requirement.
@@ -194,7 +195,7 @@ makes the one-click correction feel like collaboration rather than cleanup after
 | My standing | `/m/me` | Attender — point history, month rank, notification settings |
 | Attender admin | `/admin/attenders` | Manager — provisioning, allowlist email, leave, floor coverage |
 | Reports | `/reports` | Manager — date range, export |
-| Settings | `/settings` | Manager — lexicon, weights, thresholds, SLA table |
+| Settings | `/settings` | Manager — dispatch weights, load cap, SLA table, working day |
 
 The **complaint detail** screen is the explainability surface: the full audit timeline, the dispatch
 score snapshot (§6.2) rendered as a readable breakdown, the docket history including superseded

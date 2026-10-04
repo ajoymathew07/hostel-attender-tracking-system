@@ -52,7 +52,7 @@ class SlaScheduleIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("a safety keyword sets P1, and P1 electrical is due in 4 working hours")
     void aSafetyKeywordIsP1() {
-        Complaint complaint = ingest("Getting a shock from the geyser switch");
+        Complaint complaint = ingest("Getting a shock from the geyser switch", "Electrical");
 
         assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.ELECTRICAL);
         assertThat(complaint.getPriority()).isEqualTo(Priority.P1);
@@ -64,7 +64,7 @@ class SlaScheduleIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("a near-miss spelling is not P1 — it is an ordinary P2 with an 8-hour window")
     void aNearMissSpellingIsNotP1() {
-        Complaint complaint = ingest("Getting a shok from the geyser switch");
+        Complaint complaint = ingest("Getting a shok from the geyser switch", "Electrical");
 
         assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.ELECTRICAL);
         assertThat(complaint.getPriority())
@@ -78,7 +78,7 @@ class SlaScheduleIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("the due date matches section 8.2's table for the complaint's domain and priority")
     void theDueDateMatchesTheTable() {
         // RO Plant P2, 12 working hours: 8.5 left on 1 May, then 3.5 from 08:00 on 2 May.
-        assertThat(ingest("The water purifier on the second floor is broken"))
+        assertThat(ingest("The water purifier on the second floor is broken", "RO"))
                 .satisfies(complaint -> assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.RO_PLANT))
                 .satisfies(
                         complaint ->
@@ -86,7 +86,7 @@ class SlaScheduleIntegrationTest extends AbstractIntegrationTest {
                                         .isEqualTo(Instant.parse("2026-05-02T06:00:00Z")));
 
         // Civil P2, 24 working hours: two full working days beyond the 8.5 left on the first.
-        assertThat(ingest("Water leaking from the bathroom ceiling"))
+        assertThat(ingest("Water leaking from the bathroom ceiling", "Civil"))
                 .satisfies(complaint -> assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.CIVIL))
                 .satisfies(
                         complaint ->
@@ -100,7 +100,7 @@ class SlaScheduleIntegrationTest extends AbstractIntegrationTest {
         // 23:30 IST on 1 May. Wall-clock arithmetic would have this due at 07:30 the next morning,
         // before the working day starts and before anybody could have acted on it.
         Complaint complaint =
-                ingestAt("Tube light flickering in the common room", Instant.parse("2026-05-01T18:00:00Z"));
+                ingestAt("Tube light flickering in the common room", "Electrical", Instant.parse("2026-05-01T18:00:00Z"));
 
         assertThat(complaint.getSlaDueAt())
                 .describedAs("the clock starts at 08:00 IST and runs 8 working hours to 16:00 IST")
@@ -108,9 +108,9 @@ class SlaScheduleIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("an unclassified complaint has no due date until a manager gives it a domain")
+    @DisplayName("a complaint the resident could not place has no due date until a manager sets one")
     void triageGivesTheDueDate() {
-        Complaint complaint = ingest("water coming from ceiling fan");
+        Complaint complaint = ingest("water coming from ceiling fan", "Others");
 
         assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.UNCLASSIFIED);
         assertThat(complaint.getSlaDueAt())
@@ -127,7 +127,7 @@ class SlaScheduleIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("a manager downgrade is the only source of P3, and it recomputes the due date")
     void aManagerDowngradeIsP3() {
-        Complaint complaint = ingest("Tube light flickering in the common room");
+        Complaint complaint = ingest("Tube light flickering in the common room", "Electrical");
 
         priorities.downgrade(complaint.getId());
 
@@ -140,14 +140,15 @@ class SlaScheduleIntegrationTest extends AbstractIntegrationTest {
         assertThat(downgraded.getSlaDueAt()).isEqualTo(Instant.parse("2026-05-07T06:00:00Z"));
     }
 
-    private Complaint ingest(String rawText) {
-        return ingestAt(rawText, MIDDAY);
+    private Complaint ingest(String rawText, String reportedDomain) {
+        return ingestAt(rawText, reportedDomain, MIDDAY);
     }
 
-    private Complaint ingestAt(String rawText, Instant reportedAt) {
+    private Complaint ingestAt(String rawText, String reportedDomain, Instant reportedAt) {
         IngestedComplaint ingested =
                 intake.record(
-                        new NewComplaint(rawText, reportedAt, null, null, null, null, "214", null));
+                        new NewComplaint(
+                                rawText, reportedAt, null, null, null, null, "214", reportedDomain, null));
         return complaints.findById(ingested.id()).orElseThrow();
     }
 

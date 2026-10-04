@@ -43,7 +43,7 @@ public class AttenderDispatcher {
     private final FloorAssignmentRepository coverage;
     private final FloorRepository floors;
     private final AttenderWorkloadService workloads;
-    private final DispatchPolicy policy;
+    private final DispatchSettings settings;
 
     AttenderDispatcher(
             AttenderDirectory attenders,
@@ -51,13 +51,13 @@ public class AttenderDispatcher {
             FloorAssignmentRepository coverage,
             FloorRepository floors,
             AttenderWorkloadService workloads,
-            DispatchPolicy policy) {
+            DispatchSettings settings) {
         this.attenders = attenders;
         this.availability = availability;
         this.coverage = coverage;
         this.floors = floors;
         this.workloads = workloads;
-        this.policy = policy;
+        this.settings = settings;
     }
 
     /**
@@ -72,6 +72,9 @@ public class AttenderDispatcher {
      */
     public Optional<DispatchResult> choose(long floorId, Set<Long> alreadyAssigned) {
         Instant now = Instant.now();
+        // Read once per dispatch, so every candidate is scored by the same weights even if the
+        // manager presses Save halfway through a poll.
+        DispatchPolicy policy = settings.policy();
         int floorNumber =
                 floors.findById(floorId).orElseThrow().getFloorNumber();
         Map<Long, List<FloorAssignment>> covered = coverageByAttender();
@@ -85,7 +88,7 @@ public class AttenderDispatcher {
                     candidate(attenderId, covered.getOrDefault(attenderId, List.of()), floorId, floorNumber, now));
         }
 
-        return policy.decide(eligible).map(this::toResult);
+        return policy.decide(eligible).map(decision -> toResult(decision, policy));
     }
 
     /**
@@ -154,7 +157,7 @@ public class AttenderDispatcher {
      * read months later to answer "why did Ravi get this?", and a log that the thing being logged
      * can write is worth nothing.
      */
-    private DispatchResult toResult(DispatchDecision decision) {
+    private DispatchResult toResult(DispatchDecision decision, DispatchPolicy policy) {
         String snapshot =
                 AuditDetail.of("chosen", decision.attenderId())
                         .and("score", decision.score())

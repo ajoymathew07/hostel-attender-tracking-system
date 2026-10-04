@@ -3,8 +3,6 @@ package in.ac.iitm.hostel.duty.workflow.application;
 import in.ac.iitm.hostel.duty.audit.application.AuditDetail;
 import in.ac.iitm.hostel.duty.audit.application.AuditEntry;
 import in.ac.iitm.hostel.duty.audit.application.AuditTrail;
-import in.ac.iitm.hostel.duty.categorization.application.Classification;
-import in.ac.iitm.hostel.duty.categorization.application.ComplaintClassifier;
 import in.ac.iitm.hostel.duty.dispatch.application.FloorLocator;
 import in.ac.iitm.hostel.duty.identity.application.CurrentUser;
 import in.ac.iitm.hostel.duty.workflow.domain.ClassificationMethod;
@@ -16,29 +14,32 @@ import in.ac.iitm.hostel.duty.workflow.domain.SafetyKeywords;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintReferenceGenerator;
 import in.ac.iitm.hostel.duty.workflow.infrastructure.ComplaintRepository;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Creates a complaint from an ingested row — transition T1 (section 4.2), whose side-effect column
- * reads "Create complaint, classify".
+ * Creates a complaint from an ingested row — transition T1 (section 4.2).
  *
- * <p><strong>This is the one place classification happens.</strong> Both sources reconcile through
- * {@code SourceRowIngestor}, which calls this and nothing else of workflow (section 5.8), so the
- * CSV fallback and the Sheets poller are classified by the same call — there is no second path to
- * keep in step.
+ * <p><strong>The resident says which domain it is.</strong> The Form asks — Civil, Electrical,
+ * LAN, RO or Others — and {@link ComplaintDomain#reported} turns that answer into the enum. There
+ * is no classifier: a resident choosing from five options is better evidence than a term list
+ * inferring from their prose, and the inference was never free — it cost a lexicon table, a
+ * fuzzy matcher, two thresholds and a gold set to measure whether any of it worked.
  *
- * <p>What the lexicon could not place stays {@link ComplaintDomain#UNCLASSIFIED} with
- * {@link ClassificationMethod#FALLBACK}. This class writes the domain and the floor; where the
- * complaint goes next is {@link AutoDispatchService}'s fork between T2 and T3, and the state move
- * itself is {@link WorkflowService}'s, the only write path to {@code complaint.status} (section
- * 4.1).
+ * <p>What that machinery bought is still here, unchanged, because it was never really about the
+ * lexicon: a complaint whose domain nobody has settled goes to {@code TRIAGE} with a reason and a
+ * manager places it in one click. "Others" is a resident saying they do not know, and an
+ * unanswered question is the same thing more quietly — both land in the same queue.
  *
- * <p>The floor is derived here because section 5.4 derives it here: the room number is an
+ * <p><strong>This is the one place a domain is read from a form.</strong> Both sources reconcile
+ * through {@code SourceRowIngestor}, which calls this and nothing else of workflow (section 5.8),
+ * so the CSV fallback and the Sheets poller behave identically — there is no second path to keep
+ * in step.
+ *
+ * <p>The floor is derived here too, because section 5.4 derives it here: the room number is an
  * ingestion field, and what it means as a location is a question for the dispatch module, which
- * {@link FloorLocator} answers. A room that maps to nothing leaves {@code floor_id} null, and the
+ * {@link FloorLocator} answers. A room that maps to nothing leaves {@code floor_id} null and the
  * complaint goes to triage rather than being dispatched on a guess.
  *
  * <p>Base priority and the SLA due date are T1's remaining side effects (section 4.5).
@@ -48,8 +49,8 @@ import org.springframework.transaction.annotation.Transactional;
  * {@code UNCLASSIFIED} complaint has no target yet and gets one when a manager sets its domain.
  *
  * <p>{@code @Transactional} with the default propagation, so this <em>joins</em> the caller's
- * per-row transaction: the complaint, its source row and the audit entry commit together or not at
- * all.
+ * per-row transaction: the complaint, its source row, the dispatch decision and the audit entry
+ * commit together or not at all.
  */
 @Service
 @Transactional
@@ -60,7 +61,6 @@ class DefaultComplaintIntake implements ComplaintIntake {
     private final ComplaintRepository complaints;
     private final ComplaintReferenceGenerator references;
     private final AuditTrail audit;
-    private final ComplaintClassifier classifier;
     private final SlaClock sla;
     private final FloorLocator floors;
     private final AutoDispatchService dispatch;
@@ -69,14 +69,12 @@ class DefaultComplaintIntake implements ComplaintIntake {
             ComplaintRepository complaints,
             ComplaintReferenceGenerator references,
             AuditTrail audit,
-            ComplaintClassifier classifier,
             SlaClock sla,
             FloorLocator floors,
             AutoDispatchService dispatch) {
         this.complaints = complaints;
         this.references = references;
         this.audit = audit;
-        this.classifier = classifier;
         this.sla = sla;
         this.floors = floors;
         this.dispatch = dispatch;
@@ -87,8 +85,7 @@ class DefaultComplaintIntake implements ComplaintIntake {
         Instant now = Instant.now();
         String publicRef = references.next(command.reportedAt());
 
-        Classification classification = classifier.classify(command.rawText());
-        ComplaintDomain domain = domainOf(classification);
+        ComplaintDomain domain = ComplaintDomain.reported(command.reportedDomain());
 
         Complaint complaint =
                 new Complaint(
@@ -97,13 +94,10 @@ class DefaultComplaintIntake implements ComplaintIntake {
                         command.reportedAt(),
                         domain,
                         domain.isDispatchable()
-                                ? ClassificationMethod.RULES
+                                ? ClassificationMethod.REPORTED
                                 : ClassificationMethod.FALLBACK,
                         SafetyKeywords.basePriorityFor(command.rawText()),
                         now);
-        // Stored whether or not the gate accepted it: section 12.3 measures accuracy over the
-        // accepted subset and coverage over the rest, so the rejected items need their number too.
-        complaint.recordClassifierConfidence(classification.confidence());
         complaint.recordReporter(
                 command.reporterName(),
                 command.reporterRollNo(),
@@ -118,6 +112,8 @@ class DefaultComplaintIntake implements ComplaintIntake {
 
         // The detail names the reference and the row, never the reporter: audit rows are kept
         // indefinitely, which is precisely what section 11.4's retention limits exist to bound.
+        // The resident's own answer is recorded verbatim beside what it was read as, so a Form
+        // option nobody mapped shows up as a run of triaged complaints with the answer on them.
         audit.record(
                 new AuditEntry(
                         now,
@@ -132,8 +128,8 @@ class DefaultComplaintIntake implements ComplaintIntake {
                                 .and("sourceRowId", command.sourceRowId())
                                 .and("roomKnown", command.reporterRoom() != null)
                                 .and("floorId", saved.getFloorId())
+                                .and("reportedDomain", command.reportedDomain())
                                 .and("domain", domain.name())
-                                .and("confidence", classification.confidence())
                                 .and("priority", saved.getPriority().name())
                                 .and("slaDueAt", Objects.toString(saved.getSlaDueAt(), null))
                                 .json(),
@@ -143,19 +139,5 @@ class DefaultComplaintIntake implements ComplaintIntake {
         dispatch.dispatch(saved);
 
         return new IngestedComplaint(saved.getId(), publicRef);
-    }
-
-    /**
-     * The lexicon's domain name, as a {@link ComplaintDomain}.
-     *
-     * <p>{@code category_term.domain} is a manager-editable string with no CHECK constraint behind
-     * it, so a typo is a value this enum has never heard of. An unknown name routes to triage,
-     * which is where an uncertain complaint belongs anyway — it does not stop the ingestion run.
-     */
-    private static ComplaintDomain domainOf(Classification classification) {
-        return Arrays.stream(ComplaintDomain.values())
-                .filter(candidate -> candidate.name().equals(classification.domain()))
-                .findFirst()
-                .orElse(ComplaintDomain.UNCLASSIFIED);
     }
 }

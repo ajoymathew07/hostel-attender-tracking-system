@@ -214,7 +214,7 @@ class RowNormalizerTest {
         assertThat(normalized.reporterRollNo()).isNull();
         assertThat(normalized.reporterPhone()).isNull();
         assertThat(normalized.reporterContact()).isNull();
-        assertThat(normalized.categoryHint()).isNull();
+        assertThat(normalized.reportedDomain()).isNull();
     }
 
     @Test
@@ -236,7 +236,7 @@ class RowNormalizerTest {
         Map<SourceField, String> fields = minimal();
         fields.put(SourceField.CATEGORY, "Electrical");
 
-        assertThat(NORMALIZER.normalize(row(fields)).categoryHint()).isEqualTo("Electrical");
+        assertThat(NORMALIZER.normalize(row(fields)).reportedDomain()).isEqualTo("Electrical");
     }
 
     @Test

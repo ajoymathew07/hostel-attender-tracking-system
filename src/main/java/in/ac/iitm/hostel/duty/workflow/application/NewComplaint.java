@@ -18,6 +18,8 @@ import java.util.Objects;
  * @param reporterPhone optional
  * @param reporterContact the resident's email; purged after 90 days (NFR-9)
  * @param reporterRoom the room number, or {@code null} — unmapped routes to triage
+ * @param reportedDomain the category the resident chose on the form; anything we do not
+ *     recognise, including "Others" and a blank, routes to triage
  * @param sourceRowId the observed row this complaint came from
  */
 public record NewComplaint(
@@ -28,6 +30,7 @@ public record NewComplaint(
         String reporterPhone,
         String reporterContact,
         String reporterRoom,
+        String reportedDomain,
         Long sourceRowId) {
 
     public NewComplaint {

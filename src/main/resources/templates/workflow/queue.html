@@ -17,7 +17,13 @@
   <head th:replace="~{layout/shell :: head('My queue')}">
     <title>My queue · Hostel Duty Tracker</title>
   </head>
-  <body class="min-h-screen bg-slate-50 text-slate-900">
+  <!--
+    The queue refreshes itself, so an attender who leaves the page open sees work the dispatcher
+    gave them without pulling to reload. Every 60 seconds rather than the dashboard's 30: a phone
+    on hostel wifi pays for each one, and a new task is not something they are watching for
+    second by second.
+  -->
+  <body class="min-h-screen bg-slate-50 text-slate-900" data-refresh-seconds="60">
     <header th:replace="~{layout/shell :: mobileBar('My queue')}"></header>
 
     <main id="main" class="mx-auto max-w-lg px-4 py-4">
@@ -104,5 +110,6 @@
 
       <footer th:replace="~{layout/shell :: mobileFooter}"></footer>
     </main>
+    <script th:src="@{/js/auto-refresh.js}" defer></script>
   </body>
 </html>

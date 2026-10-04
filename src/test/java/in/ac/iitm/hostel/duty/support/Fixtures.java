@@ -108,7 +108,7 @@ public final class Fixtures {
                 "No water in the bathroom since morning",
                 Instant.parse("2026-02-01T05:30:00Z"),
                 ComplaintDomain.RO_PLANT,
-                ClassificationMethod.RULES,
+                ClassificationMethod.REPORTED,
                 Priority.P2,
                 Instant.parse("2026-02-01T06:03:00Z"));
     }

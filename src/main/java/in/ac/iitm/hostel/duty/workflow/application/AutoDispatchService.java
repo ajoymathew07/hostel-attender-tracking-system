@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Three reasons send a complaint to triage, and each is a row of section 6.4's table:
  *
  * <ul>
- *   <li>{@code UNCLASSIFIED} — the classifier could not place it, so there is no domain to dispatch
+ *   <li>{@code UNCLASSIFIED} — the resident answered "Others" or nothing, so there is no domain to dispatch
  *       on and the heuristic is never consulted;
  *   <li>{@code UNMAPPED_LOCATION} — the room number is unreadable, and dispatching on a location we
  *       could not read is worse than asking;
@@ -49,7 +49,7 @@ public class AutoDispatchService {
 
     /** T3's "record triage reason", one sentence per row of section 6.4. */
     private static final String UNCLASSIFIED =
-            "the classifier could not place this complaint confidently";
+            "the resident did not say which kind of problem this is";
 
     private static final String UNMAPPED_LOCATION =
             "the room number could not be mapped to a floor, so dispatch had nowhere to send it";

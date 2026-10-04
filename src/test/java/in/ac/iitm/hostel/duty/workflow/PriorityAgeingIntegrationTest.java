@@ -185,7 +185,7 @@ class PriorityAgeingIntegrationTest extends AbstractIntegrationTest {
                         "Tube light flickering in the common room",
                         reportedAt,
                         ComplaintDomain.ELECTRICAL,
-                        ClassificationMethod.RULES,
+                        ClassificationMethod.REPORTED,
                         basePriority,
                         reportedAt);
         complaint.scheduleSla(Instant.now().minus(ago));

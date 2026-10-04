@@ -3,18 +3,18 @@ package in.ac.iitm.hostel.duty.workflow.domain;
 /**
  * How a complaint's domain was decided (data model section 3.5).
  *
- * <p>Stored alongside the raw text and a confidence score, never in place of them, so a
- * misclassification is always recoverable and the gold-set evaluation can be re-run over real data
- * (test plan section 12.3).
+ * <p>Stored alongside the raw text rather than in place of it, so a complaint filed under the
+ * wrong heading is always recoverable: the manager can see what the resident actually wrote and
+ * correct the domain from triage.
  */
 public enum ClassificationMethod {
 
-    /** The weighted lexicon cleared its confidence gate. */
-    RULES,
+    /** The resident chose it on the form. */
+    REPORTED,
 
     /** A manager set the domain from the triage queue. */
     MANUAL,
 
-    /** Nothing cleared the gate; the complaint went to triage as UNCLASSIFIED. */
+    /** The resident chose "Others", or chose nothing; the complaint went to triage. */
     FALLBACK
 }
