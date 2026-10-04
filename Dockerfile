@@ -23,4 +23,18 @@ ENV SPRING_PROFILES_ACTIVE=cloud
 # falls back to 8080, which is what the standby jar on the manager's desktop uses.
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+# Two startup flags, and nothing more. A free instance sleeps after fifteen minutes and takes over
+# two minutes to come back (§2.5, NFR-6), and almost all of that is a JVM doing class loading and
+# proxy generation on a fraction of a CPU. Neither flag changes behaviour; both trade something
+# this system does not need for startup time it does.
+#
+#   TieredStopAtLevel=1  Stops the JIT at C1. Peak throughput drops, which is irrelevant for eight
+#                        users, and warmup gets shorter, which is the whole cost of a cold start.
+#   MaxRAMPercentage=60  The default is 25%, so a 512 MB instance would cap the heap at 128 MB and
+#                        leave the rest unused while garbage collection thrashes through Hibernate's
+#                        startup. 60% is 307 MB, which leaves ~200 MB for metaspace, code cache and
+#                        stacks — 75% would not, and the instance would be OOM-killed instead.
+#
+# UseSerialGC is deliberately absent: the JVM already chooses it unaided on a container this small,
+# so writing it down would state a default rather than change one.
+ENTRYPOINT ["java", "-XX:TieredStopAtLevel=1", "-XX:MaxRAMPercentage=60", "-jar", "/app/app.jar"]
