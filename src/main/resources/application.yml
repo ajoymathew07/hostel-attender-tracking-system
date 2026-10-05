@@ -143,14 +143,17 @@ workflow:
   sla:
     # OQ-6's working answer. The SLA figures below are spent only inside this window, so a
     # complaint submitted at 23:00 does not burn four hours of its window overnight while nobody
-    # is on duty. Seven days a week, which is why `non-working-days` is empty rather than absent:
-    # a hostel does not close on Sunday. Both lists exist because section 4.5 names weekends and
-    # holidays as part of what a manager may set.
+    # is on duty. Monday to Friday: the hostel's maintenance staff do not work the weekend, and a
+    # complaint raised on Saturday morning should not spend its whole window before anyone is back.
+    # Saturday is in fact a half day; that is deliberately not modelled yet, because a calendar
+    # that closes at noon on one day needs a per-day end time rather than the one `end` below.
+    # Both lists exist because section 4.5 names weekends and holidays as part of what a manager
+    # may set.
     working-day:
       zone: Asia/Kolkata
       start: "08:00"
       end: "20:00"
-      non-working-days: []
+      non-working-days: [SATURDAY, SUNDAY]
       holidays: []
 
     # Section 8.2's table, in working hours. Section 4.5 states the same figures more coarsely
