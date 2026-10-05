@@ -28,9 +28,13 @@ import org.springframework.security.test.context.support.WithMockUser;
  * so what is asserted is what a real ingested row gets rather than what a hand-built aggregate can
  * be given.
  *
- * <p>All complaints are reported at {@code 2026-05-01T06:00:00Z}, which is <strong>11:30 IST</strong>
- * — the middle of OQ-6's 08:00–20:00 working day — so the figures below are the table's windows and
- * nothing else. The overnight case is the one test that starts outside the window.
+ * <p>All complaints are reported at {@code 2026-05-01T06:00:00Z}, which is <strong>11:30 IST on a
+ * Friday</strong> — the middle of OQ-6's 08:00–20:00 working day. The day is deliberately a Friday:
+ * the working week is Monday to Friday, so every window longer than the 8.5 hours left in that day
+ * runs into the weekend and has to skip it. The figures below are therefore the table's windows
+ * <em>and</em> proof that Saturday and Sunday cost the attender nothing.
+ *
+ * <p>The overnight case is the one test that starts outside the window.
  */
 @SpringBootTest
 @WithMockUser(roles = "MANAGER")
@@ -77,34 +81,37 @@ class SlaScheduleIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("the due date matches section 8.2's table for the complaint's domain and priority")
     void theDueDateMatchesTheTable() {
-        // RO Plant P2, 12 working hours: 8.5 left on 1 May, then 3.5 from 08:00 on 2 May.
+        // RO Plant P2, 12 working hours: 8.5 left on Friday 1 May, the weekend skipped, then 3.5
+        // from 08:00 on Monday 4 May.
         assertThat(ingest("The water purifier on the second floor is broken", "RO"))
                 .satisfies(complaint -> assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.RO_PLANT))
                 .satisfies(
                         complaint ->
                                 assertThat(complaint.getSlaDueAt())
-                                        .isEqualTo(Instant.parse("2026-05-02T06:00:00Z")));
+                                        .isEqualTo(Instant.parse("2026-05-04T06:00:00Z")));
 
-        // Civil P2, 24 working hours: two full working days beyond the 8.5 left on the first.
+        // Civil P2, 24 working hours: 8.5 left on Friday, a full Monday, then 3.5 on Tuesday —
+        // two working days beyond the first, with the weekend in between costing nothing.
         assertThat(ingest("Water leaking from the bathroom ceiling", "Civil"))
                 .satisfies(complaint -> assertThat(complaint.getDomain()).isEqualTo(ComplaintDomain.CIVIL))
                 .satisfies(
                         complaint ->
                                 assertThat(complaint.getSlaDueAt())
-                                        .isEqualTo(Instant.parse("2026-05-03T06:00:00Z")));
+                                        .isEqualTo(Instant.parse("2026-05-05T06:00:00Z")));
     }
 
     @Test
     @DisplayName("an overnight complaint does not burn its SLA while nobody is on duty")
     void anOvernightComplaintDoesNotBurnItsSla() {
-        // 23:30 IST on 1 May. Wall-clock arithmetic would have this due at 07:30 the next morning,
-        // before the working day starts and before anybody could have acted on it.
+        // 23:30 IST on Friday 1 May. Wall-clock arithmetic would have this due at 07:30 the next
+        // morning — before the working day starts, and on a Saturday, so doubly before anybody
+        // could have acted on it.
         Complaint complaint =
                 ingestAt("Tube light flickering in the common room", "Electrical", Instant.parse("2026-05-01T18:00:00Z"));
 
         assertThat(complaint.getSlaDueAt())
-                .describedAs("the clock starts at 08:00 IST and runs 8 working hours to 16:00 IST")
-                .isEqualTo(Instant.parse("2026-05-02T10:30:00Z"));
+                .describedAs("the clock starts at 08:00 IST on Monday and runs 8 working hours to 16:00 IST")
+                .isEqualTo(Instant.parse("2026-05-04T10:30:00Z"));
     }
 
     @Test
@@ -136,8 +143,9 @@ class SlaScheduleIntegrationTest extends AbstractIntegrationTest {
         assertThat(downgraded.getBasePriority())
                 .describedAs("a judgement about the work, so the base moves too and aging can raise it")
                 .isEqualTo(Priority.P3);
-        // 72 working hours at 12 a day: 8.5 on 1 May, five full days, 3.5 on 7 May.
-        assertThat(downgraded.getSlaDueAt()).isEqualTo(Instant.parse("2026-05-07T06:00:00Z"));
+        // 72 working hours at 12 a day: 8.5 on Friday 1 May, five full working days (4–8 May),
+        // then 3.5 on Monday 11 May. Two weekends are skipped on the way.
+        assertThat(downgraded.getSlaDueAt()).isEqualTo(Instant.parse("2026-05-11T06:00:00Z"));
     }
 
     private Complaint ingest(String rawText, String reportedDomain) {

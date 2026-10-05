@@ -94,9 +94,9 @@
       <section class="mt-6 bg-white border rounded-lg shadow-sm p-6" aria-labelledby="upload-heading">
         <h1 id="upload-heading" class="text-xl font-semibold text-slate-900">Upload responses</h1>
         <p class="mt-1 text-sm text-slate-600">
-          The offline fallback for when the Google Sheet cannot be read. Export the response sheet
-          as CSV and upload it here. Uploading the same file twice is safe — a response that is
-          already held is recognised and skipped, so nothing is duplicated.
+          Use this if complaints have stopped arriving on their own. Open the response sheet,
+          download it as a CSV, and upload it here — the complaints in it will appear in the list
+          below. Anything already in the system is left alone.
         </p>
 
         <form
@@ -433,7 +433,7 @@
         </div>
       </section>
 
-      <footer th:replace="~{layout/shell :: footer}"></footer>
+      <footer th:replace="~{layout/shell :: pageFooter}"></footer>
     </main>
       <script th:src="@{/js/auto-refresh.js}" defer></script>
   </body>
