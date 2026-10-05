@@ -24,8 +24,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  * is saved by the module that understands it, so this class validates nothing itself — it
  * converts form fields into the services' own vocabulary and lets them refuse.
  *
- * <p>Not editable here, and deliberately: the floor-proximity table, whose values only mean
- * anything in relation to each other.
+ * <p>The floor-proximity table is not here and not editable: only the order of its values means
+ * anything, so a manager changing one number in isolation would make the scoring worse rather
+ * than different.
  */
 @Controller
 @PreAuthorize("hasRole('MANAGER')")
@@ -75,7 +76,6 @@ class SettingsController {
         model.addAttribute("domains", configuration.domains());
         model.addAttribute("priorities", configuration.priorities());
         model.addAttribute("zone", configuration.zone());
-        model.addAttribute("proximity", dispatch.proximity());
         return VIEW;
     }
 
