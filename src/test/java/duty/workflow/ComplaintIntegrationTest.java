@@ -1,0 +1,238 @@
+package duty.workflow;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import duty.dispatch.domain.Floor;
+import duty.dispatch.infrastructure.FloorRepository;
+import duty.identity.infrastructure.AppUserRepository;
+import duty.support.AbstractIntegrationTest;
+import duty.support.Fixtures;
+import duty.workflow.domain.ClassificationMethod;
+import duty.workflow.domain.Complaint;
+import duty.workflow.domain.ComplaintDomain;
+import duty.workflow.domain.ComplaintStatus;
+import duty.workflow.domain.Priority;
+import duty.workflow.infrastructure.ComplaintRepository;
+import java.time.Instant;
+import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
+
+/**
+ * The complaint entity and the rules its columns enforce: docket, base/current priority and
+ * retention.
+ */
+@SpringBootTest
+class ComplaintIntegrationTest extends AbstractIntegrationTest {
+
+    @Autowired private ComplaintRepository complaints;
+    @Autowired private FloorRepository floors;
+    @Autowired private AppUserRepository users;
+
+    @Test
+    @DisplayName("uq_complaint_ref: the human-facing reference is unique")
+    void publicRefIsUnique() {
+        Complaint first = complaints.saveAndFlush(Fixtures.complaint());
+
+        Complaint clash =
+                new Complaint(
+                        first.getPublicRef(),
+                        "Another complaint entirely",
+                        Instant.parse("2026-02-02T05:30:00Z"),
+                        ComplaintDomain.CIVIL,
+                        ClassificationMethod.REPORTED,
+                        Priority.P3,
+                        Instant.parse("2026-02-02T06:00:00Z"));
+
+        assertThatThrownBy(() -> complaints.saveAndFlush(clash))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(complaints.findByPublicRef(first.getPublicRef())).isPresent();
+    }
+
+    @Test
+    @DisplayName("the docket gate: no docket, no resolve — T11 and T14, E15")
+    void docketGateGuardsResolution() {
+        Complaint complaint = complaints.saveAndFlush(Fixtures.complaint());
+        Long filedBy = users.saveAndFlush(Fixtures.attender()).getId();
+
+        assertThat(complaint.hasDocket())
+                .describedAs("you cannot collect +2 for work never filed with the Engineering Unit")
+                .isFalse();
+
+        complaint.recordDocket("EU/2026/00471", filedBy, Instant.parse("2026-02-02T11:00:00Z"));
+        complaints.saveAndFlush(complaint);
+
+        Complaint reloaded = complaints.findById(complaint.getId()).orElseThrow();
+        assertThat(reloaded.hasDocket()).isTrue();
+        assertThat(reloaded.getDocketNo()).isEqualTo("EU/2026/00471");
+        assertThat(reloaded.getDocketFiledBy()).isEqualTo(filedBy);
+        assertThat(reloaded.getDocketFiledAt()).isEqualTo(Instant.parse("2026-02-02T11:00:00Z"));
+        assertThat(complaints.findByDocketNo("EU/2026/00471")).isPresent();
+    }
+
+    @Test
+    @DisplayName("a mistyped docket is corrected in place; the audit log keeps both values — E17")
+    void docketCanBeCorrected() {
+        Complaint complaint = complaints.saveAndFlush(Fixtures.complaint());
+        Long filedBy = users.saveAndFlush(Fixtures.attender()).getId();
+
+        complaint.recordDocket("EU/2026/00471", filedBy, Instant.parse("2026-02-02T11:00:00Z"));
+        complaint.recordDocket("EU/2026/00417", filedBy, Instant.parse("2026-02-02T11:02:00Z"));
+        complaints.saveAndFlush(complaint);
+
+        assertThat(complaints.findById(complaint.getId()).orElseThrow().getDocketNo())
+                .describedAs("three columns, not a history table — the audit log holds the old value")
+                .isEqualTo("EU/2026/00417");
+    }
+
+    @Test
+    @DisplayName("priority ages upward and stops at P1, while base_priority is preserved")
+    void priorityAgesButBaseIsKept() {
+        Complaint complaint =
+                complaints.saveAndFlush(
+                        new Complaint(
+                                Fixtures.unique("CAU-2026"),
+                                "Tube light flickering",
+                                Instant.parse("2026-02-01T05:30:00Z"),
+                                ComplaintDomain.ELECTRICAL,
+                                ClassificationMethod.REPORTED,
+                                Priority.P3,
+                                Instant.parse("2026-02-01T06:00:00Z")));
+
+        assertThat(complaint.getPriority()).isEqualTo(Priority.P3);
+
+        complaint.escalatePriority(Instant.parse("2026-02-04T06:00:00Z"));
+        assertThat(complaint.getPriority()).isEqualTo(Priority.P2);
+
+        complaint.escalatePriority(Instant.parse("2026-02-07T06:00:00Z"));
+        assertThat(complaint.getPriority()).isEqualTo(Priority.P1);
+
+        complaint.escalatePriority(Instant.parse("2026-02-10T06:00:00Z"));
+        assertThat(complaint.getPriority()).describedAs("capped at P1").isEqualTo(Priority.P1);
+
+        complaints.saveAndFlush(complaint);
+        Complaint reloaded = complaints.findById(complaint.getId()).orElseThrow();
+        assertThat(reloaded.getBasePriority())
+                .describedAs("so the dashboard can show \"P1 (aged from P3)\"")
+                .isEqualTo(Priority.P3);
+    }
+
+    @Test
+    @DisplayName("the due date and the status together select the sweep's candidates")
+    void slaColumnsDriveTheSweep() {
+        Complaint complaint = complaints.saveAndFlush(Fixtures.complaint());
+        complaint.scheduleSla(Instant.parse("2026-02-01T14:00:00Z"));
+        complaint = complaints.saveAndFlush(complaint);
+        Instant afterTheDueDate = Instant.parse("2026-02-01T15:00:00Z");
+
+        assertThat(complaints.findByStatusInAndSlaDueAtBefore(List.of(ComplaintStatus.NEW), afterTheDueDate))
+                .extracting(Complaint::getId)
+                .contains(complaint.getId());
+
+        // Still a candidate once flagged: an escalation is one step, and the next step is due
+        // later (section 4.5). It is the status, not the flag, that takes a complaint out.
+        complaint.markSlaBreached();
+        complaint.moveTo(ComplaintStatus.ON_HOLD, afterTheDueDate);
+        complaints.saveAndFlush(complaint);
+
+        assertThat(complaints.findByStatusInAndSlaDueAtBefore(List.of(ComplaintStatus.NEW), afterTheDueDate))
+                .describedAs("hold time does not count toward the SLA, so a held complaint is skipped")
+                .extracting(Complaint::getId)
+                .doesNotContain(complaint.getId());
+    }
+
+    @Test
+    @DisplayName("a manager classifying from triage sets the domain and records that it was MANUAL — T4")
+    void manualClassificationReplacesWhatTheResidentSaid() {
+        Complaint complaint =
+                complaints.saveAndFlush(
+                        new Complaint(
+                                Fixtures.unique("CAU-2026"),
+                                "thanni varala",
+                                Instant.parse("2026-02-01T05:30:00Z"),
+                                ComplaintDomain.UNCLASSIFIED,
+                                ClassificationMethod.FALLBACK,
+                                Priority.P2,
+                                Instant.parse("2026-02-01T06:00:00Z")));
+
+        assertThat(complaint.getDomain().isDispatchable())
+                .describedAs("the resident answered Others, so nobody can be sent yet")
+                .isFalse();
+
+        complaint.classifyManually(ComplaintDomain.RO_PLANT, Instant.parse("2026-02-01T09:00:00Z"));
+        complaints.saveAndFlush(complaint);
+
+        Complaint reloaded = complaints.findById(complaint.getId()).orElseThrow();
+        assertThat(reloaded.getDomain()).isEqualTo(ComplaintDomain.RO_PLANT);
+        assertThat(reloaded.getClassifiedBy())
+                .describedAs("who decided is kept, so a manager's call is never read as the resident's")
+                .isEqualTo(ClassificationMethod.MANUAL);
+        assertThat(reloaded.getRawText())
+                .describedAs("the resident's own wording survives the correction")
+                .isEqualTo("thanni varala");
+        assertThat(reloaded.getDomain().isDispatchable()).isTrue();
+    }
+
+    @Test
+    @DisplayName("closing stamps closed_at; reaching a terminal state is recognised as terminal")
+    void closingStampsTheTime() {
+        Complaint complaint = complaints.saveAndFlush(Fixtures.complaint());
+
+        complaint.moveTo(ComplaintStatus.RESOLVED, Instant.parse("2026-02-03T10:00:00Z"));
+        assertThat(complaint.getClosedAt()).isNull();
+        assertThat(complaint.getStatus().isTerminal()).isFalse();
+
+        complaint.moveTo(ComplaintStatus.CLOSED, Instant.parse("2026-02-10T10:00:00Z"));
+        complaints.saveAndFlush(complaint);
+
+        Complaint reloaded = complaints.findById(complaint.getId()).orElseThrow();
+        assertThat(reloaded.getClosedAt()).isEqualTo(Instant.parse("2026-02-10T10:00:00Z"));
+        assertThat(reloaded.getUpdatedAt()).isEqualTo(Instant.parse("2026-02-10T10:00:00Z"));
+        assertThat(reloaded.getStatus().isTerminal()).isTrue();
+        assertThat(complaints.findByStatusOrderByReportedAtAsc(ComplaintStatus.CLOSED))
+                .extracting(Complaint::getId)
+                .contains(reloaded.getId());
+    }
+
+    @Test
+    @DisplayName("reporter details round-trip, and the retention purges of section 3.8 work")
+    void reporterDetailsAndRetention() {
+        Floor floor = floors.saveAndFlush(new Floor(Fixtures.unique("W"), 2, "Second"));
+        Complaint complaint = Fixtures.complaint();
+        complaint.recordReporter(
+                "Arun Kumar", "CS21B001", "+91-90000-00000", "resident1@example.com", "B-204");
+        complaint.locateAt(floor.getId(), "near the corridor tap");
+        complaint.linkSourceRow(null);
+        complaints.saveAndFlush(complaint);
+
+        Complaint reloaded = complaints.findById(complaint.getId()).orElseThrow();
+        assertThat(reloaded.getReporterName()).isEqualTo("Arun Kumar");
+        assertThat(reloaded.getReporterRollNo()).isEqualTo("CS21B001");
+        assertThat(reloaded.getReporterPhone()).isEqualTo("+91-90000-00000");
+        assertThat(reloaded.getReporterContact()).isEqualTo("resident1@example.com");
+        assertThat(reloaded.getReporterRoom()).isEqualTo("B-204");
+        assertThat(reloaded.getFloorId()).isEqualTo(floor.getId());
+        assertThat(reloaded.getLocationNote()).isEqualTo("near the corridor tap");
+        assertThat(reloaded.getSourceRowId()).isNull();
+        assertThat(reloaded.getRawText()).isEqualTo("No water in the bathroom since morning");
+        assertThat(reloaded.getReportedAt()).isEqualTo(Instant.parse("2026-02-01T05:30:00Z"));
+        assertThat(reloaded.getCreatedAt()).isEqualTo(Instant.parse("2026-02-01T06:03:00Z"));
+
+        // NFR-9: the resident's email is nulled after 90 days.
+        reloaded.purgeReporterContact();
+        // Raw text is replaced after a year; aggregates survive.
+        reloaded.purgeRawText();
+        complaints.saveAndFlush(reloaded);
+
+        Complaint purged = complaints.findById(complaint.getId()).orElseThrow();
+        assertThat(purged.getReporterContact()).isNull();
+        assertThat(purged.getRawText()).isEqualTo("[purged]");
+        assertThat(purged.getReporterName())
+                .describedAs("the manager keeps these for oversight; only the view expires")
+                .isEqualTo("Arun Kumar");
+    }
+}

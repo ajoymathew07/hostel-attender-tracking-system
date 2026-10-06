@@ -113,7 +113,7 @@ graph TD
 | **identity** | `...identity` | Users, roles, Google allowlist, provisioning | No self-registration; every principal is pre-provisioned |
 | **audit** | `...audit` | Append-only event log | Written in the same transaction as the change it records |
 
-**Root package:** `in.ac.iitm.hostel.duty`
+**Root package:** `duty`
 
 ## 2.4 Layering rules
 
