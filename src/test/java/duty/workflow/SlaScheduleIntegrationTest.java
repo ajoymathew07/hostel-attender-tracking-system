@@ -22,19 +22,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.test.context.support.WithMockUser;
 
 /**
- * Base priority and the initial SLA due date, as section 4.5's table gives them (transition T1).
+ * Base priority and the first SLA due date for a new complaint, created through
+ * {@link ComplaintIntake}.
  *
- * <p>Every complaint here is created through {@link ComplaintIntake}, the module's one entry point,
- * so what is asserted is what a real ingested row gets rather than what a hand-built aggregate can
- * be given.
- *
- * <p>All complaints are reported at {@code 2026-05-01T06:00:00Z}, which is <strong>11:30 IST on a
- * Friday</strong> — the middle of OQ-6's 08:00–20:00 working day. The day is deliberately a Friday:
- * the working week is Monday to Friday, so every window longer than the 8.5 hours left in that day
- * runs into the weekend and has to skip it. The figures below are therefore the table's windows
- * <em>and</em> proof that Saturday and Sunday cost the attender nothing.
- *
- * <p>The overnight case is the one test that starts outside the window.
+ * <p>Complaints are reported at 11:30 IST on a Friday, so most windows run into the weekend and prove
+ * Saturday and Sunday are skipped.
  */
 @SpringBootTest
 @WithMockUser(roles = "MANAGER")

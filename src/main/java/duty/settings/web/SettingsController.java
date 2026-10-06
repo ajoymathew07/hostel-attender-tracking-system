@@ -17,16 +17,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * {@code /settings} — the numbers the manager may change without a redeploy (section 10.4).
+ * {@code /settings}: the dispatch weights and SLA windows the manager may change.
  *
- * <p>Two modules' worth of configuration on one screen, because it is one job: the weights that
- * choose an attender (section 6.2) and the windows that decide what is late (section 8.2). Each
- * is saved by the module that understands it, so this class validates nothing itself — it
- * converts form fields into the services' own vocabulary and lets them refuse.
- *
- * <p>The floor-proximity table is not here and not editable: only the order of its values means
- * anything, so a manager changing one number in isolation would make the scoring worse rather
- * than different.
+ * <p>Validation is left to the owning services. The floor-proximity table is not editable because only
+ * the order of its values matters.
  */
 @Controller
 @PreAuthorize("hasRole('MANAGER')")
@@ -52,11 +46,8 @@ class SettingsController {
     }
 
     /**
-     * One save, or none.
-     *
-     * <p>Every section is validated before anything is written, so a working day that ends before
-     * it starts does not leave the dispatch weights already changed. The three {@code edits} calls
-     * refuse; {@code store.save} is the single transaction that commits.
+     * Validates every section first, then saves everything in one transaction, so a bad value changes
+     * nothing.
      */
     @PostMapping("/settings")
     String save(@ModelAttribute("form") SettingsForm form, RedirectAttributes flash) {
@@ -93,12 +84,7 @@ class SettingsController {
         return form;
     }
 
-    /**
-     * A refused value is a sentence on the screen, not a stack trace (section 11.6).
-     *
-     * <p>Each service states its own refusal — weights that do not sum to 1, a working day that
-     * ends before it starts — because each knows why the number matters.
-     */
+    /** Shows a refused value as a message on the screen instead of an error page. */
     @ExceptionHandler(IllegalArgumentException.class)
     String refused(IllegalArgumentException refusal, RedirectAttributes flash) {
         flash.addFlashAttribute("error", "Nothing was saved: " + refusal.getMessage());

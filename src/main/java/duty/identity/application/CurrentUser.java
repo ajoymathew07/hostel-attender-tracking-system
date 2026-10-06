@@ -5,15 +5,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * Who is acting, read from the security context.
+ * Who is acting, read from the security context so it need not be passed through every method.
  *
- * <p>Every audited change needs an actor and every ownership check needs a user id (sections 11.3,
- * 11.7). Threading the principal through every method signature from the controller down would be
- * noise, so it is read here — the same shape as {@code CorrelationId} in the audit module.
- *
- * <p>Returns {@link Optional#empty()} rather than throwing when nobody is signed in: scheduled
- * jobs and ingestion runs legitimately act with no principal, and they record {@code actor_id =
- * null}, meaning the system acted.
+ * <p>Empty when nobody is signed in: scheduled jobs and ingestion act as the system.
  */
 public final class CurrentUser {
 

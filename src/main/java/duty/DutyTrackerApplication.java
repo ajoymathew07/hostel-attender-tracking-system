@@ -3,12 +3,7 @@ package duty;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-/**
- * Entry point of the modular monolith (architecture section 2.1).
- *
- * <p>Component scanning starts at this package, so every module under
- * {@code duty} is part of the one deployable jar.
- */
+/** The Spring Boot entry point. Component scanning starts here, so it covers every module. */
 @SpringBootApplication
 public class DutyTrackerApplication {
 

@@ -27,13 +27,7 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * The attender's phone at the HTTP edge (sections 10.2, 10.4).
- *
- * <p>The ownership rule is proved at the service layer in {@code AttenderQueueIntegrationTest};
- * what this class adds is that the two routes exist, render, and that the refusal reaches the
- * browser as a 403 rather than a rendered page belonging to someone else.
- */
+/** The attender's pages render, and someone else's task returns a 403. */
 @SpringBootTest
 @AutoConfigureMockMvc
 class AttenderQueueControllerIntegrationTest extends AbstractIntegrationTest {

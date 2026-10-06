@@ -9,12 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * Observed source rows (data model section 3.5).
- *
- * <p>The by-identity lookup below is the fast path of delta detection, but it is not the guarantee:
- * a check-then-insert is itself a race, so correctness rests on {@code uq_source_row}. A concurrent
- * second run that slips past the lookup still fails at the constraint, which is exactly the
- * behaviour test plan X6 asserts.
+ * Observed source rows. The lookup by identity is a fast path; the unique constraint is what really
+ * prevents duplicates.
  */
 public interface SourceRowRepository extends JpaRepository<SourceRow, Long> {
 
@@ -29,11 +25,7 @@ public interface SourceRowRepository extends JpaRepository<SourceRow, Long> {
     List<SourceRow> findByComplaintIdIsNull();
 
     /**
-     * Section 5.3's watermark: the highest row index ever observed for one source.
-     *
-     * <p>Derived rather than stored. The rows we hold already state how far the sheet was read, so
-     * a separate watermark column would be a second copy of the same fact — and one that could
-     * disagree with it after a run that failed part way.
+     * The highest row index held for one source: where the next read starts.
      *
      * @return {@code null} when nothing from this source has been ingested yet
      */

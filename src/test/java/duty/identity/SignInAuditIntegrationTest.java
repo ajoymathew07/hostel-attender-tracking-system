@@ -17,14 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-/**
- * Sign-ins are audited, including the refused ones (section 11.7).
- *
- * <p>Against a real database, because the property that matters is not that a method was called but
- * that a <em>row committed</em> — and for a refusal that is the interesting case: the decision
- * throws nobody out of a transaction, so the record of the attempt survives (see {@code
- * SignInOutcome}).
- */
+/** Every sign-in is audited, including refusals, and the audit row really commits. */
 @SpringBootTest
 class SignInAuditIntegrationTest extends AbstractIntegrationTest {
 
@@ -32,7 +25,7 @@ class SignInAuditIntegrationTest extends AbstractIntegrationTest {
     @Autowired private AppUserRepository users;
     @Autowired private AuditEventRepository auditEvents;
 
-    /** Runs one sign-in attempt under its own correlation, and returns what it wrote to the log. */
+    /** Runs one sign-in under its own correlation id and returns its audit rows. */
     private List<AuditEvent> auditOf(String email, boolean emailVerified) {
         String correlation = CorrelationId.generate();
         CorrelationId.runWith(correlation, () -> signIn.admit(new OidcIdentity(email, emailVerified)));

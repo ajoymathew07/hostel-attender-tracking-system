@@ -28,16 +28,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * T12 and T13 — the SLA clock stops while the work is blocked (sections 4.5, 4.2).
- *
- * <p><strong>This is the test that protects the bottleneck analysis.</strong> Section 8 attributes
- * time to stages; if the three days a complaint spends waiting for the Engineering Unit to send a
- * plumber were counted against its SLA, that wait would be recorded as attender slowness and would
- * point the analysis at exactly the wrong stage.
- *
- * <p>The complaint is walked to {@code IN_PROGRESS} through the real transitions rather than forced
- * there, because the point is that the pause and the resume are the table's side effects — reached
- * only through {@link WorkflowService}, which is the single write path (section 4.1).
+ * The SLA clock pauses while work is blocked and the due date moves by the hold time. The complaint is
+ * walked through real transitions.
  */
 @SpringBootTest
 class SlaHoldIntegrationTest extends AbstractIntegrationTest {

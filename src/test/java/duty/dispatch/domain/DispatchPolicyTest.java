@@ -8,11 +8,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * The heuristic itself (section 6.2), with no database and no Spring.
- *
- * <p>These assert <strong>relationships</strong> rather than exact float outputs, which is what
- * section 6.2 asks for: the weights are the manager's to tune, and a suite that pins 0.850 would
- * fail the moment anybody used the configuration screen for its purpose.
+ * The dispatch score, with no database. Asserts relationships (e.g. an overloaded primary loses to an
+ * idle secondary) rather than exact numbers, so changing weights does not break it.
  */
 class DispatchPolicyTest {
 

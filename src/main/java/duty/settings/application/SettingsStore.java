@@ -14,17 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Reading and writing the manager's overrides.
+ * Reads and writes the manager's overrides.
  *
- * <p><strong>Read-through, with no cache.</strong> A cached copy would be a second source of truth
- * for a value the design calls configuration, and the standby jar of architecture section 2.6 runs
- * against the same database from a different process — a cache in one of them would not see the
- * other's edit until a restart. The whole table is a handful of rows read once per complaint, so
- * there is nothing here worth caching.
- *
- * <p>Writing is manager-only, at the service layer (section 11.3). Reading is not: the dispatcher
- * reads these during an unauthenticated poll, and the values are thresholds rather than anyone's
- * data.
+ * <p>No cache: the table is tiny, and a cache would go stale after an edit. Writing is manager-only;
+ * reading is open because the dispatcher reads these during an unauthenticated poll.
  */
 @Service
 @Transactional(readOnly = true)
@@ -47,13 +40,7 @@ public class SettingsStore {
         return new Settings(values);
     }
 
-    /**
-     * Applies a screenful of edits, and audits each value that actually moved.
-     *
-     * <p>A value equal to what is already stored writes nothing. The audit trail is read to settle
-     * disputes about what the system was configured to do at a given moment (section 11.7), and a
-     * row per unchanged field on every save would bury the changes that matter.
-     */
+    /** Saves a screenful of edits, auditing only the values that actually changed. */
     @Transactional
     @PreAuthorize("hasRole('MANAGER')")
     public void save(Map<String, String> edits) {
@@ -77,7 +64,7 @@ public class SettingsStore {
         record(existing, previous, value, now);
     }
 
-    /** Thresholds and weights, never anyone's data — safe to keep indefinitely (section 11.4). */
+    /** Audits one changed setting. */
     private void record(Setting setting, String from, String to, Instant now) {
         audit.record(
                 new AuditEntry(

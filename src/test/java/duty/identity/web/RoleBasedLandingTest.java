@@ -11,13 +11,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
-/**
- * Where a sign-in lands (section 10.4).
- *
- * <p>Before this, every successful sign-in went to {@code /}, which is manager-only — so an
- * attender's first sight of the system was a 403. There is one login page for everyone (ADR-002)
- * but two applications behind it, and this is the seam.
- */
+/** After sign-in, a manager lands on the dashboard and an attender on their queue. */
 class RoleBasedLandingTest {
 
     private final RoleBasedLanding landing = new RoleBasedLanding();

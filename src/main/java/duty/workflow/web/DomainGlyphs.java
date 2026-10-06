@@ -4,15 +4,8 @@ import duty.workflow.domain.ComplaintDomain;
 import java.util.Map;
 
 /**
- * The domain badge's glyph, for both screens (section 10.5).
- *
- * <p>Colour is never the only signal, so a domain carries an icon and a text label as well as a
- * hue — which also covers colour-blind users, and is the difference between "recognisable at a
- * glance" and "readable if you stop and read" for the attender standing in a corridor (section
- * 10.2, rule 3).
- *
- * <p>The glyph is {@code aria-hidden} in both templates, so a screen reader announces the label
- * alone rather than an emoji's name.
+ * The icon shown on each domain badge, so colour is never the only signal. Hidden from screen readers,
+ * which read the text label.
  */
 final class DomainGlyphs {
 

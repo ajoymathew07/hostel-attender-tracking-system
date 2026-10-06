@@ -6,19 +6,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-/**
- * The "add a user" form on the provisioning screen.
- *
- * <p>A mutable bean rather than a record because Spring MVC binds an invalid submission back into
- * it field by field, so the manager's half-filled form survives a validation failure.
- */
+/** The "add a user" form. A mutable bean so Spring can bind a failed submission back into it. */
 class ProvisionUserForm {
 
     @NotBlank
     @Size(max = 128)
     private String displayName;
 
-    /** The Google account. This is the allowlist key, so it is the only thing that lets them in. */
+    /** The Google account: the allowlist key. */
     @NotBlank
     @Email
     @Size(max = 255)

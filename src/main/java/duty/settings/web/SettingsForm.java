@@ -5,14 +5,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Everything the {@code /settings} screen can change, in the shapes a form field actually has.
+ * The {@code /settings} form fields.
  *
- * <p>SLA windows are <strong>hours</strong> here rather than ISO-8601 durations. A manager setting
- * "electrical P1" types 4, not {@code PT4H}; the conversion belongs at the edge where the typing
- * happens, not in the service that stores it.
- *
- * <p>The windows are a map keyed {@code DOMAIN.PRIORITY} rather than twelve named fields, because
- * twelve named fields is twelve places to forget when a domain is added.
+ * <p>SLA windows are in hours, as the manager types them; they are converted to durations when saved.
  */
 public class SettingsForm {
 

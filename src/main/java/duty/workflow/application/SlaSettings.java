@@ -15,15 +15,11 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 
 /**
- * The SLA table and the working day, as the manager currently has them (sections 4.5, 8.2).
+ * The SLA windows and working day currently in force: YAML defaults, overridden by the settings
+ * screen.
  *
- * <p>Both sections say outright that these are configuration rather than constants and that the
- * manager sets them, and both are still open questions — OQ-2 for the targets, OQ-6 for the
- * window. The YAML holds the working answers; a row in {@code app_setting} overrides one cell.
- *
- * <p>Only the start and end of the working day are editable. The zone, the non-working days and
- * the holiday list stay in YAML: a hostel does not close on Sunday (which is why the list is
- * empty rather than absent), and a date-list editor is a screen the design never asks for.
+ * <p>Only the start and end of the working day are editable; the zone, non-working days and holidays
+ * stay in YAML.
  */
 @Service
 public class SlaSettings {
@@ -44,11 +40,7 @@ public class SlaSettings {
     }
 
     /**
-     * The table and the calendar in force.
-     *
-     * <p>Package-private, and deliberately: these return {@code workflow.domain} types, which no
-     * other module may see (architecture section 2.4, rule 3). {@link #configuration()} is the
-     * published shape.
+     * The windows in force. Package-private because it returns domain types other modules may not see.
      */
     SlaTargets targets() {
         return targetsFrom(store.current());
@@ -84,7 +76,7 @@ public class SlaSettings {
                 calendar.zone().getId());
     }
 
-    /** The screen's key for one window: {@code ELECTRICAL.P1}. */
+    /** The screen's key for one window, e.g. {@code ELECTRICAL.P1}. */
     static String cell(ComplaintDomain domain, Priority priority) {
         return domain.name() + "." + priority.name();
     }
@@ -93,7 +85,7 @@ public class SlaSettings {
         return window.toMinutes() / 60d;
     }
 
-    /** {@code workflow.sla.targets.ELECTRICAL.P1} — the same key the YAML uses. */
+    /** The settings key, e.g. {@code workflow.sla.targets.ELECTRICAL.P1}, same as the YAML. */
     private static String targetKey(ComplaintDomain domain, Priority priority) {
         return TARGET_PREFIX + cell(domain, priority);
     }
@@ -125,12 +117,8 @@ public class SlaSettings {
     }
 
     /**
-     * Validates a screenful of SLA edits and returns them as settings rows, so the screen can
-     * save every section in one transaction.
-     *
-     * <p>A window of zero or less is refused: a due date at or before the moment of report is
-     * breached the instant the complaint arrives, which would make every row on the dashboard red
-     * and the breach metric meaningless.
+     * Validates SLA edits and returns them as settings rows, so the screen can save all sections in one
+     * transaction. Refuses windows of zero or less.
      */
     public Map<String, String> edits(
             Map<String, Double> cells, LocalTime dayStart, LocalTime dayEnd) {
@@ -154,7 +142,7 @@ public class SlaSettings {
         return edits;
     }
 
-    /** A cell the table does not have is a typo in a form field, not a new SLA window. */
+    /** Rejects a key that is not in the table. */
     private static String requireCell(String cell) {
         String[] parts = cell.split("\\.");
         if (parts.length != 2) {

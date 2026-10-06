@@ -4,15 +4,10 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * The logical fields ingestion reads out of a source row (section 5.2).
+ * The fields ingestion reads from a row. Each is found by header name, never position, so reordering
+ * Form questions is safe.
  *
- * <p>Each one is resolved by <strong>header name</strong> from configuration, never by position:
- * form question wording and column order will change (OQ-4), and a positional mapping would
- * silently start reading the wrong answers the first time the manager reorders a question.
- *
- * <p>{@link #NAME}, {@link #ROLL_NO} and {@link #PHONE} are mapped because the assigned attender
- * needs to identify and reach the student (section 11.4). They are optional: a Form that does not
- * ask for them still ingests, and the attender sees the room number alone.
+ * <p>Name, roll number and phone are optional; they let the attender contact the student.
  */
 public enum SourceField {
     TIMESTAMP("timestamp"),
@@ -38,12 +33,8 @@ public enum SourceField {
     }
 
     /**
-     * Resolves a configuration key to a field, tolerating {@code rollNo}, {@code roll-no} and
-     * {@code ROLL_NO} alike.
-     *
-     * <p>The leniency is deliberate. Spring's relaxed binding does not apply to map keys, so
-     * without this a manager writing {@code roll_no} in YAML would get a silently unmapped column
-     * rather than an error.
+     * Finds a field by its YAML key, accepting {@code rollNo}, {@code roll-no} or {@code ROLL_NO}. Spring
+     * does not relax map keys, so without this a variant spelling would silently map nothing.
      */
     public static Optional<SourceField> byConfigKey(String key) {
         if (key == null) {

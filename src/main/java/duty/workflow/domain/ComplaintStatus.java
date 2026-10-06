@@ -1,10 +1,7 @@
 package duty.workflow.domain;
 
 /**
- * The complaint lifecycle of state machines section 4.2.
- *
- * <p>The column carries no CHECK constraint: the legal set is the transition table, which the
- * workflow module enforces as the only write path. This enum is the vocabulary.
+ * The complaint lifecycle states. Which moves are legal is defined by {@link ComplaintTransitions}.
  */
 public enum ComplaintStatus {
     NEW,
@@ -18,7 +15,7 @@ public enum ComplaintStatus {
     CLOSED,
     REJECTED;
 
-    /** Terminal states run no further transitions. */
+    /** Whether no further transitions are possible. */
     public boolean isTerminal() {
         return this == CLOSED || this == REJECTED;
     }

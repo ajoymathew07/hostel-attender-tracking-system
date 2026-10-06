@@ -38,18 +38,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.context.support.WithMockUser;
 
 /**
- * Sheets ingestion end to end, against real PostgreSQL (test plan section 12.1).
+ * Sheets ingestion end to end, with {@link SheetReader} stubbed instead of calling Google. The key
+ * property: polling the same rows again creates nothing.
  *
- * <p><strong>The real Sheets API is never called.</strong> {@link SheetReader} is stubbed with the
- * cell grid the API would have returned: the design says outright that what we test is our
- * reconciliation and failure handling, not Google's delivery, and a test that reached the real API
- * would need a credential in the repository — which section 11.5 forbids.
- *
- * <p>The headline property is NFR-1's: <strong>a complaint is never created twice</strong>. The
- * sheet is polled every three minutes over rows we mostly already hold, so the second pass being a
- * no-op is not an optimisation, it is the guarantee.
- *
- * <p>Student details in these fixtures are synthetic (section 11.4).
+ * <p>All student details here are made up.
  */
 @SpringBootTest(
         properties = {

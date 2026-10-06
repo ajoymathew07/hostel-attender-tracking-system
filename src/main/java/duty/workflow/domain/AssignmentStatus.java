@@ -1,6 +1,6 @@
 package duty.workflow.domain;
 
-/** The life of one attender's hold on a task (data model section 3.6). */
+/** State of one attender's hold on a task. */
 public enum AssignmentStatus {
 
     /** The attender currently owns the work. */
@@ -9,6 +9,6 @@ public enum AssignmentStatus {
     /** Handed back, or superseded by a reassignment. */
     RELEASED,
 
-    /** The attender marked their part done; the credit is keyed to this pair. */
+    /** The attender finished their part. */
     COMPLETED
 }

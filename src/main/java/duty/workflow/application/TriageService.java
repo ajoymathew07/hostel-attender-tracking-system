@@ -15,22 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The manager's one-click correction from the triage panel (sections 5.5, 10.3).
+ * The manager's one-click domain correction from the triage panel. Manager-only.
  *
- * <p>Manager-only, and the {@code @PreAuthorize} is on the service rather than only on the
- * controller (section 11.3): setting a complaint's domain is a manager capability, and a check
- * that lives in a controller is one new caller away from being bypassed.
- *
- * <p><strong>This writes the domain and not the status.</strong> The complaint stays in
- * {@code TRIAGE} until somebody is given the work, which is transition T4 and belongs to
- * {@link WorkflowService} — the only write path to {@code complaint.status} (section 4.1). The two
- * halves of T4's side-effect column are deliberately separable here because section 10.3's triage
- * card separates them: four domain buttons, and an assign control beside them. A manager who knows
- * it is electrical but not yet who should go can press one and not the other.
- *
- * <p>The correction is recorded. Section 5.7 is why it matters beyond the audit trail: every
- * triage decision is a {@code (text, human label)} pair, and enough of them are the labelled
- * corpus that would make an OpenNLP second stage viable later.
+ * <p>Sets the domain only; the complaint stays in {@code TRIAGE} until someone is assigned, so a
+ * manager can set the domain before choosing who goes. The change is audited.
  */
 @Service
 @Transactional
@@ -50,12 +38,8 @@ public class TriageService {
     }
 
     /**
-     * Sets the domain the resident did not settle, as {@code classified_by = MANUAL}.
-     *
-     * <p>The SLA due date is computed here and not at intake, because until now there was no target
-     * to compute it against: section 8.2's table has a row per domain and {@code UNCLASSIFIED} is
-     * not one of them. The window runs from {@code reportedAt} all the same — the resident should not
-     * be charged for the time the complaint spent waiting in triage, nor credited for it.
+     * Sets the domain ({@code classified_by = MANUAL}) and now computes the SLA due date, still counted
+     * from when the resident reported it.
      */
     public void classify(long complaintId, ComplaintDomain domain) {
         Complaint complaint = complaints.findById(complaintId).orElseThrow();

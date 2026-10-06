@@ -12,10 +12,8 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * One execution of the ingestion pipeline, and its tally (data model section 3.5).
- *
- * <p>A run is also the unit a {@code correlation_id} traces: every audit row written while this run
- * is in flight carries the same correlation, so "what did the 06:03 poll actually do" is one query.
+ * One run of the ingestion pipeline and its counts. All audit rows written during the run share its
+ * correlation id.
  */
 @Entity
 @Table(name = "ingestion_run")
@@ -85,21 +83,14 @@ public class IngestionRun {
     }
 
     /**
-     * Rows that could not be read, on a run that otherwise worked (section 5.3).
-     *
-     * <p>Deliberately not {@link #fail}. Each row is processed in its own transaction so that one
-     * malformed response cannot abort the run; the rows that were fine were ingested, so the run
-     * succeeded and the bad ones are recorded here. Marking such a run {@code FAILED} would train
-     * the manager to ignore the status, which is the one thing it must not do.
-     *
-     * <p>The detail is a row number and a reason, never a cell value — the cell may hold a
-     * student's name, roll number or phone number (section 11.4).
+     * Records rows that could not be read on a run that otherwise succeeded. Row numbers and reasons only,
+     * never cell values.
      */
     public void recordRowFailures(String detail) {
         this.errorDetail = detail;
     }
 
-    /** A run fails loudly — a renamed required column must not pass silently (test plan E12). */
+    /** Marks the run failed, e.g. a required column was renamed. */
     public void fail(Instant at, String detail) {
         this.status = IngestionStatus.FAILED;
         this.finishedAt = Objects.requireNonNull(at, "at");

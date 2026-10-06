@@ -23,12 +23,8 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * The filter chain of section 11.2: everything authenticated except the way in, and the
- * authorization matrix of section 11.3 visible at the HTTP edge.
- *
- * <p>These tests use {@code @WithMockUser}, per the test strategy: the authorization-code flow is
- * Spring Security's and is not re-tested here (test plan section 12.1, ADR-002). What is tested is
- * our configuration — which paths are open, and who reaches the manager's screen.
+ * Our security configuration: which paths are open, and who reaches the manager's screen. Uses
+ * {@code @WithMockUser}; the OAuth flow itself is Spring's.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

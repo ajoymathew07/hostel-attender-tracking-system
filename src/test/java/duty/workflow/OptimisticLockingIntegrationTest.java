@@ -33,12 +33,8 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Optimistic locking — mechanism M1 of section 7.2, guarding the lost update C2: a manager
- * reassigning a task at the same moment the attender resolves it.
- *
- * <p>Section 7.4 puts {@code @Version} on {@code complaint}, {@code task}, {@code task_assignment},
- * {@code floor_assignment} and {@code app_user}. The loser of a race does not silently overwrite
- * the winner; it fails, and the caller turns that into a 409 that says what actually happened.
+ * Optimistic locking: when two people update the same row, the second fails instead of silently
+ * overwriting the first.
  */
 @SpringBootTest
 class OptimisticLockingIntegrationTest extends AbstractIntegrationTest {
@@ -160,11 +156,8 @@ class OptimisticLockingIntegrationTest extends AbstractIntegrationTest {
     }
 
     /**
-     * Note this does not depend on contention. All four copies are detached at version 0 before the
-     * threads are released, so the outcome is the same run sequentially — what it pins down is the
-     * {@code @Version} check against a stale copy, which is the behaviour that matters when a
-     * manager reassigns while an attender is mid-resolve. The genuinely contended case is
-     * {@code LedgerIdempotencyIntegrationTest}, where the losers block inside Postgres.
+     * All copies are loaded before any write, so this tests the {@code @Version} check on a stale copy,
+     * not thread timing.
      */
     @Test
     @DisplayName("a stale copy loses to a committed write, so only one of four updates survives")

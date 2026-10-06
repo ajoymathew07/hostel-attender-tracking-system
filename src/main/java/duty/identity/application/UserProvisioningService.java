@@ -14,20 +14,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Editing the allowlist — the manager's break-glass power, and the reason a forgotten Google
- * account is a support call rather than a rebuild (ADR-002).
+ * Manages the allowlist: add, deactivate, reactivate, change role, change email.
  *
- * <p><strong>{@code @PreAuthorize} is on the service, not only on the controller</strong> (section
- * 11.3). Every method is manager-only except {@link #activeAttenderIds()}, which dispatch calls
- * with nobody signed in. The provisioning screen checks too, but a check that lives only in a
- * controller is one refactor away from being bypassed.
- *
- * <p>There is no {@code delete}. A departure or a lost phone is {@link #deactivate(long)}: the row
- * survives, so the audit trail and the point ledger still name a real person years later (section
- * 3.1, principle 4).
- *
- * <p>Every method writes its audit row inside its own transaction (section 11.7), so a rolled-back
- * change leaves no claim that it happened.
+ * <p>Every method is manager-only except {@link #activeAttenderIds()}, which dispatch calls with
+ * nobody signed in. There is no delete: deactivating keeps the row, so the ledger and audit log still
+ * name a real person. Each change is audited.
  */
 @Service
 @Transactional
@@ -43,7 +34,7 @@ public class UserProvisioningService {
         this.audit = audit;
     }
 
-    /** Everyone on the allowlist, active or not — the provisioning screen's list. */
+    /** Everyone on the allowlist, active or not. */
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('MANAGER')")
     public List<UserSummary> listUsers() {
@@ -56,12 +47,10 @@ public class UserProvisioningService {
     }
 
     /**
-     * The ids of every active attender, lowest first — dispatch's candidate pool (section 6.2).
+     * Ids of every active attender, lowest first: dispatch's candidates.
      *
-     * <p>No {@code @PreAuthorize}, deliberately: the caller is the dispatcher, which runs on a
-     * scheduled poll with no signed-in user. It returns ids and nothing else — no name, no email,
-     * no role — so opening it to the system exposes nothing a manager check was protecting
-     * (section 11.3).
+     * <p>Not manager-only because dispatch runs with nobody signed in. It returns ids only, so nothing
+     * private is exposed.
      */
     @Transactional(readOnly = true)
     public List<Long> activeAttenderIds() {
@@ -71,15 +60,7 @@ public class UserProvisioningService {
                 .toList();
     }
 
-    /**
-     * The attenders a manager may hand work to, by name.
-     *
-     * <p>Published here rather than left to the caller to filter, because "who can be assigned"
-     * is an identity question — a deactivated account is off the allowlist (section 11.2) and must
-     * not appear in the dispatcher's dropdown. It also keeps {@code workflow} from having to know
-     * the {@code UserRole} enum, which is this module's internal vocabulary (architecture section
-     * 2.4, rule 3).
-     */
+    /** Active attenders a manager may assign work to, by name. */
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('MANAGER')")
     public List<UserSummary> listAssignableAttenders() {
@@ -88,7 +69,7 @@ public class UserProvisioningService {
                 .toList();
     }
 
-    /** Adds a Google address to the allowlist. This is the only way an account comes into being. */
+    /** Adds a Google address to the allowlist: the only way an account is created. */
     @PreAuthorize("hasRole('MANAGER')")
     public UserSummary provision(String displayName, String email, UserRole role) {
         String normalised = EmailAddresses.requireAllowlistAddress(email);
@@ -103,7 +84,7 @@ public class UserProvisioningService {
         return UserSummary.of(user);
     }
 
-    /** Blocks the next sign-in immediately, and keeps the row (section 11.2). */
+    /** Blocks the user's next sign-in and keeps the row. */
     @PreAuthorize("hasRole('MANAGER')")
     public UserSummary deactivate(long userId) {
         AppUser user = require(userId);
@@ -120,7 +101,7 @@ public class UserProvisioningService {
         return saveAndRecord(user, "USER_REACTIVATED", AuditDetail.of("active", true).json());
     }
 
-    /** Changes what a user may do. The role is read at each sign-in, so the change takes hold then. */
+    /** Changes a user's role; it takes effect at their next sign-in. */
     @PreAuthorize("hasRole('MANAGER')")
     public UserSummary changeRole(long userId, UserRole role) {
         AppUser user = require(userId);
@@ -131,7 +112,7 @@ public class UserProvisioningService {
                 user, "USER_ROLE_CHANGED", AuditDetail.of("from", previous.name()).and("to", role.name()).json());
     }
 
-    /** Points the allowlist at a different Google account — the account-recovery path of ADR-002. */
+    /** Points the allowlist at a different Google account: the recovery path for a lost account. */
     @PreAuthorize("hasRole('MANAGER')")
     public UserSummary changeEmail(long userId, String email) {
         AppUser user = require(userId);
@@ -150,9 +131,8 @@ public class UserProvisioningService {
     }
 
     /**
-     * Refuses an operation that would take the last active manager away (ADR-002's break-glass).
-     * Deactivation passes {@code ATTENDER} because switching a manager off removes a manager just
-     * as demoting one does.
+     * Throws {@link LastManagerException} if the change would remove the last active manager.
+     * Deactivation passes {@code ATTENDER}, since it removes a manager just as a demotion does.
      */
     private void requireAnotherManagerRemains(AppUser user, UserRole roleAfter) {
         boolean wasAManager = user.getRole() == UserRole.MANAGER && user.isActive();

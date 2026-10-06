@@ -12,13 +12,8 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * The profile Render and the standby jar both run under (architecture section 2.6).
- *
- * <p>The datasource still points at the Testcontainers database — {@code AbstractIntegrationTest}
- * overrides it — because what is under test here is the rest of the cloud profile: that it parses,
- * that its environment placeholders bind, and that the two settings a deployment gets wrong are
- * right. Everything it does to the database, Flyway included, is the same work the {@code local}
- * profile already proves.
+ * The {@code cloud} profile loads and its key settings are right. The database is still the test
+ * container.
  */
 @SpringBootTest(
         properties = {

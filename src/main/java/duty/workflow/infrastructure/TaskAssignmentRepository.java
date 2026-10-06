@@ -9,12 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/**
- * Assignments (data model section 3.6).
- *
- * <p>{@code uq_task_attender} means at most one row per (task, attender), so the lookup below is
- * naturally single-valued.
- */
+/** Task assignments. At most one row per task and attender. */
 public interface TaskAssignmentRepository extends JpaRepository<TaskAssignment, Long> {
 
     Optional<TaskAssignment> findByTaskIdAndAttenderId(Long taskId, Long attenderId);
@@ -25,22 +20,15 @@ public interface TaskAssignmentRepository extends JpaRepository<TaskAssignment, 
 
     long countByTaskIdAndStatus(Long taskId, AssignmentStatus status);
 
-    /** The anti-starvation tie-break of section 6.2: how much this attender was given today. */
+    /** How many assignments this attender got since {@code from}: a dispatch tie-break. */
     long countByAttenderIdAndAssignedAtGreaterThanEqual(Long attenderId, Instant from);
 
-    /** The second tie-break: longest since the last assignment, whatever became of it. */
+    /** Their most recent assignment: a dispatch tie-break. */
     Optional<TaskAssignment> findFirstByAttenderIdOrderByAssignedAtDesc(Long attenderId);
 
     /**
-     * One attender's queue, complaint and all (section 10.2).
-     *
-     * <p>The fetch joins are the whole point: the card shows the complaint's text, room, domain
-     * and priority, so loading them lazily would be one query per card on the slowest connection
-     * in the system (section 10.6, NFR-3).
-     *
-     * <p>{@code join fetch t.complaint} is an inner join, so special duties — which have no
-     * complaint by {@code ck_task_link} — are excluded. That is the right queue for this screen;
-     * duties are a separate tab at {@code /m/duties}.
+     * One attender's queue with each complaint loaded in the same query, so there is no query per card.
+     * Special duties are excluded because they have no complaint.
      */
     @Query(
             """
@@ -54,7 +42,7 @@ public interface TaskAssignmentRepository extends JpaRepository<TaskAssignment, 
     List<TaskAssignment> findQueue(
             @Param("attenderId") Long attenderId, @Param("status") AssignmentStatus status);
 
-    /** Every live complaint assignment, for the manager's list — one query, not one per row. */
+    /** Every live complaint assignment, for the manager's list, in one query. */
     @Query(
             """
             select a from TaskAssignment a

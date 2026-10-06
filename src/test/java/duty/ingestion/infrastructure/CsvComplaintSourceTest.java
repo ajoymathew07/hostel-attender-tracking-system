@@ -20,12 +20,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * The CSV adapter behind the {@link ComplaintSource} port (section 5.8).
- *
- * <p>What is asserted here is that the adapter produces <em>raw rows and nothing else</em>: it
- * resolves columns by header name, it refuses a file that breaks the limits of section 11.6, and
- * it knows nothing whatever about dedupe, normalization or complaints. Everything downstream is
- * shared with the Sheets adapter of PR 8, which is the entire reason the port exists.
+ * The CSV source produces raw rows only: columns by header name, limits enforced, no dedupe or
+ * complaint logic.
  */
 class CsvComplaintSourceTest {
 

@@ -15,29 +15,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The leaderboard: a derived projection, never stored state (section 7.8, C5).
+ * The leaderboard, computed from the ledger on every request rather than stored.
  *
- * <p>There is no cached total, no materialized view and no counter column. At NFR-1 scale — a few
- * hundred rows in a period — the standings are one grouped index scan, and adding a counter would
- * trade away the very property that makes the ledger correct.
- *
- * <p><strong>The design's single SQL statement is split in two here.</strong> Section 7.8 writes it
- * as a {@code LEFT JOIN} from {@code app_user} to {@code point_ledger}, but {@code app_user}
- * belongs to the identity module and no module may read another's tables (architecture section 2.4,
- * rule 3). So the ledger sums its own rows, identity supplies the attenders, and the left join
- * becomes a map lookup over the handful of attenders a hostel has. The property the join existed
- * for is kept exactly: an attender with no activity still appears, on zero, because a missing row
- * would read as a bug to the manager.
- *
- * <p>Manager-only, on the service (section 11.3). An attender sees their own total through
- * {@link PointsLedger#myPeriodTotal()} and nobody else's.
+ * <p>The ledger sums its own rows and the identity module supplies the attenders, because no module
+ * reads another's tables. Manager-only.
  */
 @Service
 @Transactional(readOnly = true)
 @PreAuthorize("hasRole('MANAGER')")
 public class LeaderboardService {
 
-    /** Section 7.8's ordering, minus the tie-break the screen has no column to show. */
+    /** Highest total first, then by name. */
     private static final Comparator<LeaderboardRow> HIGHEST_FIRST =
             Comparator.comparingLong(LeaderboardRow::total)
                     .reversed()

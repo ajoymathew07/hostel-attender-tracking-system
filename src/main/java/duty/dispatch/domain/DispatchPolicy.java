@@ -6,38 +6,22 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * <strong>The dispatch heuristic of section 6.2, stages 2 and 3.</strong>
+ * The dispatch score: {@code Score = w_f · Floor + w_l · Load}, then the tie-breaks.
  *
- * <p>{@code Score(a, c) = w_f · Floor(a, c) + w_l · Load(a)} — two terms, each in [0, 1], weights
- * summing to 1, so the score is in [0, 1] and each weight reads as "how much does this factor
- * matter". Stage 1, the availability gate, is not here: availability is a gate and not a score
- * (section 6.2), and the application layer applies it before anything reaches this class.
- *
- * <p>Pure, with no framework and no database, which is what lets section 12 pin the behaviour with
- * tests that assert <em>relationships</em> — an overloaded primary loses to an idle secondary —
- * rather than exact float outputs that tuning would break.
- *
- * @param floorWeight {@code w_f}
- * @param loadWeight {@code w_l}
- * @param loadCap {@code L_cap} — the weighted load at which an attender counts as full
+ * <p>Both terms are in [0, 1] and the weights sum to 1, so the score is in [0, 1]. Pure Java with no
+ * database, so it can be unit-tested directly.
  */
 public record DispatchPolicy(
         double floorWeight, double loadWeight, int loadCap, FloorProximity proximity) {
 
     /**
-     * Scores are compared at three decimals — the precision the snapshot records.
-     *
-     * <p>Two attenders whose scores differ in the twelfth decimal are tied as far as any human
-     * reading the snapshot is concerned, and letting binary floating point settle that silently
-     * would make the tie-break chain, which exists precisely to be visible, unreachable.
+     * Scores are compared to three decimals, so tiny floating-point differences count as a tie and the
+     * visible tie-break rules decide.
      */
     private static final double PRECISION = 1000d;
 
     /**
-     * The best of the eligible attenders, or empty if there were none.
-     *
-     * <p>Empty is {@code E = ∅}: the complaint goes to triage as {@code NO_AVAILABLE_ATTENDER}
-     * (T3). It is the one way this method declines, and it terminates (R1).
+     * The best eligible attender, or empty if there were none (the complaint then goes to triage).
      */
     public Optional<DispatchDecision> decide(List<DispatchCandidate> eligible) {
         if (eligible.isEmpty()) {
@@ -65,26 +49,20 @@ public record DispatchPolicy(
                         eligible.stream().allMatch(candidate -> candidate.coverage() == null)));
     }
 
-    /** {@code Score(a, c)}, as section 6.2 writes it. */
+    /** The attender's score for this complaint. */
     public double score(DispatchCandidate candidate) {
         return floorWeight * proximity.score(candidate.coverage(), candidate.floorDistance())
                 + loadWeight * load(candidate);
     }
 
-    /**
-     * {@code Load(a) = 1 − min(1, L(a) / L_cap)} — higher means <em>more</em> free capacity, so the
-     * term pushes work toward idle attenders.
-     */
+    /** {@code 1 − min(1, load / loadCap)}: higher means more free capacity. */
     private double load(DispatchCandidate candidate) {
         return 1 - Math.min(1, (double) candidate.weightedLoad() / loadCap);
     }
 
     /**
-     * Highest score, then section 6.2 stage 3's chain: fewest assigned today, longest since the
-     * last assignment, lowest id.
-     *
-     * <p>A never-assigned attender sorts ahead of everyone, which is the same anti-starvation
-     * intent as the rule above it.
+     * Highest score, then fewest assigned today, then longest since last assignment, then lowest id. Never
+     * assigned sorts first.
      */
     private Comparator<DispatchCandidate> byScoreThenTieBreaks() {
         return Comparator.comparingLong((DispatchCandidate candidate) -> -roundedUnits(score(candidate)))

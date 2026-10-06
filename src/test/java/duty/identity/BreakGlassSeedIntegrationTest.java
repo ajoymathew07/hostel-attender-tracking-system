@@ -14,14 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-/**
- * The two seeded {@code MANAGER} rows — "break-glass is a row, not a mechanism" (ADR-002, item 1.3
- * of section 13.3).
- *
- * <p>The second row answers "what if the manager loses their Google account". With no password in
- * the schema there is nothing to reset, so recovery is the <em>other</em> manager repointing the
- * allowlist — which requires that other manager to exist from the first deployment onwards.
- */
+/** The two seeded manager rows exist, so one manager can recover the other's lost account. */
 @SpringBootTest
 class BreakGlassSeedIntegrationTest extends AbstractIntegrationTest {
 

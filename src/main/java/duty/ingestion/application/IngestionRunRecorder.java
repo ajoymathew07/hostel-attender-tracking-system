@@ -15,15 +15,10 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Opens and closes the {@code ingestion_run} row (section 5.3).
+ * Opens and closes the {@code ingestion_run} row, each in its own transaction.
  *
- * <p>Each call is its own transaction, and separate from the per-row ones. The run must survive
- * being recorded even when the rows beneath it did not: "the 09:14 upload failed because the
- * description column was renamed" is exactly the information the manager needs, and it is useless
- * if it rolls back with the failure it describes.
- *
- * <p>Separate bean rather than a private method for the same reason as {@link SourceRowIngestor}:
- * self-invocation bypasses the proxy, and {@code REQUIRES_NEW} would quietly not apply.
+ * <p>Why: the run record must survive even when its rows fail, because the failure is what the
+ * manager needs to see. A separate bean because {@code REQUIRES_NEW} is ignored on self-invocation.
  */
 @Service
 class IngestionRunRecorder {
@@ -57,12 +52,8 @@ class IngestionRunRecorder {
     }
 
     /**
-     * Closes a run that got through its rows.
-     *
-     * <p>Malformed rows do <em>not</em> fail the run (section 5.3): they are counted as skipped and
-     * listed on {@code error_detail}, and the run is a success because the rows that were fine were
-     * ingested. A run that reported failure because one row in 500 had a bad date would train the
-     * manager to ignore the status.
+     * Closes a run that got through its rows. Malformed rows are listed but do not fail the run, since the
+     * good rows were ingested.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public IngestionSummary finish(long runId, int created, int skipped, List<String> rowFailures) {
@@ -94,7 +85,7 @@ class IngestionRunRecorder {
                 runId, run.getRowsSeen(), run.getRowsCreated(), run.getRowsSkipped(), run.getStatus(), detail);
     }
 
-    /** A run that stopped: a required column could not be resolved, or the file broke a limit. */
+    /** Marks a run as failed: a required column was missing or the file broke a limit. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public IngestionSummary fail(long runId, String reason) {
         IngestionRun run = runs.findById(runId).orElseThrow();

@@ -1,12 +1,7 @@
 package duty.workflow.application;
 
 /**
- * The docket gate (transitions T11 and T14, state machines section 4.3).
- *
- * <p>You cannot collect +2 points for a complaint you never filed with the Engineering Unit. This
- * is the mechanism that makes institutional traceability structurally enforced rather than a
- * matter of attender diligence, so it is a refusal in the service and not a disabled button on a
- * screen.
+ * Refuses to resolve a complaint that has no Engineering Unit docket number. No docket, no points.
  */
 public class DocketRequiredException extends GuardFailedException {
 

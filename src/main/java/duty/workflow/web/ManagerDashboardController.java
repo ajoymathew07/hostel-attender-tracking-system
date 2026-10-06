@@ -29,16 +29,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * The manager's desktop: {@code /} and {@code /complaints} (section 10.4).
+ * The manager's dashboard: {@code /} and {@code /complaints}. Complaint list, assignment, triage and
+ * leaderboard.
  *
- * <p>The complaint list, manual assignment, the triage panel and the leaderboard are all of it for
- * now. The live activity feed and the analytics strip of section 10.3 each belong to the module
- * that owns them and arrive with it; a dashboard full of empty placeholder panels would be worse
- * than a short one that is entirely real.
- *
- * <p>The class-level {@code @PreAuthorize} is defence in depth. The same rules are on {@code
- * ComplaintQueryService} and {@link ManualAssignmentService}, which is where section 11.3 requires
- * them: remove this one and the screen is still manager-only.
+ * <p>The {@code @PreAuthorize} here is a second layer; the real checks are on the services.
  */
 @Controller
 @PreAuthorize("hasRole('MANAGER')")
@@ -47,7 +41,7 @@ class ManagerDashboardController {
     private static final String VIEW = "workflow/complaints";
     private static final String REDIRECT = "redirect:/complaints";
 
-    /** The four buttons on a triage card: every domain a manager may actually pick. */
+    /** The domains a manager can pick on a triage card. */
     private static final List<ComplaintDomain> ASSIGNABLE_DOMAINS =
             Arrays.stream(ComplaintDomain.values()).filter(ComplaintDomain::isDispatchable).toList();
 
@@ -105,7 +99,7 @@ class ManagerDashboardController {
         return VIEW;
     }
 
-    /** Assign, or reassign — one screen control, so one route (section 10.3). */
+    /** Assign or reassign. */
     @PostMapping("/complaints/{complaintId}/assign")
     String assign(
             @PathVariable long complaintId,
@@ -117,11 +111,7 @@ class ManagerDashboardController {
     }
 
     /**
-     * The triage card's one-click correction (sections 5.5, 10.3).
-     *
-     * <p>Four buttons in one form, each submitting its own {@code domain} value, so the gesture is
-     * a single press rather than pick-then-confirm. The complaint stays in {@code TRIAGE} until
-     * somebody is assigned to it, which is the control beside these.
+     * Sets the domain from a triage card, in one click. The complaint stays in triage until assigned.
      */
     @PostMapping("/complaints/{complaintId}/domain")
     String setDomain(
@@ -134,12 +124,8 @@ class ManagerDashboardController {
     }
 
     /**
-     * Section 4.5's third priority row: the manager judges this less urgent than it arrived.
-     *
-     * <p>One button and no priority picker, because P3 is the only priority a manager sets. P1 is
-     * the safety keywords' and P2 is the default; letting the screen choose either would let a
-     * judgement about urgency overwrite a fact about a hazard. Aging can raise a P3 again, and the
-     * list will then say "aged from P3".
+     * Downgrades to P3, the only priority a manager sets. P1 comes from safety keywords and P2 is the
+     * default.
      */
     @PostMapping("/complaints/{complaintId}/downgrade")
     String downgrade(@PathVariable long complaintId, RedirectAttributes flash) {
@@ -155,7 +141,7 @@ class ManagerDashboardController {
         return REDIRECT;
     }
 
-    /** Transition T15 — the manager signs off a resolved complaint. */
+    /** Closes a resolved complaint (T15). */
     @PostMapping("/complaints/{complaintId}/close")
     String close(@PathVariable long complaintId, RedirectAttributes flash) {
         workflow.transition(complaintId, WorkflowEvent.MANAGER_CLOSE, TransitionPayload.none());
@@ -163,12 +149,7 @@ class ManagerDashboardController {
         return REDIRECT;
     }
 
-    /**
-     * Transition T17 — it was not fixed after all.
-     *
-     * <p>The credit is reversed by a new ledger row, never a delete, so the attender's history
-     * shows both the +2 and the −2 and the leaderboard nets out correctly (section 7.3).
-     */
+    /** Reopens a complaint (T17). The points are reversed with a new ledger row, not deleted. */
     @PostMapping("/complaints/{complaintId}/reopen")
     String reopen(
             @PathVariable long complaintId, @RequestParam String reason, RedirectAttributes flash) {
@@ -177,7 +158,7 @@ class ManagerDashboardController {
         return REDIRECT;
     }
 
-    /** A refused move is a sentence on the list, not a stack trace (section 11.6). */
+    /** A refused move becomes a message on the list. */
     @ExceptionHandler({IllegalTransitionException.class, GuardFailedException.class})
     String refused(RuntimeException refusal, RedirectAttributes flash) {
         flash.addFlashAttribute("error", refusal.getMessage());

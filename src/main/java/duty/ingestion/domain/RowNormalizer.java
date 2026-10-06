@@ -13,37 +13,23 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Normalization of a source row into complaint fields (section 5.4).
+ * Turns a raw row into complaint fields. Shared by both sources.
  *
- * <p>Shared by every {@link ComplaintSource}: the CSV fallback and the Sheets poller normalize
- * identically, because they are the same path (section 5.8).
- *
- * <p>Everything here fails <strong>per row</strong>. A response with an unreadable timestamp is
- * recorded and skipped, and the run continues over the rows that are fine — partial progress is
- * strictly better than all-or-nothing over data we do not control.
+ * <p>Failures are per row: a bad row is skipped and the run continues.
  */
 public final class RowNormalizer {
 
     /**
-     * Section 5.4's room pattern, applied to the upper-cased cell so {@code a-214} and {@code
-     * A-214} both match.
-     *
-     * <p>Cauvery room numbers are digits only — 100–199 and 1000–1099 on the ground floor, 2xx and
-     * 2xxx on the first, 3xx and 3xxx on the second. The hostel has wings, but the room number does
-     * not name them, so there is no letter prefix to match. The design's pattern allows up to two
-     * leading letters separated by an optional space; over the description, which section 5.4 makes
-     * the fallback, that makes "no water in 1108" yield the room "IN 1108", and that string then
-     * goes to dispatch. Matching digits only removes the problem at its root rather than patching
-     * the separator.
+     * A 3- or 4-digit room number. Digits only, because Cauvery room numbers have no letters; allowing
+     * letters would read "no water in 1108" as room "IN 1108".
      */
     private static final Pattern ROOM = Pattern.compile("\\b(\\d{3,4})\\b");
 
-    /** Business dates are Asia/Kolkata; storage is UTC (NFR-7). */
+    /** Form times are Asia/Kolkata; storage is UTC. */
     public static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Kolkata");
 
     /**
-     * The shapes a Google Form timestamp arrives in. Locale decides which one a given sheet emits,
-     * so the list is configuration rather than a constant.
+     * Timestamp formats a Google Form may use; it depends on the sheet's locale, so it is configurable.
      */
     public static final List<String> DEFAULT_TIMESTAMP_PATTERNS =
             List.of("yyyy/MM/dd HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "dd/MM/yyyy HH:mm:ss", "yyyy/MM/dd HH:mm");
@@ -89,11 +75,8 @@ public final class RowNormalizer {
     }
 
     /**
-     * The form timestamp, interpreted in the configured zone and returned as UTC.
-     *
-     * <p>The failure message names the field and the row and quotes <em>nothing</em>: a timestamp
-     * cell is usually harmless, but the same message shape is what would be reused for other
-     * fields, and a cell can hold a student's details (section 11.4).
+     * The form timestamp, read in the configured zone and returned as UTC. The error message never quotes
+     * the cell.
      */
     Instant parseTimestamp(int rowIndex, String cell) {
         String value = cell == null ? "" : cell.trim();
@@ -115,12 +98,8 @@ public final class RowNormalizer {
     }
 
     /**
-     * The room number from the room cell, falling back to the description (section 5.4).
-     *
-     * <p>The fallback earns its place: residents routinely leave the room question blank and write
-     * "no water in 1108" instead, and a complaint with no room cannot be dispatched to a floor.
-     * When neither yields a room the answer is {@code null} rather than a guess, which routes the
-     * complaint to triage where a human decides.
+     * The room number from the room cell, falling back to the description ("no water in 1108"). Returns
+     * {@code null} if neither has one, and the complaint goes to triage.
      */
     static String room(String roomCell, String description) {
         String fromCell = matchRoom(roomCell);
@@ -153,11 +132,7 @@ public final class RowNormalizer {
         return trimmed == null ? null : trimmed.toLowerCase(Locale.ROOT);
     }
 
-    /**
-     * Digits only, keeping a leading {@code +} so a country code survives.
-     *
-     * <p>Residents type spaces, hyphens and brackets; an attender needs something dialable.
-     */
+    /** Digits only, keeping a leading {@code +}, so the attender gets a dialable number. */
     private static String phoneOrNull(String value) {
         String trimmed = trimmedOrNull(value);
         if (trimmed == null) {

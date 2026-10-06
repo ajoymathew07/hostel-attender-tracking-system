@@ -18,27 +18,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * What Flyway actually built, checked against data model section 3.
- *
- * <p>Two of these assertions are not bookkeeping. The named-constraint check is what makes
- * {@code uq_ledger_idem} and {@code uq_source_row} a property of the schema rather than of one
- * happy-path test, and the balance-column check enforces the design's central negative claim: there
- * is no stored points counter anywhere, because a balance is a {@code SUM} over the append-only
- * ledger (section 7.3). A future migration that quietly added a counter would break it here.
- *
- * <p>Hibernate's {@code ddl-auto: validate} runs on every context start and covers the other half —
- * that the entities and the migrated schema still agree.
+ * What Flyway built matches the data model: tables, named constraints, indexes and version columns,
+ * and there is no stored points column anywhere.
  */
 @SpringBootTest
 class SchemaMigrationIntegrationTest extends AbstractIntegrationTest {
 
     /**
-     * The tables of data model section 3, less {@code category_term} and plus {@code app_setting}.
-     *
-     * <p>{@code category_term} held the classifier's lexicon and was dropped when the Form started
-     * asking the resident for the domain outright: there is nothing left to match against.
-     * {@code app_setting} is not in section 3 at all — it holds the overrides that sections 4.5,
-     * 6.2 and 8.2 each say the manager may make without a redeploy.
+     * Expected tables: the data model's, minus {@code category_term} (dropped with the classifier) plus
+     * {@code app_setting}.
      */
     private static final List<String> EXPECTED_TABLES =
             List.of(
@@ -76,9 +64,7 @@ class SchemaMigrationIntegrationTest extends AbstractIntegrationTest {
                     "ck_priority",
                     "ck_task_type",
                     "ck_task_link",
-                    // Not in section 3: added by this PR alongside `task.slots`, because section
-                    // 7.6's claim path reads `task.getSlots()`. Asserted here so the deviation is
-                    // pinned down rather than left to a comment in a migration.
+                    // Not in the data model doc: added with `task.slots` for shared duties.
                     "ck_task_slots",
                     "ck_asg_method",
                     "ck_ledger_reason");

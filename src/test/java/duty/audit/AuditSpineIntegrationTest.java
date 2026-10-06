@@ -24,21 +24,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * The audit spine: the row lands in the <strong>same transaction</strong> as the change it records,
- * so the log can never disagree with the data (data model section 3.7).
+ * The audit row is written in the same transaction as the change: a committed change has its row, a
+ * rolled-back change has none, and a rejected audit row rolls the change back too.
  *
- * <p>Three properties, and the third is the one that actually distinguishes {@code BEFORE_COMMIT}
- * from {@code AFTER_COMMIT}:
- *
- * <ol>
- *   <li>a committed change has its audit row;
- *   <li>a rolled-back change leaves none;
- *   <li>a <em>rejected audit row takes the change down with it</em> — which could not happen if the
- *       audit write ran in a transaction of its own after the commit.
- * </ol>
- *
- * <p>{@code Floor} stands in for "some business change": it is the simplest entity in the schema
- * with no foreign keys, so the test is about the transaction and nothing else.
+ * <p>{@code Floor} is used as the business change because it is the simplest entity.
  */
 @SpringBootTest
 class AuditSpineIntegrationTest extends AbstractIntegrationTest {
@@ -253,7 +242,7 @@ class AuditSpineIntegrationTest extends AbstractIntegrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    /** A wing nobody else uses, so a parallel class's floor cannot collide on {@code uq_floor}. */
+    /** A wing nobody else uses, so floors from other test classes cannot collide. */
     private Floor floor(String wing) {
         return new Floor(wing, 1, "Ground");
     }

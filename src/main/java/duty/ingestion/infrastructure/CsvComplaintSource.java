@@ -13,29 +13,16 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Risk 1's Plan B: a manager-uploaded CSV, read through the one {@link ComplaintSource} port
- * (section 5.8).
+ * A manager-uploaded CSV as a {@link ComplaintSource}. It only turns bytes into rows; dedupe and
+ * normalization happen downstream.
  *
- * <p>This class does one job — turn bytes into raw rows — and deliberately knows nothing about
- * response keys, complaints or the database. Dedupe and normalization happen downstream, shared
- * verbatim with the Sheets adapter. That is what makes re-uploading the
- * same CSV twice produce zero duplicates: the fallback inherits the guarantee rather than
- * reimplementing it.
- *
- * <p>Not a Spring bean. One instance wraps one uploaded file, so it is constructed per upload by
- * the ingestion service.
+ * <p>Not a Spring bean: one instance per upload.
  */
 public final class CsvComplaintSource implements ComplaintSource {
 
     /**
-     * The CSV channel's identity within {@code uq_source_row}, and a constant on purpose.
-     *
-     * <p>Section 3.5 describes {@code source_ref} as "sheet id, or upload batch id". A literal
-     * per-upload batch id would break the guarantee section 5.8 states outright: the same response
-     * would get a different {@code (source_type, source_ref, response_key)} on every upload, and
-     * re-uploading a file — the obvious thing a flustered user does during an outage — would
-     * duplicate every complaint in it. One stable ref for the channel is what makes
-     * {@code uq_source_row} bite. Raised in the PR notes.
+     * The CSV channel's {@code source_ref}. A constant, not a per-upload id, so re-uploading a file
+     * matches the rows already held instead of duplicating them.
      */
     public static final String SOURCE_REF = "csv-upload";
 
@@ -84,7 +71,7 @@ public final class CsvComplaintSource implements ComplaintSource {
         return rows;
     }
 
-    /** Never the cells — a row holds the student's details (section 11.4). */
+    /** Never the cells; rows hold student details. */
     @Override
     public String toString() {
         return "CsvComplaintSource[sourceRef=" + SOURCE_REF + ", bytes=" + content.length + "]";

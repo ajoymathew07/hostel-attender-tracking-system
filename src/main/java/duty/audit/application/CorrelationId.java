@@ -4,16 +4,11 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * The ambient correlation id for the current thread.
+ * The correlation id for the current thread: one id shared by every audit row of one request or
+ * ingestion run.
  *
- * <p>{@code audit_event.correlation_id} exists so that everything done by one request, or by one
- * ingestion run, can be pulled out of the log as a single ordered story (data model section 3.7).
- * Threading that id explicitly through every method signature between a controller and an audit
- * call would be noise, so it is carried here instead and read by {@link AuditEntry} when the caller
- * does not supply one.
- *
- * <p>The value is always cleared in a {@code finally} block by {@link #runWith}, so a pooled thread
- * never inherits the correlation of whatever it handled previously.
+ * <p>Kept in a {@code ThreadLocal} so it does not have to be passed through every method.
+ * {@link #runWith} always restores the previous value, so a reused thread never inherits an old id.
  */
 public final class CorrelationId {
 

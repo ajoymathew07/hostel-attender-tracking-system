@@ -23,11 +23,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 
 /**
- * Floors, coverage and availability — the inputs the dispatch heuristic reads (data model section
- * 3.4).
- *
- * <p>Coverage is deliberately current-state rather than time-bounded (OQ-3), so these tests are
- * about the uniqueness rules and the "in force at an instant" question, not about history.
+ * Floors, coverage and availability windows: uniqueness rules and which window is in force at a given
+ * moment.
  */
 @SpringBootTest
 class CoverageAndAvailabilityIntegrationTest extends AbstractIntegrationTest {

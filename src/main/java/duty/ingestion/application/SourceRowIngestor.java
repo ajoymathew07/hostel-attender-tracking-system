@@ -18,17 +18,10 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Reconciles one source row — section 5.3's inner loop, and the only place a complaint is created
- * from ingestion.
+ * Ingests one source row: the only place ingestion creates a complaint.
  *
- * <p><strong>Its own transaction, deliberately.</strong> Section 5.3 requires each row to be
- * processed independently so that one malformed response cannot abort the whole run. That is also
- * why this is a separate bean from {@link CsvUploadService} rather than a private method on
- * it: a self-invocation would not pass through the proxy, and {@code REQUIRES_NEW} would silently
- * do nothing.
- *
- * <p>This is shared by every source: the CSV upload and the Sheets adapter reconcile through this
- * same class, which is the point of the port (section 5.8).
+ * <p>Each row runs in its own transaction ({@code REQUIRES_NEW}) so one bad row cannot abort the run.
+ * A separate bean because that annotation is ignored on self-invocation.
  */
 @Service
 class SourceRowIngestor {
@@ -50,12 +43,11 @@ class SourceRowIngestor {
     }
 
     /**
-     * Ingests one row, or recognises that we already hold it.
+     * Ingests one row, or recognises that it is already held.
      *
-     * @throws MalformedRowException if the row cannot be normalized — this transaction rolls back
-     *     and the caller records it on the run and carries on
-     * @throws org.springframework.dao.DataIntegrityViolationException if a concurrent run inserted
-     *     the same response first; {@code uq_source_row}, not this method, is the guarantee
+     * @throws MalformedRowException if the row cannot be normalized; the caller records it and continues
+     * @throws org.springframework.dao.DataIntegrityViolationException if a concurrent run inserted the
+     *     same response first
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public RowOutcome ingest(RawRow row, String responseKey, SourceType sourceType, String sourceRef, long runId, Instant observedAt) {

@@ -22,16 +22,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * The provisioning screen, {@code /admin/attenders} (section 10.4).
+ * The provisioning screen, {@code /admin/attenders}.
  *
- * <p>This is the whole of account administration: the manager adds a Google address to the
- * allowlist, sets a role, repoints an address at a different account, and deactivates. There is no
- * "delete user" button, because there is no delete — a departed attender's row is what makes their
- * ledger entries and audit rows still name a person (section 3.1, principle 4).
- *
- * <p>The class-level {@code @PreAuthorize} is defence in depth, not the control: the same rule is
- * on {@link UserProvisioningService}'s implementation, which is where section 11.3 requires it.
- * Remove this one and the screen is still manager-only; remove the service one and it is not.
+ * <p>The {@code @PreAuthorize} here is a second layer; the real check is on
+ * {@link UserProvisioningService}.
  */
 @Controller
 @RequestMapping("/admin/attenders")
@@ -99,7 +93,7 @@ class AttenderAdminController {
         return REDIRECT;
     }
 
-    /** A duplicate address is a sentence to the manager, not a stack trace (section 11.6). */
+    /** A duplicate address becomes a message on the screen. */
     @ExceptionHandler(EmailAlreadyProvisionedException.class)
     String alreadyProvisioned(EmailAlreadyProvisionedException failure, RedirectAttributes flash) {
         flash.addFlashAttribute("error", failure.getEmail() + " is already on the allowlist");
@@ -113,10 +107,7 @@ class AttenderAdminController {
         return REDIRECT;
     }
 
-    /**
-     * An address the allowlist will not accept. The repoint field posts a bare parameter, so the
-     * service is the only thing standing between a typo and a user who can never sign in again.
-     */
+    /** An address the allowlist will not accept becomes a message on the screen. */
     @ExceptionHandler(InvalidEmailException.class)
     String invalidEmail(InvalidEmailException failure, RedirectAttributes flash) {
         flash.addFlashAttribute(
@@ -124,7 +115,7 @@ class AttenderAdminController {
         return REDIRECT;
     }
 
-    /** Refusing to let the manager lock everybody out (ADR-002's break-glass). */
+    /** Refuses to remove the last manager. */
     @ExceptionHandler(LastManagerException.class)
     String lastManager(RedirectAttributes flash) {
         flash.addFlashAttribute(

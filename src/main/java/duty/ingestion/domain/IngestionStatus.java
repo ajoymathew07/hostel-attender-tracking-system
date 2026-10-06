@@ -1,6 +1,6 @@
 package duty.ingestion.domain;
 
-/** Lifecycle of one ingestion run (data model section 3.5). */
+/** State of one ingestion run. */
 public enum IngestionStatus {
     RUNNING,
     SUCCESS,

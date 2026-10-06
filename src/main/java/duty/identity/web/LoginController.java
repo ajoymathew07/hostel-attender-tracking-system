@@ -5,13 +5,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-/**
- * The login screen (section 10.4): a single "Sign in with Google" button, for everyone.
- *
- * <p>There is no form to post to and no controller action behind the button — it is a link to
- * Spring Security's authorization endpoint. That absence is the design: no password field means no
- * password reset, no rate limiter and no credential to leak (ADR-002).
- */
+/** The login screen: one "Sign in with Google" button for everyone. No password form exists. */
 @Controller
 class LoginController {
 

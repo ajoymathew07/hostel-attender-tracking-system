@@ -25,7 +25,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** The {@code /settings} screen at the HTTP edge (section 10.4). */
+/** The {@code /settings} screen. */
 @SpringBootTest
 @AutoConfigureMockMvc
 class SettingsControllerIntegrationTest extends AbstractIntegrationTest {

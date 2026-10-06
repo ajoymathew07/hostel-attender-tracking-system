@@ -1,17 +1,13 @@
 package duty.dispatch.domain;
 
 /**
- * The {@code Floor(a, c)} term of section 6.2, as its table of values.
+ * The floor term of the score: how close an attender works to the complaint's floor.
  *
- * <p>Every value is in [0, 1] and distant attenders score above zero deliberately: when the
- * primary is unavailable somebody still has to go, and a zero would make the term uninformative in
- * exactly that case.
+ * <p>Distant attenders still score above zero, so the term still ranks people when the primary is
+ * away.
  *
- * @param primary {@code PRIMARY} coverage of the complaint's own floor
- * @param secondary {@code SECONDARY} coverage of it
- * @param adjacent one floor away
- * @param step subtracted for each further floor of distance
- * @param minimum the value no distance falls below
+ * @param step subtracted for each floor of distance beyond adjacent
+ * @param minimum the lowest value any distance gets
  */
 public record FloorProximity(
         double primary, double secondary, double adjacent, double step, double minimum) {
@@ -19,8 +15,8 @@ public record FloorProximity(
     /**
      * How close this attender is to the work.
      *
-     * @param coverage their coverage of the complaint's floor, or {@code null} if they have none
-     * @param distance floors to the nearest floor they do cover, or {@code null} if they cover none
+     * @param coverage their coverage of the complaint's floor, or {@code null} if none
+     * @param distance floors to the nearest floor they cover, or {@code null} if they cover none
      */
     public double score(Coverage coverage, Integer distance) {
         if (coverage == Coverage.PRIMARY) {

@@ -14,28 +14,18 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * A resident's maintenance complaint — the central aggregate (data model section 3.5).
+ * A resident's maintenance complaint: the central entity.
  *
- * <p>{@code rawText} keeps the resident's original wording verbatim. The domain is stored
- * <em>alongside</em> it with the method that set it, never in place of it, so a complaint filed
- * under the wrong heading is always recoverable.
- *
- * <p>The docket lives in three columns here rather than a child table: corrections overwrite
- * {@code docketNo} and {@code audit_event} holds the old and new values (section 4.3, ADR-012).
- *
- * <p>{@code @Version} guards this aggregate against the lost update of C2 — a manager reassigning
- * while the attender resolves (section 7.7).
+ * <p>{@code rawText} keeps the resident's wording unchanged; the domain is stored beside it. The docket
+ * is stored in columns here, with corrections kept in the audit log. {@code @Version} stops a
+ * reassignment and a resolve overwriting each other.
  */
 @Entity
 @Table(name = "complaint")
 public class Complaint {
 
     /**
-     * How long the assigned attender keeps seeing the student's name, roll number and phone
-     * number after the complaint is resolved (section 11.4, NFR-9).
-     *
-     * <p>This is the retention rule, not a display preference, so it lives on the aggregate that
-     * holds the data rather than in whichever screen happens to render it.
+     * How long after resolution the attender may still see the student's name, roll number and phone.
      */
     public static final Duration ATTENDER_CONTACT_WINDOW = Duration.ofDays(7);
 
@@ -43,7 +33,7 @@ public class Complaint {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Shown to humans, e.g. {@code CAU-2026-0417}. Unique via {@code uq_complaint_ref}. */
+    /** The human-facing reference, e.g. {@code CAU-2026-0417}. */
     @Column(name = "public_ref", nullable = false, length = 24)
     private String publicRef;
 
@@ -59,7 +49,7 @@ public class Complaint {
     @Column(name = "reporter_room", length = 32)
     private String reporterRoom;
 
-    /** Shown to the assigned attender, hidden 7 days after resolution (section 11.4). */
+    /** Shown to the assigned attender until 7 days after resolution. */
     @Column(name = "reporter_name", length = 128)
     private String reporterName;
 
@@ -69,7 +59,7 @@ public class Complaint {
     @Column(name = "reporter_phone", length = 32)
     private String reporterPhone;
 
-    /** Resident email; purged after 90 days (NFR-9, section 3.8). */
+    /** Resident email; purged after 90 days. */
     @Column(name = "reporter_contact", length = 128)
     private String reporterContact;
 
@@ -100,7 +90,7 @@ public class Complaint {
     @Column(name = "priority", nullable = false, length = 8)
     private Priority priority;
 
-    /** Before aging, kept for explainability (section 4.5). */
+    /** The priority before ageing, so the list can show "aged from". */
     @Enumerated(EnumType.STRING)
     @Column(name = "base_priority", nullable = false, length = 8)
     private Priority basePriority;
@@ -115,7 +105,7 @@ public class Complaint {
     @Column(name = "sla_breached", nullable = false)
     private boolean slaBreached;
 
-    /** When the SLA clock was paused by T12; {@code null} while it is running (section 4.5). */
+    /** When the SLA clock was paused (T12); {@code null} while running. */
     @Column(name = "hold_started_at")
     private Instant holdStartedAt;
 
@@ -128,21 +118,17 @@ public class Complaint {
     @Column(name = "closed_at")
     private Instant closedAt;
 
-    /** When this reached {@code RESOLVED}: the start of the attender's 7-day window (11.4). */
+    /** When it was resolved: starts the attender's 7-day window. */
     @Column(name = "resolved_at")
     private Instant resolvedAt;
 
-    /** Transition T7's one side effect. */
+    /** When the attender started work (T7). */
     @Column(name = "inspection_started_at")
     private Instant inspectionStartedAt;
 
     /**
-     * How many times a manager has reopened this (T17) — the {@code n} of the resolve credit's
-     * idempotency key, {@code RESOLVE:{task}:{attender}:r{n}} (section 7.3).
-     *
-     * <p>A counter of an event, not a balance. Section 7.3 forbids a stored <em>points</em> total
-     * because a balance is a SUM over immutable facts; this is a fact about the complaint, and the
-     * key that keeps re-credits honest is derived from it.
+     * How many times a manager has reopened it (T17). Part of the resolve credit's key, so a re-resolution
+     * gets credited again.
      */
     @Column(name = "reopen_count", nullable = false)
     private int reopenCount;
@@ -175,10 +161,7 @@ public class Complaint {
         this.slaBreached = false;
     }
 
-    /**
-     * The only mutator of {@code status}, and reached solely through
-     * {@code WorkflowService.transition}, which owns the guarded transition table (section 4.1).
-     */
+    /** Sets the status. Only {@code WorkflowService.transition} calls this. */
     public void moveTo(ComplaintStatus newStatus, Instant at) {
         this.status = Objects.requireNonNull(newStatus, "status");
         this.updatedAt = Objects.requireNonNull(at, "at");
@@ -191,31 +174,23 @@ public class Complaint {
     }
 
     /**
-     * Whether an attender may still be shown the reporter's name, roll number and phone number
-     * (section 11.4).
-     *
-     * <p>Scoping, not deletion: the fields stay on the record, and the manager's view of them is
-     * unaffected, because oversight and bonus disputes outlive the work itself. An unresolved
-     * complaint is live work, so the details are visible; after resolution they remain for
-     * {@link #ATTENDER_CONTACT_WINDOW} and then stop.
+     * Whether an attender may still see the student's details: always while unresolved, then for 7 days.
+     * The manager always can.
      */
     public boolean reporterVisibleToAttender(Instant at) {
         Objects.requireNonNull(at, "at");
         return resolvedAt == null || at.isBefore(resolvedAt.plus(ATTENDER_CONTACT_WINDOW));
     }
 
-    /** Transition T7 — the attender is on site. */
+    /** The attender started work (T7). */
     public void startInspection(Instant at) {
         this.inspectionStartedAt = Objects.requireNonNull(at, "at");
         this.updatedAt = at;
     }
 
     /**
-     * Transition T17 — the work was not done after all.
-     *
-     * <p>Clearing {@code resolvedAt} is not bookkeeping tidiness. It is what stops the 7-day PII
-     * window (section 11.4) from expiring while the attender is back on live work, and what stops
-     * the auto-close clock (T16) running on a complaint that is no longer resolved.
+     * Reopens the complaint (T17). Clears {@code resolvedAt} so the 7-day window and the auto-close clock
+     * stop.
      */
     public void reopen(Instant at) {
         this.resolvedAt = null;
@@ -223,7 +198,7 @@ public class Complaint {
         this.updatedAt = Objects.requireNonNull(at, "at");
     }
 
-    /** Transition T11 — the docket gate that {@code mark_resolved} depends on. */
+    /** Records the docket number (T11), which resolving requires. */
     public void recordDocket(String newDocketNo, Long filedBy, Instant at) {
         this.docketNo = Objects.requireNonNull(newDocketNo, "docketNo");
         this.docketFiledBy = Objects.requireNonNull(filedBy, "filedBy");
@@ -231,30 +206,27 @@ public class Complaint {
         this.updatedAt = at;
     }
 
-    /** You cannot collect points for a complaint you never filed with the Engineering Unit (T14). */
+    /** Whether a docket is filed; needed to resolve. */
     public boolean hasDocket() {
         return docketNo != null && !docketNo.isBlank();
     }
 
-    /** A manager setting the domain from triage (transition T4). */
+    /** A manager sets the domain from triage. */
     public void classifyManually(ComplaintDomain newDomain, Instant at) {
         this.domain = Objects.requireNonNull(newDomain, "domain");
         this.classifiedBy = ClassificationMethod.MANUAL;
         this.updatedAt = Objects.requireNonNull(at, "at");
     }
 
-    /** One step of priority aging; {@code basePriority} is deliberately left alone. */
+    /** Raises priority one step; {@code basePriority} is left alone. */
     public void escalatePriority(Instant at) {
         this.priority = this.priority.escalated();
         this.updatedAt = Objects.requireNonNull(at, "at");
     }
 
     /**
-     * A manager's downgrade — section 4.5's third row, the one source of {@link Priority#P3}.
-     *
-     * <p>This moves {@code basePriority} as well as {@code priority}, because it is a judgement
-     * about the work itself rather than an effect of the clock: the aging job must be able to raise
-     * it again from P3, and the dashboard must not read the result as "aged from P2".
+     * Manager downgrade to P3. Also moves {@code basePriority}, because it is a judgement about the work,
+     * not ageing.
      */
     public void downgrade(Instant at) {
         this.basePriority = Priority.P3;
@@ -262,7 +234,7 @@ public class Complaint {
         this.updatedAt = Objects.requireNonNull(at, "at");
     }
 
-    /** Whether the current priority was reached by aging rather than assigned (section 4.5). */
+    /** Whether ageing raised the current priority. */
     public boolean aged() {
         return priority != basePriority;
     }
@@ -271,17 +243,14 @@ public class Complaint {
         this.slaDueAt = dueAt;
     }
 
-    /** T12 — the SLA clock stops while the work is blocked. */
+    /** Pauses the SLA clock while work is blocked (T12). */
     public void pauseSlaClock(Instant at) {
         this.holdStartedAt = Objects.requireNonNull(at, "at");
     }
 
     /**
-     * T13 — the clock restarts, and the due date moves by however long the hold lasted.
-     *
-     * <p>Wall-clock elapsed time, which is what section 4.5 says: "extend due date by hold
-     * duration". A complaint held for a day is due a day later, whatever part of that day was
-     * inside working hours — the attender was not able to act during any of it.
+     * Restarts the clock (T13) and pushes the due date back by the full hold time, since the attender
+     * could not act during it.
      */
     public void resumeSlaClock(Instant at) {
         Objects.requireNonNull(at, "at");
@@ -313,12 +282,12 @@ public class Complaint {
         this.reporterRoom = room;
     }
 
-    /** NFR-9: the resident's email is nulled after 90 days; the audit records the purge. */
+    /** Removes the resident's email after 90 days. */
     public void purgeReporterContact() {
         this.reporterContact = null;
     }
 
-    /** Raw text is replaced after a year; aggregates survive (section 3.8). */
+    /** Replaces the raw text after a year. */
     public void purgeRawText() {
         this.rawText = "[purged]";
     }

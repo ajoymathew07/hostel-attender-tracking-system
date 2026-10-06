@@ -6,12 +6,10 @@ import java.time.ZonedDateTime;
 import java.util.Objects;
 
 /**
- * Derivation of {@code point_ledger.period_key} from an effective date (section 7.9).
+ * Derives {@code period_key} ({@code YYYY-MM}) from the Asia/Kolkata date, not the UTC instant.
  *
- * <p>The period is derived from the <strong>Asia/Kolkata business date</strong>, not from the UTC
- * instant (NFR-7). A task resolved at 02:00 IST on 1 October belongs to October, which is what the
- * manager expects; storing UTC and grouping naively would have silently filed it under September
- * (test plan E21).
+ * <p>Why: a job finished at 02:00 IST on 1 October belongs to October, though it is still September in
+ * UTC.
  */
 public final class PeriodKey {
 

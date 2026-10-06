@@ -14,22 +14,15 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
 
 /**
- * Where a Google sign-in meets the allowlist (section 11.2).
+ * Where a Google sign-in meets the allowlist.
  *
- * <p>Spring Security has by this point verified the id token and completed the authorization-code
- * flow — that is its code, and it is not re-tested (ADR-002). This class then asks the one question
- * Google cannot answer: <em>may this person use this system?</em> If the answer is no, it throws,
- * and the flow ends with no session and no row created.
- *
- * <p>Exactly two claims are read, and only one of them is data: the address, and whether Google
- * says it verified it. Everything else in the token — the profile name, the hosted domain, any
- * authority the provider fancies asserting — is discarded here rather than downstream, so there is
- * no later code that could be tempted to trust it.
+ * <p>Spring Security has already verified the token; this asks whether the person may use the system,
+ * and throws if not. Only the email and its verified flag are read; every other claim is ignored.
  */
 @Service
 class AllowlistOidcUserService implements OAuth2UserService<OidcUserRequest, OidcUser> {
 
-    /** Section 9.7: one code for every refusal, whatever the underlying reason. */
+    /** One error code for every refusal, whatever the reason. */
     private static final String NOT_PROVISIONED = "NOT_PROVISIONED";
 
     private static final String REFUSAL_MESSAGE =
@@ -38,7 +31,7 @@ class AllowlistOidcUserService implements OAuth2UserService<OidcUserRequest, Oid
 
     private final SignInService signIn;
 
-    /** Fetches the user info; replaced by a stub in tests so no network is involved. */
+    /** Fetches the user info; stubbed in tests. */
     private final OAuth2UserService<OidcUserRequest, OidcUser> delegate;
 
     @Autowired
@@ -69,11 +62,7 @@ class AllowlistOidcUserService implements OAuth2UserService<OidcUserRequest, Oid
         return outcome.user().withOidcTokens(userRequest.getIdToken(), fromGoogle.getUserInfo());
     }
 
-    /**
-     * Absent means unverified. Some providers send the claim as a string, so it is parsed rather
-     * than cast — a {@code ClassCastException} here would become a 500, and a 500 on the login path
-     * is the kind of failure people work around by loosening the check.
-     */
+    /** Missing means unverified. Some providers send a string, so it is parsed rather than cast. */
     private static boolean isVerified(Object claim) {
         if (claim instanceof Boolean verified) {
             return verified;

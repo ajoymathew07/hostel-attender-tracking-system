@@ -6,15 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A minimal RFC 4180 reader: quoted cells, embedded commas and newlines, and doubled quotes.
+ * A minimal RFC 4180 CSV reader: quoted cells, embedded commas and newlines, doubled quotes.
  *
- * <p>Hand-written rather than pulled from a library, for one reason worth stating: the only CSV
- * this system reads is a Google Sheets export, whose dialect is exactly RFC 4180. A dependency
- * would buy configurable delimiters, header inference and streaming, none of which is wanted, and
- * would enter the OWASP dependency-check surface (section 11.6) for the privilege.
- *
- * <p>The row limit of section 11.6 is enforced <em>while</em> reading and aborts immediately, so a
- * file with a million rows costs a million cells of parsing at worst and never reaches ingestion.
+ * <p>Hand-written because the only input is a Google Sheets export; a library would add features and a
+ * dependency for nothing. The row limit is enforced while reading.
  */
 final class CsvReader {
 
@@ -24,10 +19,7 @@ final class CsvReader {
 
     private CsvReader() {}
 
-    /**
-     * @param maxRows the data-row limit; the header does not count toward it
-     * @throws UploadRejectedException if the file is empty or holds more rows than allowed
-     */
+    /** @throws UploadRejectedException if the file is empty or has too many rows */
     static CsvContent read(String text, UploadLimits limits) {
         List<List<String>> records = parse(text, limits.maxRows());
         if (records.isEmpty()) {
@@ -98,12 +90,7 @@ final class CsvReader {
         return records;
     }
 
-    /**
-     * Appends a record unless it is blank throughout.
-     *
-     * <p>Sheets exports end with a trailing newline and spreadsheets routinely carry blank rows in
-     * the middle; either would otherwise become a complaint with no text at all.
-     */
+    /** Adds a record unless every cell is blank, so blank lines do not become empty complaints. */
     private static void addRecord(List<List<String>> records, List<String> record, int maxRows) {
         boolean blank = record.stream().allMatch(cell -> cell == null || cell.isBlank());
         if (blank) {

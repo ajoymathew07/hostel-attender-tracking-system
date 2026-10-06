@@ -18,17 +18,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * The Sheets adapter behind the {@link ComplaintSource} port (sections 2.2, 5.3).
+ * The Sheets source, with {@link SheetReader} stubbed with realistic API quirks (values as
+ * {@code Object}, missing trailing cells, blank rows). It produces raw rows only.
  *
- * <p>The real Sheets API is never called. The design is explicit that we test <em>our</em>
- * reconciliation and failure handling, not Google's delivery — so {@link SheetReader} is stubbed
- * with the cell grid the API would have returned, quirks and all: values arrive as {@code Object},
- * trailing empty cells are omitted, and blank rows sit in the middle of a real spreadsheet.
- *
- * <p>What is asserted is that this adapter produces <em>raw rows and nothing else</em>. Dedupe,
- * normalization and complaint creation are shared with the CSV adapter and tested where they live.
- *
- * <p>Student details in these fixtures are synthetic (section 11.4).
+ * <p>All student details here are made up.
  */
 class GoogleSheetsSourceTest {
 
@@ -45,7 +38,7 @@ class GoogleSheetsSourceTest {
                             SourceField.DESCRIPTION, List.of("Describe the issue")),
                     Set.of(SourceField.TIMESTAMP, SourceField.DESCRIPTION));
 
-    /** Records the range the adapter asked for, so the A1 notation can be asserted. */
+    /** Records the range requested, so the A1 notation can be checked. */
     private final List<String> rangesRequested = new ArrayList<>();
 
     private ComplaintSource source(List<List<Object>> grid) {

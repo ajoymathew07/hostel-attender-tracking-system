@@ -32,16 +32,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * Transition T17 — the reopen, and why the ledger survives it.
- *
- * <p>The ledger is append-only, so a reopen cannot delete the +2. It writes a compensating
- * {@code REVERSAL} row instead: the balance falls by two and <em>both</em> rows stay in the
- * attender's history, which is what settles a bonus dispute three months later (section 11.7).
- *
- * <p>The sharper claim is the one about the key. A re-resolution after a reopen is genuine repeat
- * work and must be credited again — but the credit's key is derived from the work, so without the
- * {@code :r{n}} suffix of section 7.3 it would present the very key that was just reversed, be
- * recognised as a replay, and silently credit nothing.
+ * Reopening adds a negating ledger row (both rows stay), and a later re-resolution is credited again
+ * thanks to the {@code :r{n}} key suffix.
  */
 @SpringBootTest
 class ReopenReversesTheCreditIntegrationTest extends AbstractIntegrationTest {

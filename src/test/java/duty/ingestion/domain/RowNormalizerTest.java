@@ -11,11 +11,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Normalization of a raw row into the fields a complaint carries (section 5.4).
- *
- * <p>Two things are load-bearing here. The form timestamp is read in Asia/Kolkata and stored UTC
- * (NFR-7), and the student's name, roll number and phone — real PII (section 11.4) — never appear
- * in a {@code toString()} or in the message of an exception, because both end up in logs.
+ * Row normalization: timestamps read as IST and stored as UTC, and student details never appear in
+ * {@code toString()} or exception messages.
  */
 class RowNormalizerTest {
 

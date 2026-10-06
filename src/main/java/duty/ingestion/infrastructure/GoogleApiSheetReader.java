@@ -13,28 +13,20 @@ import java.util.Objects;
 import org.springframework.stereotype.Component;
 
 /**
- * {@link SheetReader} over the real Sheets API v4 — the only class in the system that knows Google
- * exists.
+ * {@link SheetReader} using the real Google Sheets API.
  *
- * <p><strong>The client is built on first use, not at startup.</strong> The service-account key is
- * an environment variable and never a file in the repository (section 11.5), so a developer
- * machine and CI have none. Building the client eagerly would make the application refuse to start
- * without a credential it does not need to serve the manager's dashboard or the CSV fallback.
- * Nothing here runs until something actually asks to read the sheet, and the poller only asks when
- * {@link SheetsProperties#configured()}.
- *
- * <p>The scope is {@code spreadsheets.readonly}. If the key leaks, the blast radius is reading
- * complaints we already have (section 11.5).
+ * <p>The client is built on first use, not at startup, so the app still starts without a credential
+ * (as on a developer machine or in CI). The scope is read-only.
  */
 @Component
 class GoogleApiSheetReader implements SheetReader {
 
-    /** Sent as the User-Agent, so a quota question can be traced back to this application. */
+    /** Sent as the User-Agent. */
     private static final String APPLICATION_NAME = "duty-tracker";
 
     private final SheetsProperties properties;
 
-    /** Built once, on the first read. Volatile because the poller and "Sync Now" are two threads. */
+    /** Built on first read. Volatile because the poller and "Sync Now" run on different threads. */
     private volatile Sheets client;
 
     GoogleApiSheetReader(SheetsProperties properties) {

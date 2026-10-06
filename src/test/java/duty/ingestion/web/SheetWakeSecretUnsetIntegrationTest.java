@@ -13,16 +13,8 @@ import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * No {@code INGESTION_WAKE_SECRET} — the state of every developer machine and every CI run.
- *
- * <p>This is the test that makes "unset means closed" a property rather than an intention. A guard
- * written the obvious way compares the presented header with the configured secret, and when both
- * are empty they match: the endpoint would be wide open on exactly the machines nobody is
- * watching, and the whole system's one unauthenticated URL would be an open door. It is its own
- * context because that is the only way to have the property genuinely absent.
- *
- * <p>Deliberately no {@code ingestion.sheets.*} either: an instance with no secret is refused
- * before anything asks whether there is a sheet.
+ * With no wake secret configured, the endpoint refuses every call, including one with an empty
+ * header.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

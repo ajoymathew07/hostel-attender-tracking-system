@@ -27,26 +27,11 @@ import static duty.workflow.domain.TransitionGuard.TARGET_ATTENDER;
 import java.util.List;
 
 /**
- * <strong>The transition table of section 4.2, as data.</strong>
+ * The complaint transition table, as data, readable side by side with the design.
  *
- * <p>Written out row for row so that it can be read side by side with the design. A pile of
- * {@code if} statements spread across the services that happen to fire each event is how a
- * complaint ends up {@code RESOLVED} with no docket; here the legal moves are one list, and
- * {@code WorkflowService} is the only thing that reads it.
- *
- * <p>Two rows share the pair {@code (NEW, AUTO_DISPATCH)} — T2 and T3 — because section 4.2 splits
- * that event by its guard rather than by its name. So the lookup returns a <em>list</em> and the
- * caller applies the first row whose guard holds. Every row for one pair names the same actor, so
- * authorization does not depend on which branch wins.
- *
- * <p>One row here is not literally in section 4.2's table and is marked below: the docket
- * correction of section 4.3. Nothing else has been added, and no row of section 4.2 that acts on
- * an existing complaint has been left out.
- *
- * <p>There is no {@code (NEW, MANAGER_ASSIGN)} row, and that absence is load-bearing.
- * {@code NEW} is transient: auto-dispatch runs inside the intake transaction, so a complaint is
- * {@code ASSIGNED} or in {@code TRIAGE} before anybody can look at it. A manager assigning from
- * the list is therefore always T4, out of {@code TRIAGE}.
+ * <p>T2 and T3 share {@code (NEW, AUTO_DISPATCH)} and are told apart by their conditions, so a lookup
+ * returns a list. There is no {@code (NEW, MANAGER_ASSIGN)} row: a complaint never stays {@code NEW},
+ * so manual assignment is always from {@code TRIAGE} (T4).
  */
 public final class ComplaintTransitions {
 
@@ -77,12 +62,7 @@ public final class ComplaintTransitions {
 
     private ComplaintTransitions() {}
 
-    /**
-     * The rows for one {@code (state, event)} pair, in table order.
-     *
-     * <p>Empty means the pair is absent from section 4.2 and the caller must refuse it — that
-     * emptiness is the whole point of the table.
-     */
+    /** The rows for one state and event, in table order. Empty means the move is not allowed. */
     public static List<ComplaintTransition> matching(ComplaintStatus from, WorkflowEvent event) {
         return TABLE.stream().filter(row -> row.from() == from && row.event() == event).toList();
     }

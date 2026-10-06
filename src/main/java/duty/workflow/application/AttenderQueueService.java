@@ -13,13 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The attender's own queue (sections 10.2, 11.3).
+ * The signed-in attender's own queue.
  *
- * <p>There is no {@code hasRole('ATTENDER')} on this class and that is deliberate. The scope is
- * not "attenders may see assignments", it is "you may see <em>yours</em>" — the query is keyed on
- * the signed-in user, so a role check would add nothing a caller could get round and would refuse
- * the manager's {@code act-as} path (section 9.4) when it lands. The detail view carries the
- * ownership check instead, which is the one section 11.3 actually names.
+ * <p>No role check: the query only ever returns the caller's own work. Opening a single task is
+ * guarded by ownership.
  */
 @Service
 @Transactional(readOnly = true)
@@ -32,10 +29,8 @@ public class AttenderQueueService {
     }
 
     /**
-     * The signed-in attender's live work, highest priority first.
-     *
-     * <p>Scoped to the caller rather than taking an id: an attender id in the signature is an
-     * attender id someone can change in a form post (E20).
+     * The caller's live work, highest priority first. Takes no attender id, so nobody can ask for someone
+     * else's.
      */
     public List<QueuedTask> myQueue() {
         Instant now = Instant.now();
@@ -51,11 +46,8 @@ public class AttenderQueueService {
     }
 
     /**
-     * One task of the caller's, for {@code /m/tasks/{id}} (section 10.4).
-     *
-     * <p>{@code @access.ownsTask} is the ownership half of section 11.3, and it is on the service
-     * rather than the controller so that a deep link from a push notification, a future API or a
-     * second screen all meet the same check.
+     * One of the caller's tasks, for {@code /m/tasks/{id}}. The ownership check is on the service so every
+     * route to it is covered.
      */
     @PreAuthorize("@access.ownsTask(#taskId)")
     public Optional<QueuedTask> myTask(long taskId) {
@@ -66,14 +58,9 @@ public class AttenderQueueService {
     }
 
     /**
-     * Builds the card, applying the 7-day window of section 11.4.
-     *
-     * <p>The three student fields are dropped here rather than in the template, so an expired
-     * window means the values never enter the model at all.
-     *
-     * <p>{@code slaOverdue} is answered against {@code now} rather than read from
-     * {@code sla_breached}: the flag is written by the aging sweep on an interval, and the attender
-     * holding the phone wants to know whether the due date has passed this second.
+     * Builds the card. Student details are left out once the 7-day window after resolution has passed, so
+     * they never reach the page. Overdue is computed against now, not read from the periodically updated
+     * flag.
      */
     private static QueuedTask toCard(TaskAssignment assignment, Instant now) {
         Complaint complaint = assignment.getTask().getComplaint();

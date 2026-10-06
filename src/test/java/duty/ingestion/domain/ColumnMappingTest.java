@@ -9,13 +9,7 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Column mapping by header <em>name</em>, never by position (section 5.2).
- *
- * <p>The failure case is the one that matters. Form wording changes (OQ-4); when a required
- * question is renamed out from under us the run must stop, because a silent partial ingest means
- * complaints are dropped and nobody finds out.
- */
+/** Columns are found by header name; a missing required column stops the run. */
 class ColumnMappingTest {
 
     private static final ColumnMapping MAPPING =

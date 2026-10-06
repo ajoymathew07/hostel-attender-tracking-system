@@ -23,11 +23,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 
 /**
- * The complaint aggregate (data model section 3.5) and the rules its columns exist to enforce.
- *
- * <p>The guarded transition table itself lands in PR 11. What this PR owes is the state the table
- * will operate on: the docket columns that gate {@code mark_resolved}, the base/current priority
- * pair that makes aging explainable, and the retention columns of section 3.8.
+ * The complaint entity and the rules its columns enforce: docket, base/current priority and
+ * retention.
  */
 @SpringBootTest
 class ComplaintIntegrationTest extends AbstractIntegrationTest {

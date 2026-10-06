@@ -27,14 +27,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.context.support.WithMockUser;
 
 /**
- * The aging job of section 4.5: old low-priority work surfaces above new noise.
- *
- * <p>Time is controlled by choosing {@code sla_due_at}, not by mocking a clock. A complaint whose
- * due date is ten days in the past is past 1.5× any window in section 8.2's table, which is exactly
- * the condition the job is defined by — and it is the condition production will meet too.
- *
- * <p>Every complaint here is {@code ELECTRICAL} with base {@code P3}, so the window is 72 working
- * hours and the escalation threshold is half a window past the due date.
+ * The ageing job. Time is controlled by setting {@code sla_due_at} in the past rather than mocking a
+ * clock. Every complaint is ELECTRICAL with base P3.
  */
 @SpringBootTest
 @WithMockUser(roles = "MANAGER")

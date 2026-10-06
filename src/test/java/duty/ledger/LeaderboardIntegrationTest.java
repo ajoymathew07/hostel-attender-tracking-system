@@ -28,11 +28,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * The leaderboard is a query, never stored state (section 7.8).
- *
- * <p>The assertions filter to the attenders each test provisioned: the suite shares one database,
- * and the point of the projection is that it reports whatever the ledger holds, not that it is
- * the only thing in it.
+ * The leaderboard is computed from the ledger. Assertions only look at this test's attenders, since the
+ * database is shared.
  */
 @SpringBootTest
 class LeaderboardIntegrationTest extends AbstractIntegrationTest {
@@ -71,12 +68,7 @@ class LeaderboardIntegrationTest extends AbstractIntegrationTest {
                 .orElseThrow(() -> new AssertionError("no row for " + attender.getId()));
     }
 
-    /**
-     * A ledger row of a kind that needs no task, so these tests are about the projection and not
-     * about the resolve path — that one is proved end to end in {@code
-     * TaskResolutionIntegrationTest}. The total sums every reason code, which is what section 7.8
-     * asks for.
-     */
+    /** Adds a ledger row that needs no task, so these tests cover only the leaderboard. */
     private void credit(AppUser attender, int points, Instant at) {
         entries.saveAndFlush(
                 PointLedgerEntry.managerEntry(

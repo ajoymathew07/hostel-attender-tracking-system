@@ -23,22 +23,12 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * Section 5.3's reconciliation, once, for every source.
+ * The ingestion loop shared by every source: key each row, skip rows already held, ingest the rest,
+ * count the result.
  *
- * <p>Fifteen lines and one branch, exactly as the design has it: derive an identity from the
- * response, skip what we already hold, insert what we do not, count the result. Nothing here is
- * CSV-specific or Sheets-specific — the source is reached through {@link ComplaintSource}, which
- * is the entire reason the fallback path is <em>the same path</em> (section 5.8). This class was
- * the body of the CSV upload service until the Sheets adapter arrived; it moved rather than being
- * copied, because a second copy is precisely what the port exists to prevent.
- *
- * <p><strong>Not {@code @Transactional}.</strong> The run row and each individual row commit
- * separately (section 5.3), so a transaction spanning the whole run would defeat both: a malformed
- * row would take the run's own record down with it, and a 5000-row upload would hold one
- * transaction open for its entire duration.
- *
- * <p><strong>Nothing a resident wrote is logged.</strong> Every log line here carries counts, row
- * numbers and a run id (section 11.4).
+ * <p>Not {@code @Transactional}: the run record and each row commit separately, so one bad row cannot
+ * undo the run's record, and a big upload does not hold one long transaction. Logs carry counts and
+ * row numbers only, never student data.
  */
 @Service
 class IngestionPipeline {
@@ -53,12 +43,7 @@ class IngestionPipeline {
         this.runs = runs;
     }
 
-    /**
-     * Opens a run, reads the source and reconciles what it returned.
-     *
-     * <p>A run is the unit a correlation id traces (section 3.7): every audit row this run writes
-     * can be pulled out of the log afterwards as one ordered story.
-     */
+    /** Opens a run, reads the source and ingests the rows, all under one correlation id. */
     IngestionSummary run(ComplaintSource source, TriggerType trigger, FetchWindow window) {
         return CorrelationId.runWith(CorrelationId.generate(), () -> execute(source, trigger, window));
     }
@@ -124,11 +109,8 @@ class IngestionPipeline {
     }
 
     /**
-     * Section 5.3's in-batch disambiguator: two submissions in the same second by the same person
-     * are two complaints, so the ordinal advances until the key is unused within this batch.
-     *
-     * <p>It is deterministic in the source's own order, so reading the same rows again reproduces
-     * the same keys and still creates nothing.
+     * The response key for a row. Two submissions by the same person in the same second get different
+     * ordinals, so both become complaints. Deterministic, so re-reading the same rows gives the same keys.
      */
     private static String responseKeyFor(RawRow row, Set<String> seenInBatch) {
         String timestamp = row.get(SourceField.TIMESTAMP);

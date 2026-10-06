@@ -21,10 +21,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * The provisioning screen's actions (section 10.4, item 1.3 of section 13.3).
- *
- * <p>Every action is a POST, so every one of them carries a CSRF token (section 11.6), and every
- * one redirects afterwards — a refresh must not re-deactivate somebody.
+ * The provisioning screen's actions: each is a POST with a CSRF token that redirects afterwards.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

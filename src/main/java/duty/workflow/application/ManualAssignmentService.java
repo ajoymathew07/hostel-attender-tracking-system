@@ -20,17 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Manual assignment from the manager's desktop: assign, reassign, release (section 10.3).
+ * Manual assignment from the manager's dashboard: assign, reassign, release. Manager-only.
  *
- * <p>Manager-only, and the class-level {@code @PreAuthorize} is where section 11.3 requires it —
- * on the service. "Classify, assign, reassign, reject, reopen" is a manager capability, and an
- * attender who reaches this bean by any route at all is refused here rather than in whichever
- * controller happened to be in front of it.
- *
- * <p><strong>The complaint's state moves through the table, never from here.</strong> This class
- * owns {@code task_assignment} rows; T4 and T6 own {@code complaint.status}, and it asks
- * {@link WorkflowService} for them. Writing the status directly would be the second write path
- * section 4.1 says must not exist.
+ * <p>This class manages the assignment rows; status changes go through {@link WorkflowService}.
  */
 @Service
 @Transactional
@@ -59,11 +51,8 @@ public class ManualAssignmentService {
     }
 
     /**
-     * Gives this complaint's work to an attender, taking it off whoever held it (T4, T6).
-     *
-     * <p>The same method is assign and reassign, because from the manager's side they are the same
-     * gesture — pick a name, press the button — and the difference is only whether somebody held
-     * it already. Two methods would be two code paths for one screen control.
+     * Gives the complaint's work to an attender, taking it off whoever held it. One method for assign and
+     * reassign, since the screen has one control for both.
      */
     public void assign(long complaintId, long attenderId) {
         Instant now = Instant.now();
@@ -102,7 +91,7 @@ public class ManualAssignmentService {
         record(task, "TASK_ASSIGNED", attenderId, complaintId);
     }
 
-    /** Hands the work back to the pool, leaving the task for the next assignment (T8's effect). */
+    /** Hands the work back to the pool; the task stays for the next assignment. */
     public void release(long complaintId) {
         tasks.findByComplaintId(complaintId)
                 .ifPresent(
@@ -121,16 +110,9 @@ public class ManualAssignmentService {
     }
 
     /**
-     * T4 or T6, whichever this assignment is — or neither.
-     *
-     * <p>Three cases, and the table decides all three. It is in triage, so the complaint becomes
-     * {@code ASSIGNED} (T4). Somebody else holds it, so the work moves (T6). The same attender
-     * holds it already, so nothing about the complaint has changed and there is no transition to
-     * make — which is also what T6's guard says, in the other direction.
-     *
-     * <p>Once the attender has started, the complaint is past {@code ASSIGNED} and section 4.2
-     * draws no edge back: handing live work to somebody else changes who holds it, not how far
-     * along it is, so the status stays where the attender left it.
+     * Moves the complaint's status if needed: from triage it becomes {@code ASSIGNED} (T4); if someone else
+     * held it, it is reassigned (T6); if the same attender already holds it, nothing changes. Once work has
+     * started the status stays where it is.
      */
     private void moveComplaint(long complaintId, long attenderId) {
         Complaint complaint = complaints.findById(complaintId).orElseThrow();
@@ -159,13 +141,7 @@ public class ManualAssignmentService {
                 .orElse(false);
     }
 
-    /**
-     * The complaint's task, created on first assignment.
-     *
-     * <p>Section 4.2 creates the task as a side effect of T2/T4, so before anybody is assigned
-     * there is nothing to assign. Creating it here on demand keeps that true without a nightly job
-     * manufacturing tasks nobody will ever hold.
-     */
+    /** The complaint's task, created on first assignment. */
     private Task taskFor(long complaintId, Instant now) {
         return tasks.findByComplaintId(complaintId)
                 .orElseGet(
@@ -182,11 +158,8 @@ public class ManualAssignmentService {
     }
 
     /**
-     * The reference and the room, never the resident's words or details.
-     *
-     * <p>{@code task.title} is shown on leaderboards and in notifications, neither of which is
-     * covered by the 7-day window, so the complaint's text does not get copied into it (section
-     * 11.4, section 11.6).
+     * The reference and room only, never the resident's text or details, because task titles are shown
+     * widely.
      */
     private static String title(Complaint complaint) {
         return complaint.getReporterRoom() == null
@@ -194,7 +167,7 @@ public class ManualAssignmentService {
                 : complaint.getPublicRef() + " · Room " + complaint.getReporterRoom();
     }
 
-    /** The detail names ids, not people: audit rows are kept indefinitely (section 11.4). */
+    /** Audits the assignment by ids only, since audit rows are kept forever. */
     private void record(Task task, String eventType, Long attenderId, long complaintId) {
         audit.record(
                 AuditEntry.change(

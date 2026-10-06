@@ -19,14 +19,8 @@ import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * The SLA table and the working calendar, as configuration (sections 4.5, 8.2).
- *
- * <p>Section 4.5 is explicit that these are the manager's to set rather than ours to compile in:
- * "the working calendar — working hours, weekends and holidays, and the initial SLA per domain — is
- * configurable by the manager rather than compiled in", and section 8.2 repeats it of the figures
- * ("These are configuration, not constants"). Both are also still open questions — OQ-2 for the
- * targets, OQ-6 for the window — so the defaults in YAML are working answers a config edit can
- * change, not a redeploy.
+ * The default SLA windows and working day from {@code application.yml}. The manager can override them
+ * on the settings screen.
  */
 @ConfigurationProperties(prefix = "workflow.sla")
 public class SlaProperties {
@@ -60,7 +54,7 @@ public class SlaProperties {
                 holidays);
     }
 
-    /** A typo in a YAML key is a domain nobody has an SLA for, so it fails the start. */
+    /** An unknown domain name in YAML fails startup. */
     private static ComplaintDomain domain(String key) {
         try {
             return ComplaintDomain.valueOf(key.toUpperCase());
@@ -90,7 +84,7 @@ public class SlaProperties {
         return workingDay;
     }
 
-    /** OQ-6's window: 08:00–20:00 IST, seven days, no holidays. */
+    /** The working day: zone, start, end, non-working days and holidays. */
     public static class WorkingDay {
 
         private String zone = "Asia/Kolkata";

@@ -12,9 +12,8 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * A declared period of availability or absence for an attender (data model section 3.4).
- *
- * <p>An open-ended window has {@code endsAt == null} and applies from {@code startsAt} onward.
+ * A period when an attender is available, on leave or off duty. {@code endsAt == null} means
+ * open-ended.
  */
 @Entity
 @Table(name = "availability_window")

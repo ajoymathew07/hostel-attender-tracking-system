@@ -21,25 +21,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * <strong>Transitions T2 and T3 — the dispatcher's fork</strong> (section 4.2).
+ * Auto-dispatch for a new complaint: assign it to an attender (T2) or send it to triage with a reason
+ * (T3). There is no third outcome.
  *
- * <p>Every complaint leaves intake down one of two paths and there is no third: somebody is given
- * the work ({@code ASSIGNED}), or the complaint goes to {@code TRIAGE} with a recorded reason. That
- * is requirement R1 of section 6.1, and it is why {@code NEW} is a state a manager never sees.
- *
- * <p>Three reasons send a complaint to triage, and each is a row of section 6.4's table:
- *
- * <ul>
- *   <li>{@code UNCLASSIFIED} — the resident answered "Others" or nothing, so there is no domain to dispatch
- *       on and the heuristic is never consulted;
- *   <li>{@code UNMAPPED_LOCATION} — the room number is unreadable, and dispatching on a location we
- *       could not read is worse than asking;
- *   <li>{@code NO_AVAILABLE_ATTENDER} — {@code E = ∅}; everyone is on leave or off duty.
- * </ul>
- *
- * <p>The complaint's state still moves through {@link WorkflowService} and nowhere else (section
- * 4.1). What this class owns is T2's other side effects: the task, the {@code AUTO} assignment row,
- * and the score snapshot that answers "why them" months later.
+ * <p>Triage reasons: no usable domain ("Others" or blank), an unreadable room number, or nobody
+ * available. The status change goes through {@link WorkflowService}; this class creates the task, the
+ * {@code AUTO} assignment and the score snapshot.
  */
 @Service
 @Transactional
@@ -47,7 +34,7 @@ public class AutoDispatchService {
 
     private static final String ENTITY_TYPE = "complaint";
 
-    /** T3's "record triage reason", one sentence per row of section 6.4. */
+    /** Triage reasons, one per case. */
     private static final String UNCLASSIFIED =
             "the resident did not say which kind of problem this is";
 
@@ -76,7 +63,7 @@ public class AutoDispatchService {
         this.audit = audit;
     }
 
-    /** Dispatches a freshly ingested complaint, or files it for the manager with the reason. */
+    /** Dispatches a newly ingested complaint, or sends it to triage with the reason. */
     public void dispatch(Complaint complaint) {
         if (!complaint.getDomain().isDispatchable()) {
             triage(complaint, UNCLASSIFIED);
@@ -96,18 +83,14 @@ public class AutoDispatchService {
         assign(complaint, chosen.get());
     }
 
-    /** T3. */
+    /** Sends the complaint to triage (T3). */
     private void triage(Complaint complaint, String reason) {
         workflow.transition(complaint.getId(), WorkflowEvent.AUTO_DISPATCH, TransitionPayload.reason(reason));
     }
 
     /**
-     * T2 — the task, the {@code AUTO} assignment and the snapshot, then the state move.
-     *
-     * <p>The rows are written before the transition because T2's guard is "dispatch returned a
-     * candidate", which the payload carries, and because the state move is the commit point: a
-     * complaint that reads {@code ASSIGNED} with nobody holding it is the one outcome section 6.4
-     * says must not exist.
+     * Creates the task and {@code AUTO} assignment with its snapshot, then moves the complaint to
+     * {@code ASSIGNED} (T2). Rows first, so an {@code ASSIGNED} complaint always has a holder.
      */
     private void assign(Complaint complaint, DispatchResult result) {
         Instant now = Instant.now();
@@ -137,11 +120,8 @@ public class AutoDispatchService {
     }
 
     /**
-     * Section 6.4's two "assign anyway, but say so" rows.
-     *
-     * <p>Overflowing visibly beats triaging silently — work cannot vanish because everybody is
-     * busy — but a manager who is never told that every attender is at capacity, or that nobody
-     * covers a floor at all, cannot act on either. The audit row is where the dashboard reads it.
+     * Assigns anyway when everyone is full or nobody covers the floor, but records it in the audit log so
+     * the manager can see it.
      */
     private void warnIfStretched(Complaint complaint, Task task, DispatchResult result) {
         if (!result.capacityExceeded() && !result.uncoveredFloor()) {
@@ -161,7 +141,7 @@ public class AutoDispatchService {
                         null));
     }
 
-    /** Who already holds this complaint's task, and so cannot be handed it again. */
+    /** Who already holds this complaint's task, and so cannot be given it again. */
     private Set<Long> alreadyAssigned(Complaint complaint) {
         return tasks.findByComplaintId(complaint.getId())
                 .map(
@@ -173,9 +153,8 @@ public class AutoDispatchService {
     }
 
     /**
-     * The reference and the room, never the resident's words or details — the same rule the
-     * manual path follows, for the same reason: {@code task.title} appears on leaderboards and in
-     * notifications, neither of which is covered by the 7-day window (section 11.4).
+     * The reference and room only, never the resident's text or details, because task titles are shown
+     * widely.
      */
     private static String title(Complaint complaint) {
         return complaint.getReporterRoom() == null

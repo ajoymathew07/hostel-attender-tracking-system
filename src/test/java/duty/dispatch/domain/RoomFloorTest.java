@@ -9,7 +9,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** The room-number rule the hostel actually uses, which is not the one section 5.4 states. */
+/** The room-number rule: the first digit is the floor. */
 class RoomFloorTest {
 
     @ParameterizedTest

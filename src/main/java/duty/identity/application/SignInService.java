@@ -11,27 +11,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The allowlist: resolves a verified Google email against {@code app_user} and refuses anything
- * without a matching active row (section 11.2, ADR-002).
+ * The allowlist check: admits a verified Google email only if it matches an active {@code app_user}
+ * row.
  *
- * <p>This is <strong>the</strong> access-control boundary of the system (section 11.2). Google
- * establishes who someone is and has no opinion on whether they may use this application; that
- * decision is made here, in one place, against {@code app_user}.
- *
- * <p>Three properties of this class are the security control, and each is tested directly:
- *
- * <ul>
- *   <li><strong>Nothing is created.</strong> An unknown address is refused; it never becomes a row.
- *       There is no self-registration path in this system at all (architecture section 2.3).
- *   <li><strong>The address must be verified by Google.</strong> A self-asserted {@code email}
- *       claim is not matched against anything, so an attacker who can set their own profile email
- *       cannot borrow an allowlisted address.
- *   <li><strong>Both outcomes are audited</strong>, a refusal carrying the address that was refused
- *       (section 11.7) — the log of attempts by people who are not allowed in is the more
- *       interesting half.
- * </ul>
- *
- * <p>No credential is read, compared or stored here, because none exists anywhere in the schema.
+ * <p>Nothing is ever created here, an unverified address is never matched, and both outcomes are
+ * audited. No passwords exist anywhere in the system.
  */
 @Service
 public class SignInService {
@@ -39,9 +23,7 @@ public class SignInService {
     private static final String ENTITY_TYPE = "app_user";
 
     /**
-     * {@code audit_event.entity_id} is {@code NOT NULL}, and a refused sign-in by a stranger names
-     * no row. Zero stands for "no such user" — the address is in {@code detail}, which is the field
-     * that actually identifies the attempt.
+     * Stands in for the entity id when a stranger is refused, since {@code entity_id} cannot be null.
      */
     private static final long NO_SUCH_USER = 0L;
 
@@ -54,9 +36,8 @@ public class SignInService {
     }
 
     /**
-     * Transactional because it writes: {@code last_login_at} on success, and an audit row either
-     * way. It does not throw on a refusal — see {@link SignInOutcome} for why the audit row would
-     * otherwise be rolled back along with it.
+     * Decides one sign-in. Writes {@code last_login_at} on success and an audit row either way. Never throws
+     * on a refusal.
      */
     @Transactional
     public SignInOutcome admit(OidcIdentity identity) {
@@ -68,10 +49,8 @@ public class SignInService {
         if (!identity.emailVerified()) {
             return refuse(SignInRejection.EMAIL_NOT_VERIFIED, email, NO_SUCH_USER);
         }
-        // Tested on what Google sent, NOT on `email`: normalisation is where the damage is done.
-        // Lower-casing is not injective over Unicode — U+212A KELVIN SIGN folds to 'k', so
-        // "Kumar@…" normalises to the ASCII string "kumar@…" and would match a row it is not
-        // (see EmailAddresses). Nothing this system stores is non-ASCII, so refusing loses nobody.
+        // Checked on the raw address, before lower-casing: some Unicode letters lower-case to
+        // ASCII and could match someone else's row (see EmailAddresses).
         if (!EmailAddresses.isAscii(identity.email())) {
             return refuse(SignInRejection.NOT_PROVISIONED, email, NO_SUCH_USER);
         }
@@ -100,10 +79,7 @@ public class SignInService {
                 new SignedInUser(user.getId(), user.getEmail(), user.getDisplayName(), user.getRole()));
     }
 
-    /**
-     * {@code actorId} is deliberately null even when the address matched a deactivated row: nobody
-     * authenticated, so there is no actor. The row that was refused is named by {@code entityId}.
-     */
+    /** No actor on a refusal, because nobody authenticated. */
     private SignInOutcome refuse(SignInRejection rejection, String email, Long entityId) {
         audit.record(
                 AuditEntry.change(

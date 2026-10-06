@@ -31,28 +31,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * <strong>The one and only write path to {@code complaint.status}</strong> (section 4.1).
+ * The only code that changes {@code complaint.status}.
  *
- * <p>Complaint status drives the attender queue, the dashboard, SLA aging, MTTR and the point
- * credit. Left as an informally-updated string it is how a ticket ends up {@code RESOLVED} with no
- * docket, or credited twice. So every change goes through {@link #transition}, which
- *
+ * <p>{@link #transition}:
  * <ol>
- *   <li>loads the aggregate with its {@code @Version} — the optimistic lock of section 7.2;
- *   <li>looks the pair up in {@link ComplaintTransitions}, refusing an absent one;
- *   <li>checks the actor and evaluates the guard;
- *   <li>applies the state change, its side effects and its audit row in <em>one</em> transaction.
+ *   <li>loads the complaint with its {@code @Version} (optimistic lock);
+ *   <li>looks up the move in {@link ComplaintTransitions}, refusing it if absent;
+ *   <li>checks who is acting and the move's condition;
+ *   <li>applies the change, its side effects and the audit row in one transaction.
  * </ol>
  *
- * <p><strong>The actor is read from the security context, not passed in.</strong> Section 4.1
- * writes the signature as {@code transition(complaintId, event, actor, payload)}, but every caller
- * in this codebase would fill that argument with the signed-in user, and an actor a caller can
- * choose is an actor a caller can forge. {@code CurrentUser} is where the rest of the system reads
- * it, for the same reason.
- *
- * <p>T2 and T3 are rows here, but their side effects — snapshot the dispatch score, record the
- * triage reason — are written by {@link AutoDispatchService}, which then calls this for the state
- * move.
+ * <p>The actor comes from the security context, not a parameter, so a caller cannot fake it. The
+ * side effects of T2 and T3 are written by {@link AutoDispatchService}.
  */
 @Service
 @Transactional
@@ -60,7 +50,7 @@ public class WorkflowService {
 
     private static final String ENTITY_TYPE = "complaint";
 
-    /** T16 — "7 days elapsed since resolution". */
+    /** Auto-close happens 7 days after resolution (T16). */
     private static final Duration AUTO_CLOSE_AFTER = Duration.ofDays(7);
 
     private final ComplaintRepository complaints;
@@ -69,7 +59,7 @@ public class WorkflowService {
     private final PointsLedger ledger;
     private final AuditTrail audit;
 
-    /** OQ-1: there is no CMS API (section 1.8), so T11 can only check the format. */
+    /** Docket number format; only the format can be checked. */
     private final Pattern docketPattern;
 
     WorkflowService(
@@ -90,9 +80,9 @@ public class WorkflowService {
     /**
      * Moves a complaint, or refuses to.
      *
-     * @throws IllegalTransitionException the pair is not in section 4.2's table
-     * @throws GuardFailedException the move is legal but its precondition is not met
-     * @throws AccessDeniedException the caller is not the actor the row names (section 11.3)
+     * @throws IllegalTransitionException the move is not allowed from the current state
+     * @throws GuardFailedException the move is allowed but its condition is not met
+     * @throws AccessDeniedException the caller is not allowed to make this move
      */
     public void transition(long complaintId, WorkflowEvent event, TransitionPayload payload) {
         Complaint complaint = complaints.findById(complaintId).orElseThrow();
@@ -145,7 +135,7 @@ public class WorkflowService {
         return assignments.findByTaskIdAndAttenderId(task.getId(), me).orElse(null);
     }
 
-    /** The Actor column of section 4.2, which is section 11.3 enforced at the service layer. */
+    /** Checks the caller is the actor the transition requires. */
     private void requireActor(TransitionActor actor, Context context) {
         boolean permitted =
                 switch (actor) {
@@ -165,14 +155,13 @@ public class WorkflowService {
     }
 
     /**
-     * Ownership, not role. A {@code RELEASED} or {@code COMPLETED} row records that the caller
-     * <em>once</em> held the task, which is exactly the person who must no longer drive it (E20).
+     * Whether the caller holds an {@code ACTIVE} assignment. A released or completed one does not count.
      */
     private static boolean holdsActiveAssignment(Context context) {
         return context.assignment() != null && context.assignment().isActive();
     }
 
-    /** The Guard column of section 4.2, evaluated. */
+    /** Whether the transition's condition holds. */
     private boolean satisfied(TransitionGuard guard, Context context) {
         return switch (guard) {
             case NONE -> true;
@@ -192,7 +181,7 @@ public class WorkflowService {
         };
     }
 
-    /** The refusal the failed guard deserves; the docket's two have sentences of their own. */
+    /** The exception for a failed condition; the docket ones have their own messages. */
     private RuntimeException refusal(TransitionGuard guard, Context context) {
         return switch (guard) {
             case DOCKET_FORMAT -> new InvalidDocketException(context.payload().docketNo());
@@ -201,13 +190,13 @@ public class WorkflowService {
         };
     }
 
-    /** T2 — "Domain is not UNCLASSIFIED and dispatch returns a candidate". */
+    /** T2's condition: a dispatchable domain and an attender was found. */
     private static boolean dispatchFoundSomebody(Context context) {
         return context.payload().attenderId() != null
                 && context.complaint().getDomain() != ComplaintDomain.UNCLASSIFIED;
     }
 
-    /** T6 — a reassignment that leaves the work where it is, is not a reassignment. */
+    /** T6's condition: the work actually moves to a different attender. */
     private boolean movesTheWork(Context context) {
         Long target = context.payload().attenderId();
         return target != null
@@ -218,22 +207,16 @@ public class WorkflowService {
     }
 
     /**
-     * The Side effects column of section 4.2, and the audit detail they produce.
+     * Applies the transition's side effects and returns the audit detail.
      *
-     * <p>T2's score snapshot and T3's triage reason are not here: {@link AutoDispatchService}
-     * writes them. The triage reason still reaches the audit row, as the payload's {@code reason}.
-     *
-     * <p>Assignment rows are not created here either. {@link ManualAssignmentService} owns them and
-     * calls this method for the status move, which is what section 4.1 says must be single —
-     * status, not every row a manager touches.
+     * <p>Assignment rows are managed by {@link ManualAssignmentService} and {@link AutoDispatchService},
+     * not here.
      */
     private String applySideEffects(WorkflowEvent event, Context context, Instant now) {
         switch (event) {
             case ATTENDER_START -> context.complaint().startInspection(now);
-            // T12 and T13 — the SLA clock stops while the work is blocked and the due date moves by
-            // however long the block lasted (section 4.5). Without this, "waiting three days for the
-            // Engineering Unit" would be recorded as attender slowness and would point section 8's
-            // bottleneck analysis at exactly the wrong stage.
+            // T12/T13: the SLA clock pauses while blocked, so waiting on the Engineering Unit
+            // is not counted against the attender.
             case BLOCK -> context.complaint().pauseSlaClock(now);
             case UNBLOCK -> {
                 return resumeTheClock(context, now);
@@ -253,13 +236,7 @@ public class WorkflowService {
                 : null;
     }
 
-    /**
-     * T13 — the clock restarts, and the audit row says what the hold cost.
-     *
-     * <p>The hold's length is on the audit row rather than in a column of its own: the complaint can
-     * be blocked more than once, {@code sla_due_at} carries the accumulated effect, and the
-     * individual spans belong in the log (section 4.3's argument, applied again).
-     */
+    /** Restarts the SLA clock (T13) and records in the audit row how long the hold lasted. */
     private String resumeTheClock(Context context, Instant now) {
         Complaint complaint = context.complaint();
         Instant heldSince = complaint.getHoldStartedAt();
@@ -269,7 +246,7 @@ public class WorkflowService {
                 .json();
     }
 
-    /** T11, and section 4.3's correction: the audit row is the docket's whole history. */
+    /** Records the docket (T11); the audit row keeps the old and new numbers. */
     private String recordDocket(Context context, Instant now) {
         String previous = context.complaint().getDocketNo();
         String corrected = context.payload().docketNo().trim();
@@ -277,14 +254,14 @@ public class WorkflowService {
         return AuditDetail.of("from", previous).and("to", corrected).json();
     }
 
-    /** T8 — the work goes back to the pool. */
+    /** Releases the current holders (T8). */
     private void releaseHolders(Task task) {
         assignments
                 .findByTaskIdAndStatus(task.getId(), AssignmentStatus.ACTIVE)
                 .forEach(TaskAssignment::release);
     }
 
-    /** T14 — the +2, keyed to the work so a retry cannot double it (section 7.3). */
+    /** Credits the points, keyed to the work so a retry cannot double them (T14). */
     private void creditAndComplete(Context context, Instant now) {
         TaskAssignment mine = context.assignment();
         Task task = context.task();
@@ -299,12 +276,8 @@ public class WorkflowService {
     }
 
     /**
-     * T17 — the reopen writes a compensating row; it never deletes the credit.
-     *
-     * <p>The attender's balance falls by 2 and both rows stay visible in their history. Bumping
-     * the reopen count last is what makes a later re-resolution land on a <em>new</em> key
-     * ({@code :r1}, {@code :r2}, …), so the uniqueness constraint keeps blocking duplicates without
-     * ever blocking genuine repeat work (section 7.3).
+     * Reverses the credit on reopen with a negating row (T17). The reopen count goes up last, so a later
+     * re-resolution gets a new key and is credited again.
      */
     private void reverseTheCredit(Context context, Instant now) {
         Task task = context.task();
@@ -323,7 +296,7 @@ public class WorkflowService {
         return value != null && !value.isBlank();
     }
 
-    /** Everything a guard or a side effect is allowed to see, gathered once per transition. */
+    /** Everything a condition or side effect may read, loaded once per transition. */
     private record Context(
             Complaint complaint, Task task, TaskAssignment assignment, TransitionPayload payload) {}
 }

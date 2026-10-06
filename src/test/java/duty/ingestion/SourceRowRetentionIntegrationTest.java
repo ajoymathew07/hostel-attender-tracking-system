@@ -23,11 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * Change detection and retention for source rows (data model sections 3.5 and 3.8).
- *
- * <p>The point worth proving here is the one that lets the two coexist: {@code raw_payload} is
- * purged after 90 days while {@code content_hash} is kept, so a previously-seen row is still
- * recognised without storing what it said.
+ * Change detection and retention: after the payload is purged, the kept hash still recognises the row.
  */
 @SpringBootTest
 class SourceRowRetentionIntegrationTest extends AbstractIntegrationTest {

@@ -3,22 +3,10 @@ package duty.identity.application;
 import org.springframework.stereotype.Component;
 
 /**
- * The ownership half of the authorization matrix, exposed to {@code @PreAuthorize} as the bean
- * {@code @access} (section 11.3).
+ * The {@code @access} bean used in {@code @PreAuthorize("@access.ownsTask(#taskId)")}.
  *
- * <p>Role is not enough for a task action. A service method that acts on a task is annotated
- *
- * <pre>{@code @PreAuthorize("@access.ownsTask(#taskId)")}</pre>
- *
- * and <em>not</em> {@code hasRole('ATTENDER')}, because "any attender" is precisely the wrong
- * answer: it would let one attender resolve another's work and collect the +2. A manager reaches a
- * task through {@code act-as} (section 9.4), which performs the identical transition as the
- * attender who holds the assignment, so it satisfies this check for the same reason the attender
- * does — the manager is the typist, not the earner.
- *
- * <p>Method security is deliberately used rather than a URL rule: the matrix is enforced at the
- * service layer, so a second controller, a scheduled job or a future API reaching the same service
- * inherits the check instead of having to remember it.
+ * <p>Why: a role check alone would let any attender act on another attender's task and collect the
+ * points. Checking on the service means every caller gets the check, not just one controller.
  */
 @Component("access")
 public class AccessGuard {

@@ -12,17 +12,10 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * When attenders are expected to be working, and therefore when the SLA clock runs (section 4.5).
+ * The working hours during which the SLA clock runs.
  *
- * <p><strong>The SLA figures of section 4.5 are working hours, not wall-clock hours.</strong> A
- * complaint submitted at 23:00 must not burn its four-hour window overnight while nobody is on
- * duty, because a breach that nobody could have prevented tells the manager nothing. So the window
- * is spent only inside the working day, and {@link #dueAt} walks forward day by day until it is.
- *
- * <p>The calendar is configuration, not a constant (section 4.5: "configurable by the manager
- * rather than compiled in"). The working default is OQ-6's: 08:00–20:00 IST, seven days a week,
- * with no holidays. {@code holidays} and {@code nonWorkingDays} are here because the design names
- * weekends and holidays as part of what a manager may set, even though the default set is empty.
+ * <p>Why working hours: a complaint sent at 23:00 should not use up its 4-hour window overnight when
+ * nobody is on duty. The default is 08:00–20:00 IST, Monday to Friday, set in YAML.
  */
 public record WorkingCalendar(
         ZoneId zone,
@@ -50,10 +43,8 @@ public record WorkingCalendar(
     }
 
     /**
-     * When {@code workingTime} of working time, started at {@code from}, runs out.
-     *
-     * <p>A start outside the working day does not consume any of it: the clock begins at the next
-     * working day's opening. That is the whole point of measuring in working hours.
+     * When {@code workingTime} of working time, starting at {@code from}, runs out. Time outside working
+     * hours does not count.
      */
     public Instant dueAt(Instant from, Duration workingTime) {
         Objects.requireNonNull(from, "from");
@@ -73,7 +64,7 @@ public record WorkingCalendar(
         }
     }
 
-    /** {@code at} if the hostel is open then, otherwise the next opening time. */
+    /** {@code at} if within working hours, otherwise the next opening time. */
     private ZonedDateTime nextWorkingMoment(ZonedDateTime at) {
         ZonedDateTime cursor = at;
         while (true) {

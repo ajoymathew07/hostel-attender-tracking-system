@@ -14,12 +14,7 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * The working-hours clock of section 4.5 — the reason an SLA is not simply {@code reportedAt + 4h}.
- *
- * <p>Instants are written in UTC and the calendar is IST, which is the arithmetic the application
- * actually does: every timestamp is stored UTC (NFR-7) and 08:00–20:00 IST is 02:30–14:30 UTC.
- */
+/** The working-hours clock. Times are written in UTC; 08:00–20:00 IST is 02:30–14:30 UTC. */
 class WorkingCalendarTest {
 
     private static final WorkingCalendar SEVEN_DAYS_0800_TO_2000 =

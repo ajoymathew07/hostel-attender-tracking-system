@@ -35,16 +35,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * A complaint arriving and finding its own way to somebody's phone — transitions T2 and T3
- * (sections 4.2, 6.2), and the mid-demo's exit criterion.
+ * Auto-dispatch end to end: every new complaint ends up assigned, or in triage with a reason.
  *
- * <p>Every case here is a row of section 6.4's degenerate-case table. The one thing all of them
- * share is that the complaint always ends up somewhere: assigned, or in triage with a reason, and
- * never at {@code NEW} with nobody responsible for it.
- *
- * <p>The candidate pool is every active attender in the database, so the first thing each run does
- * is retire the attenders other test classes left behind. Without that, this class would be
- * scoring against a roster it did not write.
+ * <p>Each test first deactivates attenders left by other test classes, so it scores only the roster it
+ * set up.
  */
 @SpringBootTest
 class AutoDispatchIntegrationTest extends AbstractIntegrationTest {

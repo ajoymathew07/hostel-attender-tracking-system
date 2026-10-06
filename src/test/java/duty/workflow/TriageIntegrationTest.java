@@ -31,16 +31,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.test.context.support.WithMockUser;
 
 /**
- * The domain the resident chose, and the manager's correction afterwards (sections 5.4, 10.3).
- *
- * <p>Every complaint is created through {@link ComplaintIntake} — the workflow module's one
- * published entry point, which the CSV fallback and the Sheets poller both reconcile through
- * (section 5.8). Driving it directly here is what makes "the form's answer is read on ingest, for
- * both sources" a property of one call rather than a claim about two; {@code
- * CsvIngestionIntegrationTest} covers the CSV end of the same path over HTTP-shaped input.
- *
- * <p>The headline behaviour is the last two tests: what the resident could not place reaches the
- * manager as work to do, and the manager's answer is recorded as theirs.
+ * The domain the resident chose, and the manager's correction from triage. Complaints are created
+ * through {@link ComplaintIntake}, the path both sources use.
  */
 @SpringBootTest
 @WithMockUser(roles = "MANAGER")

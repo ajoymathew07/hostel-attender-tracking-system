@@ -33,12 +33,8 @@ import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 /**
- * The adapter between Spring Security's OIDC flow and our allowlist (section 11.2).
- *
- * <p>The authorization-code flow itself is Spring Security's code and is not re-tested (ADR-002).
- * What is tested here is the two things this class is responsible for: turning a refusal into the
- * exception the flow expects, and building the principal's authorities from {@code app_user} rather
- * than from anything in the token.
+ * The OIDC adapter: turns a refusal into Spring Security's exception, and takes authorities from
+ * {@code app_user}, not the token.
  */
 @ExtendWith(MockitoExtension.class)
 class AllowlistOidcUserServiceTest {
@@ -60,7 +56,7 @@ class AllowlistOidcUserServiceTest {
         return new OidcUserRequest(google, accessToken, idToken);
     }
 
-    /** What Google would hand back: note the flattering claims nobody asked for. */
+    /** What Google returns, including extra claims that must be ignored. */
     private static OidcUser googleUser(Map<String, Object> claims) {
         List<GrantedAuthority> asserted = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
         return new DefaultOidcUser(asserted, new OidcIdToken("id-token", Instant.EPOCH, Instant.EPOCH.plusSeconds(3600), claims));

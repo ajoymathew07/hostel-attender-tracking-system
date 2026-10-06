@@ -18,14 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 
-/**
- * {@code uq_source_row} — the invariant the ingestion module owns: a source row is never turned
- * into two complaints (architecture section 2.3, data model section 3.5).
- *
- * <p>Identity is {@code (source_type, source_ref, response_key)}, and {@code response_key} is a
- * stable hash of the submission rather than the row's position, which is what makes the corner
- * cases in test plan E2/E3/E9/E11 come out right.
- */
+/** {@code uq_source_row}: one response can never become two source rows. */
 @SpringBootTest
 class SourceRowUniquenessIntegrationTest extends AbstractIntegrationTest {
 

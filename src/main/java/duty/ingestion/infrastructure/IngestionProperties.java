@@ -15,30 +15,24 @@ import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Ingestion's tunables (section 5.2), as configuration rather than constants (section 2.7).
+ * Ingestion settings from {@code application.yml}: column mapping, required fields, timezone, upload
+ * limits.
  *
- * <p>The column mapping is the one that will actually be edited. Form question wording and column
- * order will change (OQ-4), and when they do the fix must be a YAML edit, not a redeploy.
- *
- * <p><strong>One deviation from the design's YAML.</strong> Section 5.2 writes this block at
- * {@code ingestion.sheets.columns}. It is at {@code ingestion.columns} here, because the CSV
- * fallback is a download of the very same response sheet (section 5.8) and therefore has the very
- * same headers. Nesting the mapping under {@code sheets} would mean either a second copy for CSV —
- * the exact drift the shared port exists to prevent — or a CSV adapter reading its configuration
- * out of a block named after the other source. Noted in the PR description.
+ * <p>The mapping is under {@code ingestion.columns}, not {@code ingestion.sheets}, because the CSV is a
+ * download of the same sheet and has the same headers.
  */
 @ConfigurationProperties(prefix = "ingestion")
 public class IngestionProperties {
 
-    /** Accepted header aliases per logical field, keyed by {@link SourceField#configKey()}. */
+    /** Accepted header names per field, keyed by {@link SourceField#configKey()}. */
     private Map<String, List<String>> columns = new LinkedHashMap<>();
 
-    /** Fields whose absence fails the whole run (section 5.2). */
+    /** Fields whose absence fails the whole run. */
     private List<String> required = new ArrayList<>();
 
     private List<String> timestampPatterns = new ArrayList<>(RowNormalizer.DEFAULT_TIMESTAMP_PATTERNS);
 
-    /** Form timestamps are wall-clock local time; storage is UTC (NFR-7). */
+    /** Zone of the form timestamps; storage is UTC. */
     private String zone = RowNormalizer.DEFAULT_ZONE.getId();
 
     private final Upload upload = new Upload();
@@ -66,12 +60,7 @@ public class IngestionProperties {
         return new RowNormalizer(timestampPatterns, ZoneId.of(zone));
     }
 
-    /**
-     * An unknown field name is a startup failure, not a shrug.
-     *
-     * <p>A typo would otherwise produce a mapping that silently lacks a column, which is precisely
-     * the silent partial ingest section 5.2 refuses to allow.
-     */
+    /** An unknown field name fails startup, rather than silently mapping nothing. */
     private static SourceField field(String key, String where) {
         return SourceField.byConfigKey(key)
                 .orElseThrow(
@@ -116,7 +105,7 @@ public class IngestionProperties {
         return upload;
     }
 
-    /** Upload safety of section 11.6, defaulted to the design's numbers. */
+    /** Upload limits. */
     public static class Upload {
 
         private long maxBytes = UploadLimits.DEFAULT_MAX_BYTES;

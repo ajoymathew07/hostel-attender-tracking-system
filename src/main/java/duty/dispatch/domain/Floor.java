@@ -8,12 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.Objects;
 
-/**
- * A physical floor of the hostel (data model section 3.4).
- *
- * <p>Identity is {@code uq_floor (wing, floor_number)}: the same numbered floor in two wings is two
- * rows, and the same one twice is rejected.
- */
+/** A physical floor of the hostel, unique by wing and floor number. */
 @Entity
 @Table(name = "floor")
 public class Floor {

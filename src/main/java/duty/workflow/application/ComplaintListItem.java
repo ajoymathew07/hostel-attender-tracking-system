@@ -7,12 +7,8 @@ import duty.workflow.domain.Priority;
 import java.time.Instant;
 
 /**
- * One row of the manager's complaint list (section 10.3).
- *
- * <p>The manager's view is the one that carries the student's details: section 11.4 retains name,
- * roll number and phone number on the record for the manager, while the attender's view of them
- * expires 7 days after resolution. That window is the attender screen's problem; this is the
- * manager's screen, so the fields are present.
+ * One row of the manager's complaint list. Includes the student's details, which the manager may always
+ * see.
  */
 public record ComplaintListItem(
         long id,
@@ -33,17 +29,14 @@ public record ComplaintListItem(
         Long assigneeId) {
 
     /**
-     * Whether the clock raised this priority rather than intake setting it (section 4.5).
-     *
-     * <p>{@code base_priority} is kept precisely so the list can say "P1 (aged from P3)": a P1 that
-     * the safety keywords produced and a P1 that waited three days are different facts, and a
-     * manager deciding what to do next needs to be able to tell them apart.
+     * Whether the priority was raised by ageing rather than set at intake, so the list can show "P1 (aged
+     * from P3)".
      */
     public boolean aged() {
         return priority != basePriority;
     }
 
-    /** The room is not personal data on its own; the other three are (section 11.4). */
+    /** Leaves out the student's name, roll number and phone. */
     @Override
     public String toString() {
         return "ComplaintListItem[" + publicRef + ", " + status + ", " + priority + "]";

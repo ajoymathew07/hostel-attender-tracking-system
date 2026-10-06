@@ -1,19 +1,15 @@
 package duty.workflow.domain;
 
 /**
- * Everything that can happen to a complaint (state machines section 4.2).
+ * Everything that can happen to an existing complaint. The event says what was asked for; the
+ * transition table decides the resulting state.
  *
- * <p>An event is what the actor <em>asks for</em>, never where the complaint ends up. Which state
- * it lands in is the transition table's answer, and for {@code AUTO_DISPATCH} that answer depends
- * on the guard — which is exactly why the table is data and this enum is only its vocabulary.
- *
- * <p>{@code ingest} (T1) is deliberately absent. Every other row moves a complaint that already
- * exists; T1 <em>creates</em> one, so it has no source state to look up and no aggregate to load.
- * It stays where it is, in the ingestion module's intake.
+ * <p>Creating a complaint (T1) is not here, because it has no prior state; {@code ComplaintIntake}
+ * handles it.
  */
 public enum WorkflowEvent {
 
-    /** T2/T3 — the dispatcher had a go; the guard decides between ASSIGNED and TRIAGE. */
+    /** T2/T3: auto-dispatch ran; its result decides between {@code ASSIGNED} and {@code TRIAGE}. */
     AUTO_DISPATCH,
 
     /** T4 — the manager picks a name. */

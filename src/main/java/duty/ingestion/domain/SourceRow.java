@@ -12,18 +12,16 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * One observed source record — the idempotency anchor for ingestion (data model section 3.5).
+ * One row seen in a source: what stops a response becoming two complaints.
  *
- * <p><strong>{@code uq_source_row} is the invariant this module owns:</strong> a source row is
- * never turned into two complaints. Identity is {@code (source_type, source_ref, response_key)}
- * where {@code response_key} is a stable hash of the submission, never the row's position — a
- * deleted row shifting every index below it must produce zero spurious amendments (test plan E11).
+ * <p>Unique on {@code (source_type, source_ref, response_key)}. The key is a hash of the submission,
+ * not its row number, so deleting a sheet row creates no duplicates.
  */
 @Entity
 @Table(name = "source_row")
 public class SourceRow {
 
-    /** SHA-256, hex encoded. Fixed width is enforced here rather than by the column type. */
+    /** SHA-256, hex encoded. */
     public static final int HASH_LENGTH = 64;
 
     @Id
@@ -34,19 +32,19 @@ public class SourceRow {
     @Column(name = "source_type", nullable = false, length = 16)
     private SourceType sourceType;
 
-    /** Sheet id, or upload batch id. */
+    /** The sheet id, or the CSV channel. */
     @Column(name = "source_ref", nullable = false, length = 128)
     private String sourceRef;
 
-    /** SHA-256(timestamp || reporter email). Stable identity across runs. */
+    /** Hash of timestamp and email: the row's identity across runs. */
     @Column(name = "response_key", nullable = false, length = HASH_LENGTH)
     private String responseKey;
 
-    /** SHA-256 of all normalized cells. Change detection only, never identity. */
+    /** Hash of all cells: change detection only. */
     @Column(name = "content_hash", nullable = false, length = HASH_LENGTH)
     private String contentHash;
 
-    /** Positional hint only (section 5.3). */
+    /** Row number in the source, used only to know where to resume reading. */
     @Column(name = "row_index")
     private Integer rowIndex;
 
@@ -73,9 +71,8 @@ public class SourceRow {
     private Instant lastSeenAt;
 
     /**
-     * Set once the row has been normalized into a complaint. Deliberately not a foreign key:
-     * {@code complaint.source_row_id} already points the other way and declaring both would make
-     * the pair circular (section 3.5).
+     * The complaint made from this row. Not a foreign key, because {@code complaint.source_row_id}
+     * already points the other way.
      */
     @Column(name = "complaint_id")
     private Long complaintId;
@@ -115,7 +112,7 @@ public class SourceRow {
         return value;
     }
 
-    /** A later run saw this same row again: a no-op for identity, but the watermark moves. */
+    /** A later run saw this row again. */
     public void seenAgain(Long runId, Instant at) {
         this.lastSeenRunId = Objects.requireNonNull(runId, "runId");
         this.lastSeenAt = Objects.requireNonNull(at, "at");
@@ -126,15 +123,13 @@ public class SourceRow {
     }
 
     /**
-     * Whether the source content changed since this row was recorded. The stored hash survives the
-     * 90-day purge of {@code raw_payload}, which is what lets retention coexist with dedupe
-     * (section 3.8).
+     * Whether the content changed. The hash is kept after the payload is purged, so this still works.
      */
     public boolean contentChangedFrom(String observedContentHash) {
         return !this.contentHash.equals(observedContentHash);
     }
 
-    /** Purges the payload while keeping the hash, so dedupe still works (section 3.8). */
+    /** Deletes the raw payload (after 90 days) but keeps the hash, so dedupe still works. */
     public void purgeRawPayload() {
         this.rawPayload = "";
     }

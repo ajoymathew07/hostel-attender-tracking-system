@@ -16,13 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-/**
- * Smoke test for the foundation this PR lays: a real PostgreSQL container, a datasource pointed at
- * it, and Flyway wired to {@code classpath:db/migration}.
- *
- * <p>There are no migrations yet — the schema is PR 2 — so the Flyway assertion is that it ran and
- * left nothing pending or failed, which stays true once migrations arrive.
- */
+/** The test container is up and Flyway ran with nothing pending or failed. */
 @SpringBootTest
 class PostgresSmokeTest extends AbstractIntegrationTest {
 

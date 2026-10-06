@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/** Declared availability (data model section 3.4), backed by {@code ix_avail_lookup}. */
+/** Attenders' availability windows. */
 public interface AvailabilityWindowRepository extends JpaRepository<AvailabilityWindow, Long> {
 
     List<AvailabilityWindow> findByAttenderIdOrderByStartsAtDesc(Long attenderId);

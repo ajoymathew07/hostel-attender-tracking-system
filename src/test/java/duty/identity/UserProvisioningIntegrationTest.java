@@ -30,12 +30,8 @@ import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
 
 /**
- * Provisioning: the manager's half of the allowlist (sections 11.2, 11.3, item 1.3 of section
- * 13.3).
- *
- * <p>Two things are being proved here at once — that the operations do what the design says
- * (deactivation is a tombstone that blocks the next sign-in, never a delete), and that they are
- * refused to anyone who is not a manager <em>at the service layer</em>, not merely in a controller.
+ * Provisioning works as designed (deactivate keeps the row and blocks sign-in) and is refused to
+ * non-managers at the service layer.
  */
 @SpringBootTest
 class UserProvisioningIntegrationTest extends AbstractIntegrationTest {
@@ -50,7 +46,7 @@ class UserProvisioningIntegrationTest extends AbstractIntegrationTest {
         SecurityContextHolder.clearContext();
     }
 
-    /** A manager principal of the shape the OIDC flow produces, so {@code created_by} is real. */
+    /** Signs in as a real manager row, so {@code created_by} is set. */
     private long actAsManager() {
         AppUser manager = users.saveAndFlush(Fixtures.manager());
         SignedInUser principal =

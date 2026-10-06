@@ -9,13 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-/**
- * Ownership, which is checked <em>in addition</em> to role (section 11.3).
- *
- * <p>The rule these tests pin down is the one sentence of section 11.3 that a role check alone
- * would get wrong: "role alone is never sufficient for a task action — otherwise any attender could
- * resolve any other attender's work and collect the points."
- */
+/** Task ownership is checked, not just role: an attender cannot act on another attender's task. */
 class AccessGuardTest {
 
     private static final long TASK = 412L;

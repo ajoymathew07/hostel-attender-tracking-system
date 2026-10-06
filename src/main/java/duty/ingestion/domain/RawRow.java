@@ -5,18 +5,12 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * One row as a {@link ComplaintSource} read it — the shape both sources produce (section 2.2).
+ * One row as a source read it: headers, cells, and the cells mapped to fields.
  *
- * <p>This is deliberately <em>not</em> {@code SourceRow}. {@code SourceRow} is the persistent
- * idempotency anchor and carries a response key, a content hash and the run that observed it, all
- * of which the pipeline computes. An adapter knows none of that; it knows cells. Keeping the two
- * types apart is what lets the Sheets adapter drop in behind the same port without either
- * adapter learning anything about dedupe.
+ * <p>Separate from the {@code SourceRow} entity because sources know only cells; keys and hashes are
+ * computed later by the pipeline.
  *
- * @param rowIndex the row's position in the source — a hint for diagnostics, never identity
- * @param headers the source's header row, kept so the raw payload can be stored faithfully
- * @param cells every cell of this row, in source order, for the content hash
- * @param fields the cells the column mapping resolved, by logical field
+ * @param rowIndex position in the source, for diagnostics only
  */
 public record RawRow(int rowIndex, List<String> headers, List<String> cells, Map<SourceField, String> fields) {
 
@@ -31,14 +25,7 @@ public record RawRow(int rowIndex, List<String> headers, List<String> cells, Map
         return fields.get(field);
     }
 
-    /**
-     * Positional and structural only.
-     *
-     * <p>The generated record {@code toString} would print every cell, and cells hold the
-     * student's name, roll number and phone number. Those must never be written to a log or appear
-     * in a stack trace (section 11.4), and a row is precisely the object a debug statement reaches
-     * for.
-     */
+    /** Position and size only; cells hold student details and must not reach a log. */
     @Override
     public String toString() {
         return "RawRow[rowIndex=" + rowIndex + ", cells=" + cells.size() + "]";

@@ -1,8 +1,6 @@
 /**
- * The {@code ledger} module (architecture section 2.3).
+ * The {@code ledger} module: point movements and the leaderboard.
  *
- * Point movements and the leaderboard projection.
- *
- * Invariant: append-only, no double-credit, and a balance is derived rather than stored.
+ * <p>Invariant: append-only, no double-credit, and balances are summed, never stored.
  */
 package duty.ledger;

@@ -5,13 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Where each logical field sits in <em>this</em> source's rows — the result of resolving headers
- * once, at the start of a run (section 5.2).
- *
- * <p>Resolution happens once rather than per row for the obvious reason, and for a less obvious
- * one: a header resolved once cannot drift half way down a file.
- */
+/** Where each field sits in this source's rows. Resolved once per run. */
 public final class ResolvedColumns {
 
     private final Map<SourceField, Integer> indexes;
@@ -31,10 +25,8 @@ public final class ResolvedColumns {
     }
 
     /**
-     * The cell for a field, or {@code null} when the column is absent <em>or</em> the row is short.
-     *
-     * <p>A short row is normal in CSV: trailing empty answers are frequently omitted entirely
-     * rather than written as empty fields, so treating it as an error would reject valid data.
+     * The cell for a field, or {@code null} if the column is absent or the row is short (CSV often drops
+     * trailing empty cells).
      */
     public String valueIn(List<String> cells, SourceField field) {
         Integer index = indexes.get(field);

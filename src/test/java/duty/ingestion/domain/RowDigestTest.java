@@ -7,11 +7,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Identity from content, never from position (section 5.3).
- *
- * <p>The two assertions that carry the design are here: the same response hashes to the same key
- * however many times it is observed, and two residents who happen to write the same sentence get
- * two different keys — identity comes from the response, not the text.
+ * The same response always gets the same key, and two people writing the same text get different
+ * keys.
  */
 class RowDigestTest {
 

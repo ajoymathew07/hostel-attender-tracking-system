@@ -1,11 +1,8 @@
 package duty.workflow.application;
 
 /**
- * The docket number does not match the configured pattern (transition T11's guard, OQ-1).
- *
- * <p>There is no CMS API (section 1.8), so format is all that can be validated — and the format is
- * a config property rather than a code constant, so a wrong guess costs a property change and not
- * a redeploy.
+ * The docket number does not match the configured format. There is no Engineering Unit API, so only
+ * the format can be checked.
  */
 public class InvalidDocketException extends GuardFailedException {
 

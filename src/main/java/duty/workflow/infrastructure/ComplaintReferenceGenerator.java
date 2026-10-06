@@ -7,24 +7,15 @@ import java.time.ZoneId;
 import org.springframework.stereotype.Component;
 
 /**
- * Allocates {@code public_ref} — {@code CAU-{year}-{zero-padded sequence}} (section 5.4).
+ * Creates {@code public_ref}: {@code CAU-{year}-{zero-padded number}}.
  *
- * <p>A database sequence rather than {@code max(public_ref) + 1}. Two ingestion runs, or a poll
- * racing a CSV upload, would read the same maximum and allocate the same reference; the second
- * would then fail on {@code uq_complaint_ref} and lose a complaint that was otherwise fine.
- * {@code nextval} is atomic and does not participate in the transaction, so a rolled-back row
- * burns a number instead of colliding — a gap in the sequence is invisible to everyone, a
- * duplicate reference is not.
- *
- * <p>The sequence is global rather than per year, and the year is a prefix. A per-year sequence
- * would need a reset at midnight on the 31st of December, run by something, correctly, once —
- * which is a moving part bought for cosmetics, since {@code uq_complaint_ref} only needs the whole
- * string to be unique.
+ * <p>Uses a database sequence rather than {@code max + 1}, so two concurrent runs can never get the same
+ * number. One sequence for all years, so nothing needs resetting on 1 January.
  */
 @Component
 public class ComplaintReferenceGenerator {
 
-    /** References are read by humans in Chennai; the business date is Asia/Kolkata (NFR-7). */
+    /** The year in the reference is the Asia/Kolkata year. */
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Kolkata");
 
     private static final String NEXT_VALUE = "select nextval('complaint_ref_seq')";

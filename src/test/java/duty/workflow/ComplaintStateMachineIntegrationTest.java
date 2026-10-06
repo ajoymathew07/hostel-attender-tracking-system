@@ -49,14 +49,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-/**
- * The guarded transition table in action (section 4.1): the single write path to
- * {@code complaint.status}.
- *
- * <p>The first test walks <strong>every row of the table</strong> rather than the handful the
- * happy path uses, because the value of writing the machine as data is lost the moment a row is
- * unreachable or lands somewhere other than the design says.
- */
+/** The state machine in action. The first test walks every row of the transition table. */
 @SpringBootTest
 class ComplaintStateMachineIntegrationTest extends AbstractIntegrationTest {
 
@@ -221,10 +214,7 @@ class ComplaintStateMachineIntegrationTest extends AbstractIntegrationTest {
                 .satisfies(event -> assertThat(event.getActorId()).isEqualTo(ravi.getId()));
     }
 
-    /**
-     * Ten requests for one move. One of them commits; the rest are told, by the version check or
-     * by the table, and roll back whole — no half-credit, no orphan audit row.
-     */
+    /** Ten requests for the same move: exactly one commits, the rest roll back fully. */
     @Test
     @DisplayName("concurrent transitions on one complaint: one wins, the losers write nothing")
     void concurrentTransitionsLeaveOneWinner() throws Exception {
@@ -306,11 +296,8 @@ class ComplaintStateMachineIntegrationTest extends AbstractIntegrationTest {
     // ---------------------------------------------------------------- fixtures
 
     /**
-     * A complaint sitting in one state, with a task and an {@code ACTIVE} assignment for Ravi.
-     *
-     * <p>{@code NEW} is the exception: it is the state auto-dispatch moves a complaint out of
-     * during ingestion, so a complaint still there has no task and nobody has been assigned —
-     * which is also true in production, for the instant T2 and T3 act on.
+     * A complaint in the given state, with a task and an active assignment for Ravi ({@code NEW} has
+     * neither).
      */
     private long complaintIn(ComplaintStatus state) {
         if (state == ComplaintStatus.NEW) {
@@ -348,7 +335,7 @@ class ComplaintStateMachineIntegrationTest extends AbstractIntegrationTest {
         return complaintId;
     }
 
-    /** Whatever this row's guard needs that the state alone does not supply. */
+    /** Supplies whatever the row's condition needs beyond the state. */
     private void satisfy(ComplaintTransition row, long complaintId) {
         if (row.guard() == TransitionGuard.DOCKET_FILED) {
             Complaint complaint = complaints.findById(complaintId).orElseThrow();

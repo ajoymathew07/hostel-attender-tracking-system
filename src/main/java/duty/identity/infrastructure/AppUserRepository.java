@@ -6,12 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-/**
- * Users and the Google allowlist (data model section 3.3).
- *
- * <p>Lookup is by normalised email, because a sign-in whose verified address differs only in case
- * or surrounding space must still admit the same person (test plan E20c).
- */
+/** Users and the Google allowlist. Lookups use the normalised email. */
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     Optional<AppUser> findByEmail(String email);
@@ -22,6 +17,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     boolean existsByEmail(String email);
 
-    /** How many managers could still administer — the break-glass invariant of ADR-002. */
+    /** How many active users have this role; used to keep at least one manager. */
     long countByRoleAndActiveIsTrue(UserRole role);
 }

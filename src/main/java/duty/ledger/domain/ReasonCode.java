@@ -1,12 +1,6 @@
 package duty.ledger.domain;
 
-/**
- * Why a point movement happened, matching {@code ck_ledger_reason} (data model section 3.6).
- *
- * <p>Each code has a matching idempotency-key shape in {@link IdempotencyKeys}. The two automatic
- * codes derive their key from the work itself, which is what makes double-crediting structurally
- * impossible rather than a race to win (section 7.3).
- */
+/** Why a point movement happened. Matches the {@code ck_ledger_reason} constraint. */
 public enum ReasonCode {
 
     /** +2 by default, on transition to RESOLVED. Key: {@code RESOLVE:{task}:{attender}}. */

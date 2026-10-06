@@ -7,13 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Audit detail is serialised, never concatenated (section 11.7).
- *
- * <p>The test that matters is the injection one. If a value can close its own string and open a
- * second key, then the audit log records what the logged value says rather than what happened, and
- * the log stops being evidence.
- */
+/** Audit detail is serialised, so a value cannot inject extra JSON keys. */
 class AuditDetailTest {
 
     private static final ObjectMapper JSON = new ObjectMapper();

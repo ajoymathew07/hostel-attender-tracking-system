@@ -6,7 +6,7 @@ public enum AvailabilityStatus {
     /** Eligible for dispatch. */
     AVAILABLE,
 
-    /** On leave; dispatch skips them and records the reason (test plan E6). */
+    /** On leave; dispatch skips them. */
     ON_LEAVE,
 
     /** Outside their duty hours. */

@@ -10,15 +10,10 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * The configured header aliases for each logical field, and which fields are required (section
- * 5.2).
+ * The accepted header names for each field, and which fields are required.
  *
- * <p>Each field lists the header names we accept. At the start of a run headers are resolved once;
- * an unresolvable <strong>required</strong> column fails the whole run loudly rather than ingesting
- * garbage.
- *
- * <p>Both the aliases and the required set are configuration, so a Form rename is a YAML edit
- * rather than a redeploy.
+ * <p>Headers are matched by name, not position, and configured in YAML, so renaming a Form question
+ * needs no redeploy. A missing required column fails the whole run.
  */
 public final class ColumnMapping {
 
@@ -50,11 +45,7 @@ public final class ColumnMapping {
     }
 
     /**
-     * Resolves this source's header row into column positions.
-     *
-     * <p>Matching folds case, padding and doubled whitespace, because a header typed by a human
-     * into a Google Form regularly differs from the configured alias in exactly those ways and in
-     * no others that matter. Where two headers would resolve the same field, the leftmost wins.
+     * Finds each field's column. Ignores case and extra spaces; if two headers match, the leftmost wins.
      *
      * @throws MissingRequiredColumnException if a required field matches no header
      */

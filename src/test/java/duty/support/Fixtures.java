@@ -17,11 +17,7 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * Valid rows for tests, so each test states only the thing it is actually about.
- *
- * <p>Every identifier is made unique per call. Tests share one PostgreSQL container and do not
- * truncate between classes, so a fixed {@code public_ref} or email would collide on a unique
- * constraint and produce a failure that looked like the constraint under test failing.
+ * Valid test data, with every identifier unique per call, since test classes share one database.
  */
 public final class Fixtures {
 
@@ -44,12 +40,8 @@ public final class Fixtures {
     }
 
     /**
-     * A real {@link SignedInUser} in the security context.
-     *
-     * <p>{@code @WithMockUser} is not enough for anything that reads {@code CurrentUser}: its
-     * principal is Spring's own {@code User}, so {@code CurrentUser.get()} returns empty and the
-     * caller has a role but no identity. Every rule in this PR — whose queue, who assigned, who
-     * owns the task — needs the id, so the tests sign in a provisioned row instead.
+     * Puts a real {@link SignedInUser} in the security context. {@code @WithMockUser} has no user id,
+     * which many rules need.
      */
     public static TestingAuthenticationToken signIn(AppUser user) {
         TestingAuthenticationToken token =
@@ -88,14 +80,7 @@ public final class Fixtures {
                 null);
     }
 
-    /**
-     * A complaint sitting in the triage queue, which is where a manager picks one up.
-     *
-     * <p>Auto-dispatch runs inside the intake transaction, so a complaint is {@code ASSIGNED} or
-     * in {@code TRIAGE} before anybody sees it and {@code (NEW, MANAGER_ASSIGN)} is not a row of
-     * section 4.2's table. A test about manual assignment therefore starts here, and what it
-     * exercises is T4.
-     */
+    /** A complaint in the triage queue, where manual assignment (T4) starts. */
     public static Complaint complaintInTriage() {
         Complaint complaint = complaint();
         complaint.moveTo(ComplaintStatus.TRIAGE, Instant.parse("2026-02-01T06:03:00Z"));

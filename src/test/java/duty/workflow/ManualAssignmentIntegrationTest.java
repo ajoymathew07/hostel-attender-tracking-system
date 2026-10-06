@@ -26,13 +26,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-/**
- * Manual assignment: assign, reassign, release, and who may do it (sections 10.3, 11.3).
- *
- * <p>The authorization half is asserted at the <em>service</em> layer rather than through a URL,
- * because that is where section 11.3 puts it — a check that only a controller performs is one new
- * caller away from being absent.
- */
+/** Assign, reassign and release, and that only managers can, checked at the service layer. */
 @SpringBootTest
 class ManualAssignmentIntegrationTest extends AbstractIntegrationTest {
 

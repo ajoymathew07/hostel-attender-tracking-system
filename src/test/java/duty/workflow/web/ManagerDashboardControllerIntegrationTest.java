@@ -32,12 +32,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * The manager desktop at the HTTP edge (sections 10.3, 10.4).
- *
- * <p>{@code /} is the route PR 3 deliberately left unbuilt, so the first assertion here is simply
- * that a signed-in manager lands on something real rather than a 404.
- */
+/** The manager's dashboard pages and actions. */
 @SpringBootTest
 @AutoConfigureMockMvc
 class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest {
@@ -47,7 +42,7 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
                     + "2026/02/14 11:00:00,screen@example.com,Screen Student,CE21B900,9000000900,1204,"
                     + "Water leaking from the ceiling fan\n";
 
-    /** `ceiling` is Civil and `fan` is Electrical, level: exactly what the triage panel is for. */
+    /** A CSV row with no category, so the complaint lands in triage. */
     private static final String AMBIGUOUS_CSV =
             "Timestamp,Email Address,Room Number,Describe the issue\n"
                     + "2026/02/15 09:00:00,triage.screen@example.com,1205,water coming from ceiling fan\n";
@@ -78,7 +73,7 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
 
     @Test
     @WithMockUser(roles = "MANAGER")
-    @DisplayName("a signed-in manager lands on the dashboard at / — the route PR 3 left to this PR")
+    @DisplayName("a signed-in manager lands on the dashboard at /")
     void theRootRouteRenders() throws Exception {
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())

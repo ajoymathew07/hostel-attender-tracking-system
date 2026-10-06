@@ -4,29 +4,22 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Upload safety: CSV only, ≤5 MB, ≤5000 rows, content type and headers validated <em>before</em>
- * parsing (section 11.6).
+ * Upload limits: CSV only, at most 5 MB and 5000 rows.
  *
- * <p>The ordering is the control. A media type and a byte count are known before a single cell has
- * been read, so refusing on them costs nothing and keeps a hostile or merely enormous file away
- * from the parser entirely. The row limit is the one check that cannot precede parsing — it is
- * enforced while reading, and aborts before any row is ingested.
+ * <p>Type and size are checked before parsing, so a huge or hostile file never reaches the parser. The
+ * row limit is checked while reading.
  */
 public final class UploadLimits {
 
-    /** 5 MB (section 11.6). */
+    /** 5 MB. */
     public static final long DEFAULT_MAX_BYTES = 5L * 1024 * 1024;
 
-    /** 5000 rows (section 11.6). */
+    /** 5000 rows. */
     public static final int DEFAULT_MAX_ROWS = 5000;
 
     /**
-     * What browsers actually put on a {@code .csv} part.
-     *
-     * <p>{@code text/plain} and {@code application/vnd.ms-excel} are here because Windows and
-     * macOS respectively send them for a file Excel has touched. They are only ever accepted
-     * <em>together with</em> a {@code .csv} extension, so the pair is still "CSV only" — accepting
-     * a bare {@code text/plain} would let any text file through.
+     * Media types browsers send for a {@code .csv} file. {@code text/plain} and
+     * {@code application/vnd.ms-excel} are accepted only with a {@code .csv} name.
      */
     private static final Set<String> ACCEPTED_CONTENT_TYPES =
             Set.of("text/csv", "application/csv", "text/plain", "application/vnd.ms-excel");
@@ -60,9 +53,9 @@ public final class UploadLimits {
     }
 
     /**
-     * Everything that can be decided before the bytes are parsed.
+     * Checks name, type and size before parsing.
      *
-     * @throws UploadRejectedException if the file is not a CSV, is empty, or is over the limit
+     * @throws UploadRejectedException if the file is not a CSV, is empty, or is too large
      */
     public void validate(String filename, String contentType, long sizeBytes) {
         if (filename == null || !filename.toLowerCase(Locale.ROOT).endsWith(CSV_EXTENSION)) {

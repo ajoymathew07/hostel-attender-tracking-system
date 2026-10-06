@@ -44,13 +44,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-/**
- * Resolving a task: the +2, the docket gate, and the guarantee the ledger exists for.
- *
- * <p>{@code LedgerIdempotencyIntegrationTest} proves that the database cannot hold two rows under
- * one key. This class proves the thing above it — that the resolve path really does key its credit
- * to the work, so the attender who taps twice on a hostel corridor's Wi-Fi is credited once.
- */
+/** Resolving a task: the points, the docket requirement, and a double tap crediting only once. */
 @SpringBootTest
 class TaskResolutionIntegrationTest extends AbstractIntegrationTest {
 
@@ -89,14 +83,7 @@ class TaskResolutionIntegrationTest extends AbstractIntegrationTest {
         SecurityContextHolder.clearContext();
     }
 
-    /**
-     * T7 then T9 — the two steps of section 10.2's flow that come before the docket.
-     *
-     * <p>They are here because the transition table is now the only write path: a complaint
-     * reaches {@code AWAITING_CMS} by being started and inspected, not by a service deciding to
-     * skip ahead. Before PR 11 these two states did not exist in code and the docket was filed
-     * straight from {@code ASSIGNED}.
-     */
+    /** Starts work and confirms a defect (T7, T9), the steps before filing a docket. */
     private void startAndConfirmDefectAsRavi() {
         Fixtures.signIn(ravi);
         workflow.transition(complaintId, WorkflowEvent.ATTENDER_START, TransitionPayload.none());

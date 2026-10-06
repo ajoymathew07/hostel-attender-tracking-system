@@ -10,13 +10,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * The table itself, read as data (section 4.2).
- *
- * <p>No database and no Spring: these are claims about the table's shape, and the shape is what
- * every guarantee above it rests on. {@code ComplaintStateMachineIntegrationTest} then proves the
- * machine obeys it.
- */
+/** The shape of the transition table, with no database. */
 class ComplaintTransitionsTest {
 
     @Test

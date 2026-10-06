@@ -17,16 +17,14 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * The health check Render pings, and the boundary around it (scope items 2 and 3 of PR 7).
- *
- * <p>Two things have to hold at once and they pull in opposite directions: the platform must be
- * able to reach the endpoint with no session, and an anonymous caller must learn nothing from it.
+ * The health check: reachable without a session, but revealing nothing beyond "UP", and no other
+ * actuator endpoint is exposed.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 class ActuatorExposureIntegrationTest extends AbstractIntegrationTest {
 
-    /** Endpoints that would be useful to an attacker and are deliberately never mapped. */
+    /** Endpoints that must never be mapped. */
     private static final String[] UNEXPOSED = {
         "/actuator", "/actuator/env", "/actuator/beans", "/actuator/info",
         "/actuator/configprops", "/actuator/metrics", "/actuator/loggers"

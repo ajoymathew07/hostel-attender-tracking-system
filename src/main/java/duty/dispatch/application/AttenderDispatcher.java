@@ -24,15 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * <strong>Stage 1 of section 6.2 — the hard eligibility filter — and the call into the
- * heuristic.</strong>
+ * Filters out unavailable attenders, then asks {@link DispatchPolicy} to score the rest.
  *
- * <p>Availability is a gate and not a score: an attender on leave is removed here, before anything
- * is weighed, because folding it into the weighted sum would let a strong floor match outvote the
- * fact that somebody is not at work.
- *
- * <p>The scoring itself is {@link DispatchPolicy}, which has no database and no Spring in it. This
- * class gathers the inputs, and nothing else.
+ * <p>Availability is a filter, not part of the score, so a good floor match can never outweigh
+ * someone being on leave. This class only gathers the inputs; the scoring is pure.
  */
 @Service
 @Transactional(readOnly = true)
@@ -61,14 +56,10 @@ public class AttenderDispatcher {
     }
 
     /**
-     * Who should do the work on this floor.
+     * Who should do the work on this floor. Empty when nobody is eligible; the caller then sends the
+     * complaint to triage.
      *
-     * <p>Empty is {@code E = ∅} — everyone is on leave, off duty, or already holds this complaint
-     * — and the caller sends the complaint to triage. There is no third outcome, which is what
-     * makes R1 hold: dispatch either names somebody or says why it could not.
-     *
-     * @param floorId the complaint's floor; the caller has already refused a complaint without one
-     * @param alreadyAssigned attenders who hold this complaint's task, who cannot be given it again
+     * @param alreadyAssigned attenders who already hold this complaint and cannot be given it again
      */
     public Optional<DispatchResult> choose(long floorId, Set<Long> alreadyAssigned) {
         Instant now = Instant.now();
@@ -92,11 +83,7 @@ public class AttenderDispatcher {
     }
 
     /**
-     * {@code availabilityAt(a, now) = AVAILABLE}.
-     *
-     * <p>Silence means available. Attenders declare leave and off-duty spells; nobody records
-     * "I am at work today", and treating an absent window as absence would empty the candidate
-     * set on the first day of use.
+     * Available unless a leave or off-duty window covers {@code now}. No window means available.
      */
     private boolean isAvailable(long attenderId, Instant now) {
         return availability.findInForce(attenderId, now).stream()
@@ -151,11 +138,8 @@ public class AttenderDispatcher {
     }
 
     /**
-     * The decision as section 6.2's snapshot JSON.
-     *
-     * <p>Built with {@link AuditDetail}, which serialises rather than concatenates. The snapshot is
-     * read months later to answer "why did Ravi get this?", and a log that the thing being logged
-     * can write is worth nothing.
+     * Builds the result, with the decision as JSON so the manager can later see why this attender was
+     * chosen.
      */
     private DispatchResult toResult(DispatchDecision decision, DispatchPolicy policy) {
         String snapshot =

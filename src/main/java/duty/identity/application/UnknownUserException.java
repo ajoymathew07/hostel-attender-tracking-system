@@ -1,6 +1,6 @@
 package duty.identity.application;
 
-/** No {@code app_user} row with that id — a stale screen, or a hand-edited form post. */
+/** No user with that id: a stale screen or an edited form post. */
 public class UnknownUserException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;

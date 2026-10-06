@@ -10,15 +10,10 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * One manager-set override of a configuration property.
+ * One manager-set override of a configuration property, keyed by the property's YAML name.
  *
- * <p>The {@code name} is the property's own key — {@code dispatch.weights.floor} — so a row here
- * and the line it overrides in {@code application.yml} are recognisably the same thing. The value
- * is text, parsed by whichever module owns the key: this module stores settings and does not
- * pretend to understand them.
- *
- * <p>Absence is the default. Deleting a row restores the YAML value, which is why there is no
- * "reset to default" column.
+ * <p>The value is stored as text and parsed by the module that owns the key. Deleting the row restores
+ * the YAML default.
  */
 @Entity
 @Table(name = "app_setting")

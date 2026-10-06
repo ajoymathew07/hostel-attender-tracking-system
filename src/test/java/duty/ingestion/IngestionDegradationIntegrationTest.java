@@ -33,19 +33,11 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * What the system does while the Sheets API is failing — test plan E22, "Sheets API down for 6
- * hours: backoff, degraded banner, full catch-up on recovery" — and the startup catch-up of
- * section 2.5 that makes the recovery possible.
+ * While the Sheets API is failing: polling backs off, the dashboard shows a banner, and everything is
+ * caught up once it recovers.
  *
- * <p>All three are one story and are tested as one: nobody is watching an unattended poll, so a
- * failing sheet has to (a) stop costing API quota, (b) say so on the screen the manager is
- * already looking at, and (c) lose nothing once it comes back. Section 5.3 names the failure mode
- * outright — "silence is the failure mode to avoid".
- *
- * <p><strong>Where each lever is pulled.</strong> {@code scheduler.poll()} is the tick, and it is
- * the tick that the backoff skips. {@code sheets.poll()} is the run itself, and calling it
- * directly is how this test represents a tick that happened <em>after</em> the backoff had
- * elapsed — without making the test wait six real minutes for it.
+ * <p>{@code scheduler.poll()} is a scheduler tick (which the backoff may skip); {@code sheets.poll()}
+ * is a run, used to simulate a tick after the backoff has passed without waiting.
  */
 @SpringBootTest(
         properties = {
@@ -86,10 +78,7 @@ class IngestionDegradationIntegrationTest extends AbstractIntegrationTest {
                 .readValues(anyString(), anyString());
     }
 
-    /**
-     * Every test starts from a healthy instance. A success is the only thing that clears the
-     * counter, which is itself the behaviour being relied on — so it is asserted, not assumed.
-     */
+    /** Each test starts healthy; a successful run is what resets the counter. */
     @BeforeEach
     void startHealthy() {
         sheetHolds();

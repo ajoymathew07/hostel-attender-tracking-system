@@ -31,16 +31,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * <strong>The most important test in this PR.</strong>
- *
- * <p>The proposal asks for protection against double-crediting. The design's answer (section 7.3)
- * is that it is not a race we have to win: the idempotency key for an automatic credit is derived
- * deterministically from the work — the task and the attender — so a duplicate insert collides on
- * {@code uq_ledger_idem} and the database rejects it atomically, however many transactions try at
- * once.
- *
- * <p>These tests assert on <strong>final database state</strong> rather than on return values,
- * because the claim being tested is about the database, not about the application.
+ * Points can never be credited twice for the same work, even under concurrent requests, because the
+ * unique key rejects the duplicate. Asserts on the final database state.
  */
 @SpringBootTest
 class LedgerIdempotencyIntegrationTest extends AbstractIntegrationTest {

@@ -1,14 +1,10 @@
 package duty.workflow.application;
 
 /**
- * The move is legal but its precondition is not met (section 4.1, step 3).
+ * The move is allowed from this state, but its condition is not met (e.g. a missing reason).
  *
- * <p>Distinct from {@link IllegalTransitionException} because the two mean different things to the
- * person in front of the screen: an illegal pair means "that is not a thing you can do from here",
- * a failed guard means "you can, once you supply a reason" — and the message says which.
- *
- * <p>The docket gate has its own subclass, {@link DocketRequiredException}, because it is the one
- * refusal with a specific sentence of its own on the attender's phone.
+ * <p>Separate from {@link IllegalTransitionException} so the message can tell the user which one
+ * happened.
  */
 public class GuardFailedException extends RuntimeException {
 

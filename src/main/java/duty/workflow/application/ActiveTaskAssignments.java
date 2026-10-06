@@ -6,13 +6,8 @@ import duty.workflow.infrastructure.TaskAssignmentRepository;
 import org.springframework.stereotype.Component;
 
 /**
- * The answer to {@code @access.ownsTask} (section 11.3).
- *
- * <p>{@code task_assignment} is this module's table, and no other module may reach its
- * repositories (architecture section 2.4, rule 3). The identity module therefore declares the
- * question as a port and {@code workflow} answers it here.
- *
- * <p>{@code uq_task_attender} makes the lookup single-valued, so it is one indexed read.
+ * Implements {@code @access.ownsTask}: does this user hold an active assignment for the task? It lives
+ * here because assignments are this module's table.
  */
 @Component
 class ActiveTaskAssignments implements TaskAssignmentLookup {
@@ -24,9 +19,8 @@ class ActiveTaskAssignments implements TaskAssignmentLookup {
     }
 
     /**
-     * {@code ACTIVE} and nothing else. A {@code RELEASED} row records that this attender once held
-     * the task, which is exactly the person who must no longer act on it (E20, {@code
-     * NOT_ASSIGNED}).
+     * Only {@code ACTIVE} counts. A {@code RELEASED} row means the attender used to hold the task and may
+     * no longer act on it.
      */
     @Override
     public boolean holdsActiveAssignment(long userId, long taskId) {

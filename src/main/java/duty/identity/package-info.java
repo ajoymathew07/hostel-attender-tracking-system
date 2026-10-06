@@ -1,8 +1,6 @@
 /**
- * The {@code identity} module (architecture section 2.3).
+ * The {@code identity} module: users, roles, the Google sign-in allowlist and provisioning.
  *
- * Users, roles, the Google sign-in allowlist and provisioning.
- *
- * Invariant: no self-registration; every principal is pre-provisioned.
+ * <p>Invariant: no self-registration; every user is added by a manager.
  */
 package duty.identity;

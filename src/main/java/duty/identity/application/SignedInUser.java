@@ -13,19 +13,10 @@ import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 /**
- * The authenticated principal: one {@code app_user} row that has just been admitted by the
- * allowlist.
+ * The signed-in user: one {@code app_user} row admitted by the allowlist.
  *
- * <p><strong>The authority comes from {@code app_user.role}, never from a Google claim</strong>
- * (section 11.3). That is the whole point of this class existing rather than Spring's {@code
- * DefaultOidcUser}: the default builds its authorities from the token's scopes, which would mean an
- * identity provider outside our control had a say in what a user may do here.
- *
- * <p>It lives in {@code application} because it is the identity module's published answer to "who
- * is signed in" — other modules read it through {@link CurrentUser} and must never reach into
- * {@code identity.domain} for an {@code AppUser} (architecture section 2.4, rule 3). It carries the
- * role enum rather than a whole entity for the same reason: a detached entity in an HTTP session is
- * a stale copy waiting to be trusted.
+ * <p>Why not Spring's {@code DefaultOidcUser}: that takes authorities from Google's token, whereas the
+ * role here comes only from {@code app_user.role}. Other modules read it through {@link CurrentUser}.
  */
 public final class SignedInUser implements OidcUser, Serializable {
 
@@ -36,7 +27,7 @@ public final class SignedInUser implements OidcUser, Serializable {
     private final String displayName;
     private final UserRole role;
 
-    /** Present only inside the OIDC flow; absent for a principal built in a test or a job. */
+    /** Only set inside the OIDC login flow. */
     private final OidcIdToken idToken;
 
     private final OidcUserInfo userInfo;
@@ -81,7 +72,7 @@ public final class SignedInUser implements OidcUser, Serializable {
         return role;
     }
 
-    /** {@code ROLE_MANAGER} or {@code ROLE_ATTENDER}, derived from the allowlist row alone. */
+    /** {@code ROLE_MANAGER} or {@code ROLE_ATTENDER}, from the allowlist row. */
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
@@ -107,7 +98,7 @@ public final class SignedInUser implements OidcUser, Serializable {
         return idToken;
     }
 
-    /** The email, because it is the allowlist key and the one stable handle on this person. */
+    /** The email: the allowlist key. */
     @Override
     public String getName() {
         return email;

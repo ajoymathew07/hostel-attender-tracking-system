@@ -28,18 +28,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * The two invariants the provisioning screen must not be able to break.
- *
- * <p><strong>The audit log may not be made to lie.</strong> {@code audit_event.detail} is a {@code
- * TEXT} column, so a value carrying JSON punctuation produces a row that still inserts and still
- * reads like a record while naming an address that was never stored. The log is the evidence base
- * when an allowlist change or a bonus is disputed (section 11.7), so the address is validated on
- * the way in and escaped on the way out — belt and braces, because only one of the two survives a
- * future caller who skips the other.
- *
- * <p><strong>Somebody must always be able to administer.</strong> ADR-002 answers account recovery
- * with two {@code MANAGER} rows rather than a password; that only works if the last one cannot be
- * switched off from the very screen it is supposed to protect.
+ * Provisioning cannot corrupt the audit log (addresses are validated and escaped) and cannot remove
+ * the last manager.
  */
 @ExtendWith(MockitoExtension.class)
 class UserProvisioningServiceTest {

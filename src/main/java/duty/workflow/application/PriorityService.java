@@ -19,17 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * What moves a complaint's priority after intake: a manager's downgrade, and the aging sweep
- * (section 4.5).
+ * Changes a complaint's priority after intake: the manager's downgrade, and the ageing job.
  *
- * <p>Both live here because they write the same two columns under the same rule — {@code priority}
- * moves, {@code base_priority} records what it started as — and because their interaction is the
- * part that has to be right: an aged P3 shows as "P1 (aged from P3)" only if the downgrade wrote
- * the base and the sweep did not.
- *
- * <p>Priority is not status, so this does not go through {@link WorkflowService}. Section 4.1 makes
- * that service the single write path to {@code complaint.status} specifically, and neither of these
- * changes a complaint's state.
+ * <p>Both write {@code priority} and {@code base_priority} under one rule, so they live together.
+ * Priority is not status, so this does not go through {@link WorkflowService}.
  */
 @Service
 @Transactional
@@ -38,12 +31,8 @@ public class PriorityService {
     private static final String ENTITY_TYPE = "complaint";
 
     /**
-     * The states in which the SLA clock is running.
-     *
-     * <p>{@code RESOLVED} is excluded because section 4.5 escalates only work that has not reached
-     * it; {@code CLOSED} and {@code REJECTED} are finished; and {@code ON_HOLD} is excluded because
-     * hold time does not count toward aging (T12) — the complaint is waiting on the Engineering
-     * Unit, not on an attender.
+     * States in which the SLA clock runs. {@code ON_HOLD} is excluded because hold time does not count
+     * toward ageing.
      */
     private static final Set<ComplaintStatus> CLOCK_RUNNING =
             EnumSet.of(
@@ -65,13 +54,7 @@ public class PriorityService {
     }
 
     /**
-     * Section 4.5's third row: the manager judges this less urgent than it arrived.
-     *
-     * <p>Manager-only, and on the service rather than only the controller (section 11.3): a check
-     * that lives in a controller is one new caller away from being bypassed. The due date is
-     * recomputed, because a P3 window is a different length from the one the complaint arrived with
-     * — leaving the old date would have the list call a downgraded complaint late on the strength of
-     * a target nobody holds it to any more.
+     * Downgrades a complaint to P3. Manager-only. The due date is recalculated for the new window.
      */
     @PreAuthorize("hasRole('MANAGER')")
     public void downgrade(long complaintId) {
@@ -98,18 +81,13 @@ public class PriorityService {
     }
 
     /**
-     * The aging sweep of section 4.5: one escalation step per overdue complaint, and the breach flag.
+     * The ageing job: raises each complaint open past 1.5× its SLA window by one step (P3 → P2 → P1), and
+     * sets the breach flag.
      *
-     * <p>The query is coarse on purpose — every complaint whose due date has passed, whatever its
-     * priority — and the 1.5× arithmetic is applied in memory. The exact threshold depends on the
-     * complaint's own window, so it is not a column SQL could compare against, and at ~20 complaints
-     * a day (section 8.3) the overdue set is small. A generated column or a second stored date would
-     * be a cache of something the clock can answer.
+     * <p>The query fetches all overdue complaints and the 1.5× check is done in Java, since the threshold
+     * depends on each complaint's own window.
      *
-     * <p>One step per run, capped at {@code P1}, so a complaint that is already {@code P1} is left
-     * alone and section 4.5's {@code P3 → P2 → P1} runs in order.
-     *
-     * @return how many complaints were escalated, for the log
+     * @return how many complaints were escalated
      */
     public int ageOpenComplaints() {
         Instant now = Instant.now();
@@ -137,7 +115,7 @@ public class PriorityService {
         return ageingDueAt.isPresent() && !now.isBefore(ageingDueAt.get());
     }
 
-    /** The escalation, and the audit row that lets the dashboard explain it. */
+    /** Escalates one complaint and audits it. */
     private void escalate(Complaint complaint, Instant now) {
         Priority previous = complaint.getPriority();
         complaint.escalatePriority(now);

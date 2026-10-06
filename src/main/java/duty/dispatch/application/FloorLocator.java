@@ -8,15 +8,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * The room number a resident typed, as a {@code floor_id} (section 5.4).
+ * Turns the room number a resident typed into a {@code floor_id}.
  *
- * <p>Published from the dispatch module because {@code floor} is this module's table: ingestion
- * records the room, and what that room means is a location question (architecture section 2.4,
- * rule 3).
- *
- * <p>A Cauvery room number names a floor but not a wing, while {@code floor} is keyed
- * {@code uq_floor (wing, floor_number)}. The hostel is deployed as one wing, so the wing is
- * configuration rather than something to parse out of a number that does not carry it.
+ * <p>Room numbers carry no wing, so the wing comes from configuration (the hostel has one).
  */
 @Service
 public class FloorLocator {

@@ -24,13 +24,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/**
- * The allowlist decision — the one piece of authentication we wrote, unit-tested directly rather
- * than through the OAuth flow (test plan section 12.1, ADR-002).
- *
- * <p>Google establishes <em>who</em> someone is; whether they may use this system is decided here
- * and nowhere else (section 11.2).
- */
+/** The allowlist decision, unit-tested directly rather than through the OAuth flow. */
 @ExtendWith(MockitoExtension.class)
 class SignInServiceTest {
 
@@ -41,10 +35,7 @@ class SignInServiceTest {
         return new SignInService(users, audit);
     }
 
-    /**
-     * A persisted row, which is the only kind the allowlist ever sees: {@code AppUser} has no id
-     * setter, so the id a real lookup would have is stubbed rather than faked with reflection.
-     */
+    /** A user row with a stubbed id, since {@code AppUser} has no id setter. */
     private static AppUser attender(String email) {
         AppUser user =
                 spy(new AppUser("Ravi", UserRole.ATTENDER, email, Instant.parse("2026-01-01T00:00:00Z"), null));

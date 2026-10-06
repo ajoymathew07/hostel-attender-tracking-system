@@ -2,12 +2,7 @@ package duty.ingestion.application;
 
 import java.util.Objects;
 
-/**
- * An uploaded file, handed from the web layer to ingestion.
- *
- * <p>Carries the three things section 11.6 validates before parsing — name, media type and length
- * — alongside the bytes, so the check and the content cannot drift apart.
- */
+/** An uploaded file: name, media type and bytes, passed from the web layer to ingestion. */
 public record UploadedFile(String filename, String contentType, byte[] content) {
 
     public UploadedFile {
@@ -23,13 +18,7 @@ public record UploadedFile(String filename, String contentType, byte[] content) 
         return content.clone();
     }
 
-    /**
-     * The name and type, never the bytes.
-     *
-     * <p>A record's generated {@code toString} would print the byte array's identity, which is
-     * useless, and any future change to hold the decoded text would print the students' details
-     * straight into a log (section 11.4).
-     */
+    /** Name and type only, never the contents, which hold student details. */
     @Override
     public String toString() {
         return "UploadedFile[filename=" + filename + ", contentType=" + contentType + ", bytes=" + content.length + "]";

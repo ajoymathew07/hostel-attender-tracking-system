@@ -29,13 +29,7 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * The docket and resolve routes at the HTTP edge.
- *
- * <p>The rules themselves are proved at the service layer in {@code TaskResolutionIntegrationTest}.
- * What this class adds is that the two form posts exist, that the walking skeleton really does run
- * end to end from the browser, and that somebody else's task is a 403 rather than a page.
- */
+/** The docket and resolve form posts work end to end, and someone else's task returns a 403. */
 @SpringBootTest
 @AutoConfigureMockMvc
 class TaskResolutionControllerIntegrationTest extends AbstractIntegrationTest {
@@ -77,8 +71,7 @@ class TaskResolutionControllerIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("file the docket, then resolve: the skeleton walks from the phone to the ledger")
     void docketThenResolve() throws Exception {
-        // START and DEFECT? — the two steps of section 10.2's flow that PR 11 adds. Before it,
-        // the docket could be filed straight from ASSIGNED because no table said otherwise.
+        // Start work and confirm the defect: the docket can only be filed after these.
         mockMvc.perform(post("/m/tasks/{id}/start", taskId).with(authentication(asRavi)).with(csrf()))
                 .andExpect(status().is3xxRedirection());
         mockMvc.perform(post("/m/tasks/{id}/defect", taskId).with(authentication(asRavi)).with(csrf()))

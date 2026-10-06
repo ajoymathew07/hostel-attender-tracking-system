@@ -8,12 +8,7 @@ import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * The ledger entry's own rules — a plain unit test, no database.
- *
- * <p>The constraint tests live in {@code LedgerIdempotencyIntegrationTest}; what is checked here is
- * what the entity refuses to build in the first place.
- */
+/** What a ledger entry refuses to build. */
 class PointLedgerEntryTest {
 
     private static final Instant AT = Instant.parse("2026-02-01T12:00:00Z");

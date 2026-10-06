@@ -9,34 +9,28 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Identity and change detection, both derived from content (section 5.3).
+ * Computes a row's identity and its change-detection hash.
  *
  * <pre>
  * response_key = SHA256( normalize(timestamp) || "\x1f" || normalize(email) )
  * content_hash = SHA256( join("\x1f", [normalize(cell) for cell in row]) )
  * </pre>
  *
- * <p>Splitting the two is what makes the hard cases tractable. {@code response_key} is stable
- * across row shifts and across edits, so a deleted row that shifts every row below it produces
- * zero spurious complaints; {@code content_hash} changes whenever any answer changes, which is how
- * an edited response is recognised as the same complaint rather than a new one.
- *
- * <p>The unit separator is the join character because it is the one byte a Google Form answer
- * cannot contain, so no combination of cells can be made to hash as a different combination.
+ * <p>{@code response_key} does not depend on row position, so deleting a sheet row creates no
+ * duplicates. {@code content_hash} changes when any answer is edited.
  */
 public final class RowDigest {
 
-    /** ASCII US — not a character a form answer can carry, so cell boundaries cannot be forged. */
+    /**
+     * ASCII unit separator: a form answer cannot contain it, so cell boundaries cannot be faked.
+     */
     private static final String UNIT_SEPARATOR = "\u001f";
 
     private RowDigest() {}
 
     /**
-     * Folds the differences that are not answers: absence, padding, doubled whitespace and
-     * Unicode compatibility forms.
-     *
-     * <p>It deliberately does <em>not</em> fold case. {@code content_hash} must notice every real
-     * edit, and a resident correcting their capitalisation has edited their answer.
+     * Ignores missing values, extra whitespace and Unicode compatibility forms. Case is kept, because a
+     * capitalisation fix is a real edit.
      */
     public static String normalize(String value) {
         if (value == null) {
@@ -46,14 +40,10 @@ public final class RowDigest {
     }
 
     /**
-     * The stable identity of one response.
+     * The stable identity of one response. The email is lower-cased since addresses are
+     * case-insensitive.
      *
-     * <p>The email is lower-cased here and nowhere else: addresses are case-insensitive, so the
-     * same person writing {@code Ravi@} and {@code ravi@} is one submitter, not two.
-     *
-     * @param ordinal 0 for the first occurrence within a batch; section 5.3's in-batch
-     *     disambiguator for two submissions in the same second by the same person. Appending it
-     *     only when it is non-zero keeps the ordinary key exactly the design's formula.
+     * @param ordinal 0 normally; higher for repeat submissions by the same person in the same second
      */
     public static String responseKey(String timestamp, String email, int ordinal) {
         String material =

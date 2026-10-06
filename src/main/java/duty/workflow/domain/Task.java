@@ -16,21 +16,16 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * A unit of creditable work: either complaint-derived or a posted special duty (data model section
- * 3.6).
+ * A unit of work that earns points: a complaint's task, or a posted special duty.
  *
- * <p>{@code ck_task_link} keeps the two shapes honest at the database level — a {@code COMPLAINT}
- * task must reference a complaint, a {@code SPECIAL_DUTY} must not.
- *
- * <p>{@code @Version} is what resolves C3: two assignees of a shared duty finishing at once both
- * read the same version, the second to commit fails and retries, sees the task already completed,
- * and skips the transition. Its own credit is keyed uniquely and is unaffected (section 7.5).
+ * <p>{@code ck_task_link} enforces that a complaint task has a complaint and a special duty does not.
+ * {@code @Version} stops two assignees of a shared duty both completing it.
  */
 @Entity
 @Table(name = "task")
 public class Task {
 
-    /** The default credit for resolving a complaint. Configurable (data model section 3.6). */
+    /** Default points for resolving a complaint. */
     public static final int DEFAULT_COMPLAINT_POINTS = 2;
 
     @Id
@@ -54,15 +49,11 @@ public class Task {
     @Column(name = "point_value", nullable = false)
     private int pointValue;
 
-    /** The common-room overhaul case: several attenders hold ACTIVE assignments at once. */
+    /** Several attenders may hold it at once. */
     @Column(name = "shared", nullable = false)
     private boolean shared;
 
-    /**
-     * How many attenders may hold an {@code ACTIVE} assignment at once — the {@code k} of test X5
-     * and of the claim path in section 7.6. Always 1 unless the task is shared, which
-     * {@code ck_task_slots} enforces in the database too.
-     */
+    /** How many attenders may hold it at once; 1 unless shared. */
     @Column(name = "slots", nullable = false)
     private int slots = 1;
 
@@ -108,14 +99,14 @@ public class Task {
         this.slots = 1;
     }
 
-    /** Honours {@code ck_task_link}: a complaint task always carries its complaint. */
+    /** A complaint's task. */
     public static Task forComplaint(
             Complaint complaint, String title, int pointValue, Long createdBy, Instant createdAt) {
         Objects.requireNonNull(complaint, "complaint");
         return new Task(TaskType.COMPLAINT, complaint, title, pointValue, createdBy, createdAt);
     }
 
-    /** Honours {@code ck_task_link}: a special duty never carries one. */
+    /** A special duty, with no complaint. */
     public static Task specialDuty(
             String title, int pointValue, Long createdBy, Instant createdAt) {
         return new Task(TaskType.SPECIAL_DUTY, null, title, pointValue, createdBy, createdAt);
@@ -133,7 +124,7 @@ public class Task {
         this.closesAt = to;
     }
 
-    /** Shares this task with {@code slots} concurrent assignees. Honours {@code ck_task_slots}. */
+    /** Shares the task across several assignees. */
     public void shareAcross(int concurrentSlots) {
         if (concurrentSlots < 1) {
             throw new IllegalArgumentException("slots must be at least 1");

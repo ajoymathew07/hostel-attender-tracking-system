@@ -27,11 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-/**
- * The attender's queue, and the rule that makes it interesting: the 7-day window of section 11.4.
- *
- * <p>Every resident value below is synthetic (section 11.4).
- */
+/** The attender's queue, and the 7-day window for student details. All values here are made up. */
 @SpringBootTest
 class AttenderQueueIntegrationTest extends AbstractIntegrationTest {
 
@@ -70,7 +66,7 @@ class AttenderQueueIntegrationTest extends AbstractIntegrationTest {
         SecurityContextHolder.clearContext();
     }
 
-    /** Moves the complaint to RESOLVED as of {@code daysAgo} days ago — the window's start. */
+    /** Marks the complaint resolved {@code daysAgo} days ago. */
     private void resolvedDaysAgo(long daysAgo) {
         Complaint complaint = complaints.findById(complaintId).orElseThrow();
         complaint.moveTo(ComplaintStatus.RESOLVED, Instant.now().minus(Duration.ofDays(daysAgo)));

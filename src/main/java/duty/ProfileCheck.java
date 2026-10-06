@@ -9,36 +9,20 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.util.StringUtils;
 
 /**
- * Refuses to start unless exactly one of {@code local} and {@code cloud} is active, and — under
- * {@code cloud} — unless every environment variable that profile needs is actually set.
+ * Refuses to start unless exactly one of the {@code local} and {@code cloud} profiles is active,
+ * and, under {@code cloud}, unless every required environment variable is set.
  *
- * <p>This exists because of one specific way a deployment goes wrong. {@code application.yml} used
- * to declare {@code spring.profiles.default: local}, so a Render service whose {@code
- * SPRING_PROFILES_ACTIVE} was never set started anyway — with the developer profile. That profile
- * has a placeholder OAuth client, no {@code Secure} on the session cookie, and a datasource that
- * reads {@code DATABASE_URL} but falls back to {@code localhost}. The failure mode is therefore not
- * a crash but a running application, configured wrongly, possibly pointed at a database nobody
- * intended. An explicit choice with a loud failure is worth more here than a convenient default.
- *
- * <p>The variable check exists for the same reason. Spring Boot's relaxed binding leaves an
- * unresolvable {@code ${DATABASE_URL}} as the literal text, so a missing variable surfaces much
- * later as {@code URL must start with 'jdbc'} — true, and useless to whoever is reading the deploy
- * log. Naming the variables that are missing turns that into a one-line fix.
- *
- * <p>It runs as an {@link EnvironmentPostProcessor} (registered in {@code
- * META-INF/spring.factories}) because that is the last point before any bean — and therefore any
- * datasource or connection — is created, and it sees the profiles from every source: the
- * environment variable, {@code --spring.profiles.active} and {@code @ActiveProfiles} in tests.
+ * <p>Why: without it, a deployment with no profile set would quietly start with the developer
+ * settings, and a missing variable would fail later with an unhelpful message. Runs as an
+ * {@link EnvironmentPostProcessor} (see {@code META-INF/spring.factories}), before any bean is
+ * created.
  */
 public class ProfileCheck implements EnvironmentPostProcessor {
 
-    /** The two profiles of architecture section 2.7; there are deliberately no others. */
+    /** The only two profiles. */
     private static final Set<String> KNOWN = Set.of("local", "cloud");
 
-    /**
-     * Every variable the {@code cloud} profile reads without a default. The list is the same one
-     * the runbook tells the owner to set, and keeping them in step is the point of checking here.
-     */
+    /** Variables the {@code cloud} profile needs; the same list the deploy runbook gives. */
     private static final List<String> REQUIRED_IN_CLOUD =
             List.of(
                     "DATABASE_URL",

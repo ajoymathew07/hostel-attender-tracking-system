@@ -15,13 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 
-/**
- * {@code app_user} — the Google allowlist (data model section 3.3).
- *
- * <p>The table stores no credential at all, so there is nothing here about passwords. What it does
- * store is the decision of <em>whether</em> a verified Google identity may in, which is what these
- * tests are about.
- */
+/** The {@code app_user} table: who may sign in. */
 @SpringBootTest
 class AppUserIntegrationTest extends AbstractIntegrationTest {
 

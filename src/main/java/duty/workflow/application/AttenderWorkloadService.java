@@ -16,22 +16,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The workload half of the dispatch heuristic, read from this module's own tables (section 6.2).
- *
- * <p>Published so the dispatch module can score without reaching into {@code workflow} for the
- * assignments themselves (architecture section 2.4, rule 3). It is the only thing dispatch asks
- * this module for.
+ * Computes attender workload for dispatch from this module's own tables, so dispatch need not read
+ * them.
  */
 @Service
 @Transactional(readOnly = true)
 public class AttenderWorkloadService {
 
     /**
-     * The states in which a task is really occupying the attender.
-     *
-     * <p>{@code ON_HOLD} is absent, and that is section 6.2's point: the attender is waiting on
-     * the Engineering Unit rather than blocked by the work, so held tasks count zero. Resolved and
-     * finished complaints are not work either.
+     * States in which a task occupies the attender. {@code ON_HOLD} is left out: they are waiting on the
+     * Engineering Unit, not working.
      */
     private static final Set<ComplaintStatus> ACTIVE_WORK =
             EnumSet.of(
@@ -48,7 +42,7 @@ public class AttenderWorkloadService {
         this.zone = calendar.zone();
     }
 
-    /** One attender's current load, today's count and when they were last given anything. */
+    /** One attender's current load, today's count and when they were last assigned. */
     public AttenderWorkload of(long attenderId, Instant at) {
         return new AttenderWorkload(
                 weightedLoad(attenderId),
@@ -59,10 +53,7 @@ public class AttenderWorkloadService {
                         .orElse(null));
     }
 
-    /**
-     * {@code L(a) = Σ π(t)} — weighted by priority rather than counting tickets, because three P1
-     * electrical faults is not the same workload as three P3 cosmetic complaints.
-     */
+    /** Sum of priority weights, because three P1 faults are more work than three P3 ones. */
     private int weightedLoad(long attenderId) {
         int load = 0;
         for (TaskAssignment held :
@@ -83,7 +74,7 @@ public class AttenderWorkloadService {
         };
     }
 
-    /** "Today" is the manager's day, not UTC's: the anti-starvation rule is about a shift. */
+    /** Start of today in the local timezone, not UTC. */
     private Instant startOfDay(Instant at) {
         return LocalDate.ofInstant(at, zone).atStartOfDay(zone).toInstant();
     }

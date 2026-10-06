@@ -1,24 +1,22 @@
 package duty.workflow.domain;
 
 /**
- * The <em>Actor</em> column of the transition table (section 4.2), which is the authorization half
- * of section 11.3 expressed as data.
+ * Who may make a transition.
  *
- * <p>Role alone is never enough for a task action: "any attender" would let one attender resolve
- * another's work and collect the +2. So the attender rows name the <em>assigned</em> attender, and
- * the check is an {@code ACTIVE} assignment, not a role.
+ * <p>Attender moves require holding an {@code ACTIVE} assignment, not just the attender role, so
+ * nobody can act on someone else's task.
  */
 public enum TransitionActor {
 
-    /** A scheduled job or the dispatcher; there is no principal behind it. */
+    /** The system (a scheduled job or the dispatcher). */
     SYSTEM,
 
-    /** Classify, assign, reassign, reject, close, reopen — the manager column of section 11.3. */
+    /** The manager. */
     MANAGER,
 
-    /** The attender holding an {@code ACTIVE} assignment for this complaint's task, and only them. */
+    /** The attender holding an {@code ACTIVE} assignment on this complaint's task. */
     ASSIGNED_ATTENDER,
 
-    /** Either of the two: T12 and T13 name both. */
+    /** Either the assigned attender or the manager (block and unblock). */
     ATTENDER_OR_MANAGER
 }

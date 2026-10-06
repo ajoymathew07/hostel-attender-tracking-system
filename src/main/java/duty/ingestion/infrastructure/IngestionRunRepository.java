@@ -5,7 +5,7 @@ import duty.ingestion.domain.IngestionStatus;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-/** Ingestion run history (data model section 3.5). */
+/** Ingestion run history. */
 public interface IngestionRunRepository extends JpaRepository<IngestionRun, Long> {
 
     List<IngestionRun> findByStatusOrderByStartedAtDesc(IngestionStatus status);

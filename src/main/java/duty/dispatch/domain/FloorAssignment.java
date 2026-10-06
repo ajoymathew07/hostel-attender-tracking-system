@@ -15,16 +15,10 @@ import jakarta.persistence.Version;
 import java.util.Objects;
 
 /**
- * Which attender covers which floor, and how (data model section 3.4).
+ * Which attender covers which floor, as {@code PRIMARY} or {@code SECONDARY}.
  *
- * <p>Current state only. An earlier draft made coverage time-bounded so a past dispatch decision
- * could be replayed against the roster then in force, but coverage at Cauvery is fixed rather than
- * rotating (OQ-3), and explainability is already served more cheaply by
- * {@code task_assignment.score_snapshot}.
- *
- * <p>{@code attenderId} is a plain column rather than an association: {@code AppUser} belongs to
- * the identity module, and cross-module references go through the published service interface, not
- * through another module's entities (architecture section 2.4, rule 3).
+ * <p>{@code attenderId} is a plain column, not a JPA relation, because users belong to the identity
+ * module.
  */
 @Entity
 @Table(name = "floor_assignment")

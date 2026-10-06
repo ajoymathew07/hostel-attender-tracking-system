@@ -19,22 +19,16 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * The manager's view of every complaint (section 10.3).
- *
- * <p>{@code @PreAuthorize} is on the service, not only on the controller (section 11.3): "view all
- * complaints" is a manager capability, and an attender sees their own assignments alone. A check
- * that lives only in a controller is one new caller away from being bypassed.
- */
+/** The manager's view of every complaint. Manager-only, checked on the service. */
 @Service
 @Transactional(readOnly = true)
 @PreAuthorize("hasRole('MANAGER')")
 public class ComplaintQueryService {
 
-    /** Newest report first: the manager is looking for what just arrived (section 10.3). */
+    /** Newest first: the manager is looking for what just arrived. */
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "reportedAt", "id");
 
-    /** Somebody is on it — including held work, which is still theirs to come back to. */
+    /** Someone is on it, including work on hold. */
     private static final Set<ComplaintStatus> LIVE =
             EnumSet.of(
                     ComplaintStatus.ASSIGNED,
@@ -43,7 +37,7 @@ public class ComplaintQueryService {
                     ComplaintStatus.IN_PROGRESS,
                     ComplaintStatus.ON_HOLD);
 
-    /** The clock runs in these, so only these can be overdue (section 4.5). */
+    /** States in which the SLA clock runs, so only these can be overdue. */
     private static final Set<ComplaintStatus> CLOCK_RUNNING =
             EnumSet.of(
                     ComplaintStatus.TRIAGE,
@@ -82,8 +76,8 @@ public class ComplaintQueryService {
     }
 
     /**
-     * No assignee is looked up. A complaint in {@code TRIAGE} has nobody on it by definition —
-     * either it never reached {@code ASSIGNED}, or T8 released whoever held it on the way back.
+     * The triage queue, oldest first: complaints the resident did not place in a domain, or that could
+     * not be dispatched.
      */
     public List<ComplaintListItem> listTriage() {
         return complaints.findByStatusOrderByReportedAtAsc(ComplaintStatus.TRIAGE).stream()
@@ -91,18 +85,14 @@ public class ComplaintQueryService {
                 .toList();
     }
 
-    /** How many complaints exist — the dashboard's headline count. */
+    /** Total number of complaints. */
     public long count() {
         return complaints.count();
     }
 
     /**
-     * Four counts, not a scan of the list.
-     *
-     * <p>{@link #listAll()} already loads every complaint, so the tiles could be derived from it
-     * for free today. They are not, because the list is the thing that will grow a filter and a
-     * page, and a tile that silently started counting one page of complaints would be worse than
-     * wrong — it would be plausible.
+     * The dashboard tiles, counted by queries rather than from the list, so they stay right if the list
+     * is ever paged.
      */
     public DashboardCounters counters() {
         Instant now = Instant.now();
@@ -115,11 +105,8 @@ public class ComplaintQueryService {
     }
 
     /**
-     * {@code slaOverdue} is computed here rather than read from {@code sla_breached}.
-     *
-     * <p>The flag is written by the aging sweep, which runs on an interval; the manager looking at
-     * the list wants to know whether the due date has passed <em>now</em>. Reading the column would
-     * show a complaint as on time for up to one tick after it stopped being so.
+     * Builds a list row. Overdue is computed against now rather than read from the periodically updated
+     * flag.
      */
     private static ComplaintListItem toItem(Complaint complaint, Long assigneeId, Instant now) {
         return new ComplaintListItem(

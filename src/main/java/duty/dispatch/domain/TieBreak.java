@@ -1,20 +1,17 @@
 package duty.dispatch.domain;
 
 /**
- * Which rule of section 6.2 stage 3 settled a tie, in the order they are applied.
- *
- * <p>Recorded on the decision because "why them" has a different answer when two attenders scored
- * the same: the score alone no longer explains it, and the snapshot is what the manager reads
- * months later.
+ * Which tie-break rule picked the winner, in the order they apply. Recorded so the snapshot explains a
+ * tied choice.
  */
 public enum TieBreak {
 
-    /** Fewest tasks assigned today — the anti-starvation term (R4). */
+    /** Fewest tasks assigned today, so nobody is starved of work. */
     FEWEST_TODAY,
 
     /** Longest since their last assignment. */
     LONGEST_IDLE,
 
-    /** Lowest user id, which is what makes the whole chain total (R2). */
+    /** Lowest user id, so there is always a winner. */
     LOWEST_ID
 }

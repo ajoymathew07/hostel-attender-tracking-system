@@ -7,22 +7,11 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Builds the JSON of {@link AuditEntry#detail()} — <strong>by serialising, never by
- * concatenating</strong>.
+ * Builds the JSON of {@link AuditEntry#detail()} by serialising, never by concatenating.
  *
- * <p>Concatenation is not a style problem. A value containing a quote and a comma closes the
- * string and opens a second key,
- * so a user-supplied field — an email address, a filename, a rejected header — can make the audit
- * log claim something other than what happened. The log is the evidence used to settle bonus
- * disputes and reconstruct history (section 11.7); a log that can be written by the thing it is
- * logging is worth nothing.
- *
- * <p>Jackson escapes every value, so the worst a hostile string can do is appear, verbatim and
- * harmless, inside one JSON value.
- *
- * <p>Detail is also the wrong place for student data. Nothing here should carry a name, roll
- * number or phone number (section 11.4) — audit rows are retained indefinitely, which is exactly
- * what the retention limits are for.
+ * <p>Why: with concatenation, a value containing a quote could inject extra keys and make the audit
+ * log claim something that did not happen. Never put student data in here; audit rows are kept
+ * forever.
  */
 public final class AuditDetail {
 

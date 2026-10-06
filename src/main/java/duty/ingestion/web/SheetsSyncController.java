@@ -9,14 +9,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * "Sync Now" — the manager's manual wake-and-sync path (section 2.5, point 2).
+ * The manager's "Sync Now" button.
  *
- * <p>A POST that redirects, so a refresh cannot re-run it. Re-running would in fact be harmless,
- * since {@code response_key} collides and nothing is duplicated — but "harmless" is not a reason
- * to make a refresh do work.
- *
- * <p>The {@code @PreAuthorize} here is defence in depth; the control is the identical rule on
- * {@link SheetsIngestionService#syncNow()} (section 11.3).
+ * <p>Redirects after the POST so a refresh does not re-run it. The real permission check is on
+ * {@link SheetsIngestionService#syncNow()}.
  */
 @Controller
 @PreAuthorize("hasRole('MANAGER')")
@@ -46,10 +42,7 @@ class SheetsSyncController {
         return REDIRECT;
     }
 
-    /**
-     * Counts, not a bare "done". "0 new, 37 already held" is the sentence that tells the manager
-     * whether the sheet is actually being read.
-     */
+    /** A summary with counts, so the manager knows the sheet is being read. */
     private static String describe(IngestionSummary summary) {
         String outcome =
                 summary.rowsCreated()

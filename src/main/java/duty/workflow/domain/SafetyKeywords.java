@@ -3,20 +3,14 @@ package duty.workflow.domain;
 import java.util.List;
 
 /**
- * The safety and utility words that make a complaint {@link Priority#P1} on arrival (section 4.5).
+ * The safety words that make a complaint P1 on arrival.
  *
- * <p><strong>Exact matching, deliberately.</strong> There is no fuzzy match, no stemming and no
- * edit distance here, and that is not an omission. A false {@code P1} from a near-miss spelling
- * jumps a routine complaint over genuine safety work and distorts the whole queue — so a word
- * either is one of these or it is not. Tolerance belongs in the Form's drop-down, not here; it
- * is choosing a domain, and being roughly right about "electrical" costs nothing like this.
- *
- * <p>Matching is on whole words for the same reason: "sparkling water is not available" is not a
- * live electrical hazard, and substring matching would file it as one.
+ * <p>Exact whole-word matching on purpose: a fuzzy match could wrongly jump a routine complaint ahead
+ * of real safety work, and substring matching would read "sparkling" as "spark".
  */
 public final class SafetyKeywords {
 
-    /** Section 4.5's list, verbatim. A phrase matches consecutive words. */
+    /** The keyword list; a phrase matches consecutive words. */
     private static final List<List<String>> PHRASES =
             List.of(
                     List.of("shock"),
@@ -27,7 +21,7 @@ public final class SafetyKeywords {
 
     private SafetyKeywords() {}
 
-    /** Whether the resident's own words name one of section 4.5's hazards. */
+    /** Whether the text contains a safety keyword. */
     public static boolean hit(String text) {
         if (text == null || text.isBlank()) {
             return false;
@@ -36,7 +30,7 @@ public final class SafetyKeywords {
         return PHRASES.stream().anyMatch(phrase -> containsInOrder(words, phrase));
     }
 
-    /** The base priority section 4.5's table gives a complaint as it arrives. */
+    /** P1 if a safety keyword appears, otherwise P2. */
     public static Priority basePriorityFor(String text) {
         return hit(text) ? Priority.P1 : Priority.P2;
     }

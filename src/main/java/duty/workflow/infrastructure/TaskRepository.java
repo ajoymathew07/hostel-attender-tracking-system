@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/** Tasks (data model section 3.6). */
+/** Tasks. */
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByStatusAndTaskType(TaskStatus status, TaskType taskType);
@@ -19,12 +19,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     Optional<Task> findByComplaintId(Long complaintId);
 
     /**
-     * {@code SELECT ... FOR UPDATE} for the claim path (section 7.6, ADR-006).
-     *
-     * <p>Claiming is a genuine read-modify-write on a count, and optimistic locking would handle it
-     * — but the retry is user-visible and confusing for someone standing in a corridor. Contention
-     * is trivially low, so a short pessimistic lock buys an immediate, clear answer for the loser.
-     * The lock is held for microseconds.
+     * Loads a task with {@code SELECT ... FOR UPDATE}, for claiming a shared duty: the loser gets a clear
+     * answer at once instead of a confusing retry.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from Task t where t.id = :id")

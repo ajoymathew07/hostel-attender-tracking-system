@@ -14,15 +14,10 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * A principal of the system — the manager, or an attender (data model section 3.3).
+ * A user: the manager or an attender.
  *
- * <p><strong>No credential is stored.</strong> Everyone authenticates with Google, so {@code email}
- * is purely an allowlist key: a sign-in whose verified email has no matching active row is rejected
- * (ADR-002). A database breach therefore yields no credential to steal.
- *
- * <p><strong>There is no points column here.</strong> A balance is a {@code SUM} over the
- * append-only ledger, never stored state — which is precisely why double-crediting cannot happen
- * (section 7.3).
+ * <p>No credential is stored; everyone signs in with Google and {@code email} is only the allowlist
+ * key. There is no points column: points are summed from the ledger.
  */
 @Entity
 @Table(name = "app_user")
@@ -71,15 +66,12 @@ public class AppUser {
         this.active = true;
     }
 
-    /**
-     * Allowlist matching is normalised, so an address differing only in case or surrounding space
-     * still admits the same person (test plan E20c).
-     */
+    /** Trimmed and lower-cased, so case and spacing differences still match. */
     public static String normalizeEmail(String email) {
         return Objects.requireNonNull(email, "email").trim().toLowerCase(Locale.ROOT);
     }
 
-    /** Revoking a lost phone: blocks the next sign-in immediately (section 3.3). */
+    /** Blocks the next sign-in immediately. */
     public void deactivate() {
         this.active = false;
     }
@@ -88,15 +80,12 @@ public class AppUser {
         this.active = true;
     }
 
-    /** Recovery path when someone loses access to their Google account (section 3.3). */
+    /** Recovery path when someone loses access to their Google account. */
     public void changeEmail(String newEmail) {
         this.email = normalizeEmail(newEmail);
     }
 
-    /**
-     * What this person may do (section 11.3). The role is read from this row at each sign-in and
-     * never from anything Google asserts, so a change takes effect on the user's next sign-in.
-     */
+    /** Changes the role; it is read at each sign-in, so it takes effect then. */
     public void changeRole(UserRole newRole) {
         this.role = Objects.requireNonNull(newRole, "role");
     }

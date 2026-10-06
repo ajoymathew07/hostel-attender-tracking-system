@@ -23,11 +23,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * What the manager may change without a redeploy (sections 4.5, 6.2 R5, 8.2, 10.4).
- *
- * <p>The claim under test is not that a row can be written — it is that a written row
- * <em>reaches the behaviour</em>: the dispatcher scores with the new weights and the clock
- * measures with the new window, on the next complaint and with nothing restarted.
+ * A saved setting changes behaviour immediately: new weights and SLA windows apply to the next
+ * complaint without a restart.
  */
 @SpringBootTest
 class SettingsIntegrationTest extends AbstractIntegrationTest {

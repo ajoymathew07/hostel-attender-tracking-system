@@ -33,16 +33,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
 
 /**
- * CSV ingestion end to end, against real PostgreSQL (test plan section 12.1).
+ * CSV ingestion end to end. The key property: uploading the same file twice creates no duplicates,
+ * guaranteed by the database constraint, not just the lookup.
  *
- * <p>The headline property is NFR-1's: <strong>a complaint is never created twice</strong>.
- * Re-uploading the same file is the obvious thing a flustered user does during an outage, so it is
- * the first thing asserted — and the second assertion is that the guarantee rests on {@code
- * uq_source_row} rather than on the application's own lookup, because a check-then-insert is
- * itself a race.
- *
- * <p>Student details in these fixtures are synthetic (section 11.4). No real resident's name, roll
- * number or phone number is ever committed to this repository.
+ * <p>All student details here are made up.
  */
 @SpringBootTest
 @WithMockUser(roles = "MANAGER")

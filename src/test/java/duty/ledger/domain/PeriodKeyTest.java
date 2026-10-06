@@ -8,12 +8,7 @@ import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Month boundaries (section 7.9, NFR-7) — a plain unit test.
- *
- * <p>The case that matters is E21: a task resolved at 02:00 IST on 1 October belongs to October.
- * Grouping the UTC instant naively would have filed it under September, silently and wrongly.
- */
+/** Month boundaries: a task resolved at 02:00 IST on 1 October belongs to October. */
 class PeriodKeyTest {
 
     @Test

@@ -7,11 +7,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * The key shapes of data model section 3.6 — a plain unit test, no Spring, no database.
- *
- * <p>These strings are the whole of the double-crediting argument (section 7.3), so they are worth
- * pinning exactly: if the key for a given piece of work ever stopped being deterministic, the
- * unique constraint would still hold and yet stop preventing anything.
+ * The exact idempotency key formats. If a key ever stopped being deterministic, double credits
+ * would become possible.
  */
 class IdempotencyKeysTest {
 

@@ -1,9 +1,7 @@
 /**
- * The {@code ingestion} module (architecture section 2.3).
+ * The {@code ingestion} module: reads rows from the Google Sheet or an uploaded CSV and turns new ones
+ * into complaints.
  *
- * Fetches raw rows from the Google Sheet or an uploaded CSV, detects deltas and normalizes
- * them into complaints.
- *
- * Invariant: a source row is never turned into two complaints.
+ * <p>Invariant: a source row is never turned into two complaints.
  */
 package duty.ingestion;

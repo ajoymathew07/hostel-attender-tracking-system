@@ -5,11 +5,8 @@ import duty.identity.domain.UserRole;
 import java.time.Instant;
 
 /**
- * One row of the allowlist as the rest of the system sees it.
- *
- * <p>A record rather than the {@code AppUser} entity, because {@code identity.domain} is internal
- * to this module (architecture section 2.4, rule 3) and because a detached entity handed to a view
- * is a stale copy that invites a write through the back door.
+ * One allowlist row as other modules and views see it, so the {@code AppUser} entity stays inside
+ * this module.
  */
 public record UserSummary(
         Long id,

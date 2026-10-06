@@ -28,21 +28,10 @@ import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * The Apps Script wake-up trigger at the HTTP edge (sections 2.5, 11.6).
+ * The Apps Script wake endpoint: opens for the right secret, refuses everyone else with a 403 (not a
+ * login redirect), and a repeated call changes nothing.
  *
- * <p>Everything asserted here is about the <em>door</em>, because the room behind it is already
- * tested: the reconciliation the trigger starts is the same one "Sync Now" and the poll start, and
- * it is covered in {@code SheetsIngestionIntegrationTest}. What is new and therefore what is
- * tested is that the door opens for Google, stays shut for everybody else, and that going through
- * it twice changes nothing.
- *
- * <p>Every request here is <strong>anonymous and carries no CSRF token</strong>, which is the
- * caller this endpoint actually has. A rejection must come back as {@code 403} from the
- * controller, not as a redirect to the login page: a redirect would mean the sign-in filter had
- * caught the call, and a Google server cannot log in.
- *
- * <p>The secret below is a test fixture, not a credential — the real one is an environment
- * variable and appears nowhere in this repository (section 11.5).
+ * <p>Requests are anonymous with no CSRF token, like the real caller. The secret is a test value.
  */
 @SpringBootTest(
         properties = {
@@ -61,12 +50,7 @@ class SheetWakeControllerIntegrationTest extends AbstractIntegrationTest {
     private static final String PATH = "/api/ingestion/wake";
     private static final String HEADER = "X-Wake-Secret";
 
-    /**
-     * The endpoint answers before the ingestion finishes, which is the point of it — so the test
-     * would otherwise be racing the executor. Running the handed-off task on the calling thread
-     * makes the assertion deterministic without changing what is under test: the controller still
-     * hands the run to a {@link TaskExecutor} and still answers {@code 202}.
-     */
+    /** Runs the background task on the calling thread so the test does not race it. */
     @TestConfiguration
     static class RunTheHandoffInline {
 

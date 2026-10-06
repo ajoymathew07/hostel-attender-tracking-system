@@ -21,15 +21,10 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * The attender's phone: {@code /m} and {@code /m/tasks/{id}} (sections 10.2, 10.4).
+ * The attender's phone screens: {@code /m} (the queue) and {@code /m/tasks/{id}}.
  *
- * <p>Mobile-only by design — section 10.1 is explicit that this is not the manager's screen at a
- * different breakpoint, and it carries no desktop compromise.
- *
- * <p>No role annotation. {@code /m} shows the caller's own assignments and nothing else, so there
- * is no wider set a role could narrow; the two actions are guarded by ownership on the service,
- * which is the check section 11.3 names. A manager who opens {@code /m} sees an empty queue, which
- * is the truth.
+ * <p>No role check: {@code /m} only ever shows the caller's own work, and actions check task ownership
+ * on the service.
  */
 @Controller
 class AttenderQueueController {
@@ -55,12 +50,7 @@ class AttenderQueueController {
         return "workflow/queue";
     }
 
-    /**
-     * The deep-link target for a push notification (section 10.2).
-     *
-     * <p>A task the caller does not hold is refused by {@code @access.ownsTask} before this method
-     * runs, so the only way to reach the empty case is a task id that does not exist.
-     */
+    /** One task's page. A task the caller does not hold is refused before this runs. */
     @GetMapping("/m/tasks/{taskId}")
     String task(@PathVariable long taskId, Model model) {
         QueuedTask task =
@@ -72,11 +62,7 @@ class AttenderQueueController {
     }
 
     /**
-     * Transitions T7, T9 and T10 — the START and DEFECT? steps of section 10.2's flow.
-     *
-     * <p>One route for the three because they are one screen control each way: the attender taps
-     * what happened and the table decides where that lands. The complaint id is not in the URL —
-     * the attender's world is tasks, and {@code @access.ownsTask} is keyed on the task.
+     * Start work, defect found, or no defect (T7, T9, T10). One route: the button pressed says which.
      */
     @PostMapping("/m/tasks/{taskId}/start")
     String start(@PathVariable long taskId, RedirectAttributes flash) {
@@ -100,7 +86,7 @@ class AttenderQueueController {
         return "redirect:/m";
     }
 
-    /** Transition T11: the number the Engineering Unit gave back. */
+    /** Records the docket number (T11). */
     @PostMapping("/m/tasks/{taskId}/docket")
     String recordDocket(
             @PathVariable long taskId, @RequestParam String docketNo, RedirectAttributes flash) {
@@ -109,12 +95,7 @@ class AttenderQueueController {
         return "redirect:/m/tasks/" + taskId;
     }
 
-    /**
-     * Transition T14: the +2.
-     *
-     * <p>Back to the queue rather than to the task, because the assignment is complete and the
-     * task has left the queue — the attender's next question is what else is waiting.
-     */
+    /** Resolves the task (T14) and returns to the queue. */
     @PostMapping("/m/tasks/{taskId}/resolve")
     String resolve(@PathVariable long taskId, RedirectAttributes flash) {
         ResolvedTask resolved = resolution.resolve(taskId);
@@ -127,12 +108,7 @@ class AttenderQueueController {
         return "redirect:/m";
     }
 
-    /**
-     * The two docket refusals, as sentences rather than stack traces (section 11.6).
-     *
-     * <p>Both land back on the queue: a stale screen is how either one is reached, so the useful
-     * next thing to show is the current state of the work.
-     */
+    /** A docket refusal becomes a message on the queue. */
     @ExceptionHandler(DocketRequiredException.class)
     String docketRequired(RedirectAttributes flash) {
         flash.addFlashAttribute("error", "File the CMS docket number first — no docket, no points.");
@@ -146,12 +122,7 @@ class AttenderQueueController {
         return "redirect:/m";
     }
 
-    /**
-     * Every other refusal from the table.
-     *
-     * <p>Reached from a stale tab — the attender left the task open, finished it on another phone,
-     * and the old screen still shows the old button. The queue is the useful thing to show next.
-     */
+    /** Any other refusal (usually a stale screen) becomes a message on the queue. */
     @ExceptionHandler({IllegalTransitionException.class, GuardFailedException.class})
     String refused(RuntimeException refusal, RedirectAttributes flash) {
         flash.addFlashAttribute("error", refusal.getMessage());

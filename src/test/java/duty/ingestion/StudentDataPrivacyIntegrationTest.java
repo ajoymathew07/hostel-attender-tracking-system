@@ -29,15 +29,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
 
 /**
- * Section 11.4, asserted rather than asserted-in-a-comment.
+ * Student name, roll number and phone never appear in the logs. Watches the real log output during an
+ * upload.
  *
- * <p>The student's name, roll number and phone number may be stored and shown to the manager, and
- * must <strong>never</strong> be written to a log. A log line is the easiest way for personal data
- * to escape the retention rules entirely — logs are shipped, aggregated and kept long after a
- * complaint's fields have been purged — so this test watches the actual appender while a real
- * upload runs, rather than trusting review to catch a future {@code log.debug(row)}.
- *
- * <p>Every value below is synthetic (section 11.4).
+ * <p>All values here are made up.
  */
 @SpringBootTest
 @WithMockUser(roles = "MANAGER")
@@ -52,11 +47,7 @@ class StudentDataPrivacyIntegrationTest extends AbstractIntegrationTest {
             "Timestamp,Email Address,Name,Roll Number,Phone Number,Room Number,Describe the issue";
 
     /**
-     * Each test needs its own submission time.
-     *
-     * <p>Identity is {@code SHA256(timestamp || email)} and these tests share one database, so a
-     * fixed timestamp would mean the first test to run ingests the row and every other test
-     * correctly skips it as already held — which is the system working, and the tests failing.
+     * A CSV with its own timestamp per test, so tests sharing the database do not skip each other's row.
      */
     private static String csvAt(String submittedAt) {
         return HEADERS

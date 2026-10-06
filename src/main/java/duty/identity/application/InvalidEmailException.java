@@ -1,13 +1,6 @@
 package duty.identity.application;
 
-/**
- * That is not an address this system will accept as an allowlist key.
- *
- * <p>Checked in the service rather than only in the form, because the allowlist key is the <em>only
- * thing that lets somebody in</em>: an unchecked value silently locks a real person out — their
- * Google address no longer matches any row — and the mistake is invisible until they next try to
- * sign in.
- */
+/** Not an address the allowlist will accept. A bad address would silently lock that person out. */
 public class InvalidEmailException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;

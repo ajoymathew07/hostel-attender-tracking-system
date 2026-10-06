@@ -4,26 +4,20 @@ import duty.dispatch.domain.DispatchPolicy;
 import duty.dispatch.domain.FloorProximity;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/**
- * The heuristic's weights and its proximity table, as configuration (section 6.2, R5).
- *
- * <p>Section 6.2 requires these be tunable without a redeploy, and section 6.2's own table says
- * the manager edits them from the configuration screen. Properties, not constants, for the same
- * reason the SLA targets are.
- */
+/** The default dispatch weights and proximity table from {@code application.yml}. */
 @ConfigurationProperties(prefix = "dispatch")
 public class DispatchProperties {
 
-    /** The wing every Cauvery room belongs to; room numbers do not carry one (section 5.4). */
+    /** Room numbers carry no wing, so every room is placed in this one. */
     private String wing = "CAUVERY";
 
     private final Weights weights = new Weights();
     private final Proximity proximity = new Proximity();
 
-    /** {@code L_cap} — the weighted load at which an attender counts as full. */
+    /** The weighted load at which an attender counts as full. */
     private int loadCap = 8;
 
-    /** A weighted sum whose weights do not sum to 1 is not a score in [0, 1] (section 6.2). */
+    /** Builds the policy; refuses weights that do not sum to 1. */
     public DispatchPolicy toPolicy() {
         double total = weights.floor + weights.load;
         if (Math.abs(total - 1) > 1e-9) {
@@ -65,7 +59,7 @@ public class DispatchProperties {
         return proximity;
     }
 
-    /** {@code w_f} and {@code w_l} of section 6.2. */
+    /** The floor and load weights. */
     public static class Weights {
 
         private double floor = 0.60;
@@ -88,7 +82,7 @@ public class DispatchProperties {
         }
     }
 
-    /** Section 6.2's floor-proximity table. */
+    /** The floor-proximity table. */
     public static class Proximity {
 
         private double primary = 1.00;

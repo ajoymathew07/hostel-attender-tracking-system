@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/** Complaints (data model section 3.5). */
+/** Complaints. */
 public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
 
     Optional<Complaint> findByPublicRef(String publicRef);
@@ -23,15 +23,12 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
 
     long countByStatusIn(Collection<ComplaintStatus> statuses);
 
-    /** The dashboard's "resolved today" tile; the day boundary is the caller's. */
+    /** Complaints resolved since {@code from}: the "resolved today" tile. */
     long countByStatusAndResolvedAtAfter(ComplaintStatus status, Instant from);
 
     /**
-     * Open complaints already past their due date — the SLA-risk tile.
-     *
-     * <p>Counted from {@code sla_due_at} rather than from the {@code sla_breached} flag, for the
-     * same reason the list computes overdue rather than reading it: the flag is written by the
-     * ageing sweep on an interval, and a manager looking at the tile wants to know about now.
+     * Open complaints past their due date, counted against now rather than the periodically updated
+     * breach flag.
      */
     @Query(
             """
@@ -44,12 +41,8 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
             @Param("statuses") Collection<ComplaintStatus> statuses, @Param("at") Instant at);
 
     /**
-     * Candidates for the aging and breach sweep of section 4.5, backed by {@code ix_complaint_sla}.
-     *
-     * <p>Scoped by status rather than by the breach flag: a complaint that was flagged on an earlier
-     * run may still be due its <em>next</em> escalation step, so filtering the flagged ones out here
-     * would cap aging at one step per complaint. {@code statuses} is what excludes the complaints
-     * whose clock is not running — resolved, finished, or on hold.
+     * Complaints past their due date in the given statuses, for the ageing job. Not filtered by the breach
+     * flag, because a flagged complaint may still be due its next escalation.
      */
     @Query(
             """

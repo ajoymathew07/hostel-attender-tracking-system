@@ -14,12 +14,8 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 
 /**
- * The two ways the owner can misconfigure a deploy, and the noise each one makes.
- *
- * <p>These start the application by hand rather than with {@code @SpringBootTest}, because what is
- * being tested is that it does <em>not</em> start. Neither case reaches a database: both fail
- * before any connection is attempted, which is the property that matters — a misconfigured start
- * must stop, not quietly talk to the wrong database.
+ * The app refuses to start when misconfigured (no profile, or missing cloud variables), before
+ * touching any database.
  */
 class MisconfiguredStartupTest {
 

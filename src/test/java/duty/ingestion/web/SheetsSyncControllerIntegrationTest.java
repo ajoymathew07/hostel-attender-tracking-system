@@ -23,14 +23,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * "Sync Now" at the HTTP edge (section 2.5, point 2).
- *
- * <p>Three things are worth asserting here and nothing else is: the button reaches the sheet, a
- * sheet that cannot be read becomes a sentence on the screen rather than a stack trace (section
- * 11.6), and an attender posting straight at the URL is refused (section 11.3). The
- * reconciliation behind it is tested where it lives.
- */
+/** "Sync Now": it reads the sheet, shows a read failure as a message, and refuses attenders. */
 @SpringBootTest(
         properties = {
             "ingestion.sheets.spreadsheet-id=1SyntheticSheetIdForTheSyncButton",

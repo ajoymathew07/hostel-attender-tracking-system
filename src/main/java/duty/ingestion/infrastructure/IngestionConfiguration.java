@@ -14,23 +14,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * Turns {@link IngestionProperties} into the domain value objects the pipeline uses, and switches
- * on the locked scheduler the Sheets poll runs under.
+ * Creates ingestion's domain objects from YAML, and turns on scheduling with a database lock.
  *
- * <p>The three value objects are domain types, so they cannot carry {@code @Component} — the
- * domain layer depends on nothing outside itself and the JDK (architecture section 2.4, rule 1).
- * Declaring them as beans here is how a framework-free object still reaches a Spring constructor,
- * and it keeps the "which YAML key means what" knowledge in one readable place.
- *
- * <p><strong>Scheduling is enabled here</strong> rather than in a configuration of its own. The two
- * {@code @Enable} annotations and the lock provider are application-wide in effect, so the SLA
- * aging job of section 4.5 runs and locks under them without a line of its own; moving them to a
- * shared configuration would add a file that only redirects the reader. They move if a module ever
- * needs to schedule something on different terms.
- *
- * <p>The lock lives in the one database (section 2.6) and is read with the <em>database's</em>
- * clock, not the instance's: the whole point is to serialise two instances, and two instances are
- * exactly the situation in which two clocks disagree.
+ * <p>Domain classes cannot carry Spring annotations, so their beans are declared here. Scheduling is
+ * enabled here for the whole app; the SLA ageing job uses it too. The lock uses the database clock,
+ * because two instances may disagree on the time.
  */
 @Configuration
 @EnableConfigurationProperties({IngestionProperties.class, SheetsProperties.class})

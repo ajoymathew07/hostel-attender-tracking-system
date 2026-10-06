@@ -5,14 +5,9 @@ import java.time.LocalTime;
 import java.util.Map;
 
 /**
- * The overrides in force, read once and asked several questions.
+ * A snapshot of the overrides in force. Every accessor falls back to the YAML value.
  *
- * <p>A snapshot rather than a live lookup, because the dispatcher reads a dozen keys to score one
- * complaint and they must all come from the same moment: half a saved change applied and half not
- * is a score nobody could reproduce.
- *
- * <p>Every accessor takes the YAML value as its fallback, so a key nobody has overridden reads
- * exactly as {@code application.yml} says it does.
+ * <p>A snapshot so that all values used for one decision come from the same moment.
  */
 public record Settings(Map<String, String> values) {
 

@@ -1,11 +1,11 @@
 package duty.ingestion.domain;
 
-/** Where a batch of rows came from (data model section 3.5). */
+/** Where a row came from. */
 public enum SourceType {
 
-    /** The Google Form response sheet, polled and trigger-driven (section 2.5). */
+    /** The Google Form response sheet. */
     GOOGLE_SHEETS,
 
-    /** The offline fallback: a manager-uploaded CSV. */
+    /** A CSV uploaded by the manager. */
     CSV_UPLOAD
 }

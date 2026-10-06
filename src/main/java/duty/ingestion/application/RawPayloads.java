@@ -9,15 +9,10 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * Serialises a raw row for {@code source_row.raw_payload} (section 3.5).
+ * Serialises a raw row to JSON for {@code source_row.raw_payload}.
  *
- * <p>Built with Jackson rather than by concatenation, for the same reason audit detail is: a cell
- * holding a quote would otherwise produce a payload that is not JSON, or worse, is JSON saying
- * something the resident wrote rather than what they answered.
- *
- * <p>The payload does hold the student's details, which is intended — it is the record of what the
- * source said, and it is purged after 90 days while the hash that dedupes it survives (section
- * 3.8). It is stored and never logged.
+ * <p>Built with Jackson so a quote in a cell cannot break the JSON. The payload holds student details,
+ * so it is purged after 90 days and never logged.
  */
 @Component
 class RawPayloads {

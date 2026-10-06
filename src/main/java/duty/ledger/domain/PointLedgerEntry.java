@@ -13,22 +13,10 @@ import java.time.LocalDate;
 import java.util.Objects;
 
 /**
- * One immutable point movement (data model section 3.6).
+ * One immutable point movement. Append-only: no updates, no deletes.
  *
- * <p><strong>This table is the core integrity mechanism of the system.</strong> It is append-only:
- * no UPDATE, no DELETE. A reversal is a new row with negated points, never an edit of the original
- * (transition T17). The entity therefore exposes no mutators at all beyond what JPA needs to load
- * it.
- *
- * <p><strong>There is no balance column anywhere in the schema.</strong> A balance is a {@code SUM}
- * over these rows, so there is no counter to increment, therefore no lost update on a counter,
- * therefore nothing to reconcile (section 7.3).
- *
- * <p>{@code uq_ledger_idem} on {@code idempotencyKey} is what makes double-crediting structurally
- * impossible. The guarantee does not rest on transaction ordering, isolation level, retry logic or
- * on the application checking-then-inserting — which is itself a race. It rests on a database
- * uniqueness constraint, which the database enforces atomically however many concurrent
- * transactions attempt the insert.
+ * <p>There is no balance column; a balance is a {@code SUM} of these rows. The unique idempotency key
+ * is what makes double-crediting impossible.
  */
 @Entity
 @Table(name = "point_ledger")
@@ -52,11 +40,11 @@ public class PointLedgerEntry {
     @Column(name = "points", nullable = false)
     private int points;
 
-    /** Asia/Kolkata business date (NFR-7), which may be backdated into a closed period. */
+    /** The Asia/Kolkata business date. */
     @Column(name = "effective_date", nullable = false)
     private LocalDate effectiveDate;
 
-    /** {@code 'YYYY-MM'}, always derived from {@link #effectiveDate} — never supplied. */
+    /** {@code YYYY-MM}, always derived from {@link #effectiveDate}. */
     @Column(name = "period_key", nullable = false, length = PeriodKey.LENGTH)
     private String periodKey;
 
@@ -151,10 +139,7 @@ public class PointLedgerEntry {
                 createdAt);
     }
 
-    /**
-     * The compensating row for a reopen (T17). Never a delete: the original credit and the reversal
-     * both stay visible in the attender's history.
-     */
+    /** The negating row for a reopen. The original credit is kept. */
     public PointLedgerEntry reversal(Long reversedBy, Instant at) {
         if (this.id == null) {
             throw new IllegalStateException("only a persisted entry can be reversed");

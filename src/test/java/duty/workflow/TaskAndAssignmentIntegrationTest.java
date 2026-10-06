@@ -24,13 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/**
- * Tasks and assignments (data model section 3.6, state machines section 4.4).
- *
- * <p>The transition guards land in PR 11 and the claim path in PR 13; this PR owes the shapes those
- * will operate on — the two task kinds that {@code ck_task_link} keeps apart, the shared flag that
- * drives section 7.5, and {@code score_snapshot}, which is how "why them" is answered later.
- */
+/** Tasks and assignments: the two task kinds, the shared flag, and {@code score_snapshot}. */
 @SpringBootTest
 class TaskAndAssignmentIntegrationTest extends AbstractIntegrationTest {
 

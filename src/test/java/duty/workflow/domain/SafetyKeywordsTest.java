@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** Section 4.5's P1 rule: the safety words, matched exactly and never fuzzily. */
+/** The P1 safety keywords, matched exactly. */
 class SafetyKeywordsTest {
 
     @ParameterizedTest

@@ -1,8 +1,6 @@
 /**
- * The {@code workflow} module (architecture section 2.3).
+ * The {@code workflow} module: the complaint and task state machine.
  *
- * The complaint and task state machine: guards, transitions and their side effects.
- *
- * Invariant: only legal transitions occur, and a transition is atomic with its side effects.
+ * <p>Invariant: only legal transitions happen, and each is atomic with its side effects.
  */
 package duty.workflow;

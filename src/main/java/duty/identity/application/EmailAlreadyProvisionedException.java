@@ -1,11 +1,8 @@
 package duty.identity.application;
 
 /**
- * That Google address is already on the allowlist.
- *
- * <p>Checked before the insert so the manager gets a sentence rather than a constraint violation,
- * but {@code uq_user_email} remains the authority: the check and the constraint are not
- * alternatives, and only the constraint holds under a concurrent insert.
+ * That Google address is already on the allowlist. Checked first for a friendly message; the unique
+ * constraint is the real guarantee.
  */
 public class EmailAlreadyProvisionedException extends RuntimeException {
 

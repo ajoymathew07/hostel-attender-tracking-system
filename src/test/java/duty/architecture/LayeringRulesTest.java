@@ -15,12 +15,10 @@ import com.tngtech.archunit.lang.ArchRule;
 import java.util.List;
 
 /**
- * The four layering rules of architecture section 2.4, enforced continuously (test plan section
- * 12.1).
+ * Enforces the four layering rules with ArchUnit.
  *
- * <p>ArchUnit's default {@code failOnEmptyShould} is deliberately left on, so a rule whose selector
- * stops matching — a renamed module, a mistyped package — fails loudly instead of passing forever
- * without testing anything.
+ * <p>{@code failOnEmptyShould} stays on, so a rule that stops matching anything (e.g. after a rename)
+ * fails instead of passing silently.
  */
 @AnalyzeClasses(
         packages = LayeringRulesTest.ROOT,
@@ -29,10 +27,7 @@ class LayeringRulesTest {
 
     static final String ROOT = "duty";
 
-    /**
-     * The modules that exist today. Section 2.3 also names {@code analytics}, {@code notification}
-     * and {@code reporting}; each is added here when its first class lands.
-     */
+    /** The modules that exist today. Add a module here when its first class is written. */
     private static final List<String> MODULES =
             List.of(
                     "ingestion",
@@ -51,17 +46,10 @@ class LayeringRulesTest {
     private static final String JAKARTA_TRANSACTIONAL = "jakarta.transaction.Transactional";
 
     /**
-     * Rule 1 — {@code domain} depends on nothing outside itself and the JDK.
+     * Rule 1: {@code domain} depends only on the JDK, itself, and JPA annotations.
      *
-     * <p>Expressed as an allowlist, not a denylist. A denylist only forbids the frameworks someone
-     * thought to name, so a domain class reaching its own module's {@code infrastructure}, or any
-     * library nobody listed, would pass. Stating what domain <em>may</em> touch closes that.
-     *
-     * <p>{@code jakarta.persistence} is the one deliberate exception. Section 2.4 lists entities as
-     * domain content, and section 7 shows repositories returning entities that carry
-     * {@code @Version}, so the JPA mapping annotations live on domain types. Annotations only —
-     * {@code jakarta.persistence} contributes no behaviour at runtime beyond mapping, and Hibernate,
-     * Spring and every other framework stay excluded.
+     * <p>Written as an allowlist so any library nobody thought to name is also caught. JPA annotations are
+     * allowed because entities live in the domain layer.
      */
     @ArchTest
     static final ArchRule domain_depends_only_on_the_jdk =
@@ -78,10 +66,7 @@ class LayeringRulesTest {
                             "the domain layer must stay framework-free apart from JPA mapping"
                                     + " annotations (architecture section 2.4, rule 1)");
 
-    /**
-     * Rule 2 — {@code web} never touches a repository directly; it goes through {@code
-     * application}.
-     */
+    /** Rule 2: {@code web} never uses a repository; it goes through {@code application}. */
     @ArchTest
     static final ArchRule web_never_touches_a_repository =
             noClasses()
@@ -95,11 +80,8 @@ class LayeringRulesTest {
                                     + " rule 2)");
 
     /**
-     * Rule 3 — cross-module calls go through the target module's published service interface, never
-     * its internal classes or its repositories.
-     *
-     * <p>A module's published surface is its {@code application} package. Its {@code domain}, {@code
-     * infrastructure} and {@code web} packages are internal and invisible to every other module.
+     * Rule 3: another module may only use a module's {@code application} package, never its
+     * {@code domain}, {@code infrastructure} or {@code web}.
      */
     @ArchTest
     static void cross_module_calls_go_through_the_published_service_interface(JavaClasses classes) {

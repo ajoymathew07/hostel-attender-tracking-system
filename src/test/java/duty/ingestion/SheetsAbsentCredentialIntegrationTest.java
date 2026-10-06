@@ -16,15 +16,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
 
 /**
- * The state every developer machine and every CI run is in: <strong>no service-account key</strong>
- * (section 11.5).
- *
- * <p>This is the test that keeps the key out of the repository honest. The key is an environment
- * variable and nothing else, so if its absence broke startup there would be constant pressure to
- * commit a file "just for tests" — which is exactly the failure section 11.5 exists to prevent.
- *
- * <p>So: the context starts, the CSV fallback ingests normally, and "Sync Now" declines rather than
- * throwing. Nothing in this class sets {@code ingestion.sheets.*}, which is the point.
+ * With no service-account key (as on any developer machine or CI): the app starts, CSV upload works,
+ * and "Sync Now" declines without an error.
  */
 @SpringBootTest
 @WithMockUser(roles = "MANAGER")

@@ -7,14 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Upload safety (section 11.6): CSV only, ≤5 MB, ≤5000 rows, content type and headers validated
- * <em>before</em> parsing.
- *
- * <p>"Before parsing" is the point of this class existing separately from the adapter. A 400 MB
- * file that happens to be named {@code .csv} must be refused while it is still just a length and a
- * media type, not after something has tried to split it into cells.
- */
+/** Upload limits (CSV only, 5 MB, 5000 rows), with type and size checked before parsing. */
 class UploadLimitsTest {
 
     private static final UploadLimits LIMITS = UploadLimits.defaults();

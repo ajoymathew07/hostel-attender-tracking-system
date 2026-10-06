@@ -11,22 +11,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Writing points, and reading your own balance — the ledger module's published surface
- * (architecture section 2.4, rule 3).
+ * Writes points and reads the signed-in attender's own total.
  *
- * <p><strong>Why the duplicate is detected by a lookup and not by catching the violation.</strong>
- * Section 7.3 sketches the credit as a {@code saveAndFlush} wrapped in a
- * {@code catch (DataIntegrityViolationException)} that logs and carries on. Caught inside the
- * transaction that caused it, that cannot be a no-op: a constraint violation marks the current
- * transaction rollback-only, so the resolve it is nested in would fail anyway and the "swallow"
- * would swallow nothing. The replay is therefore recognised by looking the key up first, which is
- * one indexed read on a unique column.
- *
- * <p>That lookup is <em>not</em> the guarantee — a check-then-insert is itself a race. The
- * guarantee is still {@code uq_ledger_idem}: two genuinely simultaneous resolves both find nothing,
- * both insert, and the database admits exactly one of them however the application is written. The
- * lookup only turns the common case — the same attender tapping twice on a flaky connection
- * (section 7.4) — into a clean success instead of a rolled-back request.
+ * <p>A repeat credit is detected by looking up its key first, because catching the constraint
+ * violation would roll back the whole resolve. The real guarantee is still the unique constraint on
+ * the key, which stops two simultaneous inserts.
  */
 @Service
 @Transactional
@@ -39,17 +28,11 @@ public class PointsLedger {
     }
 
     /**
-     * The credit for resolving a complaint (transition T14): {@code RESOLVE:{task}:{attender}}.
+     * Credits the points for resolving a complaint, keyed {@code RESOLVE:{task}:{attender}}.
      *
-     * <p>The key is derived from the work — the task and the attender — and from nothing about the
-     * request, which is what makes double-crediting structurally impossible rather than a race to
-     * win (section 7.3).
+     * <p>The key comes from the work, not the request, so a retried tap cannot credit twice.
      *
-     * @param reopenCount how many times the complaint has been reopened; the {@code :r{n}} suffix
-     *     is what lets a legitimate re-resolution after T17 be credited again under a new key
-     * @param at the instant of resolution; the effective date is its Asia/Kolkata business date,
-     *     so a job finished at 02:00 IST on the 1st belongs to the new month (section 7.9)
-     * @return {@code true} if this call wrote the credit, {@code false} if it was already applied
+     * @return {@code true} if this call wrote the credit, {@code false} if it was already there
      */
     public boolean creditForResolve(
             long attenderId, long taskId, int points, int reopenCount, Instant at) {
@@ -74,11 +57,8 @@ public class PointsLedger {
     }
 
     /**
-     * Whether this exact credit is already on the ledger — the replay of section 7.4.
-     *
-     * <p>The caller needs the answer <em>before</em> it starts moving state, because a retried tap
-     * must be a clean success that touches nothing, not a transition attempted from a state the
-     * table no longer allows.
+     * Whether this credit is already on the ledger, so a retried tap can succeed without changing
+     * anything.
      */
     @Transactional(readOnly = true)
     public boolean alreadyCreditedForResolve(long attenderId, long taskId, int reopenCount) {
@@ -88,12 +68,9 @@ public class PointsLedger {
     }
 
     /**
-     * Transition T17 — the compensating row for a reopen.
+     * Reverses a resolve credit when the complaint is reopened.
      *
-     * <p>Append-only means the credit is never deleted: the reversal is a new row with negated
-     * points, keyed {@code REV:{reverses_id}}, and both stay visible in the attender's history.
-     * The second lookup makes a repeated reopen a no-op rather than a constraint violation, for
-     * the same reason the credit's does (section 7.3).
+     * <p>The credit is never deleted: a new row with negated points is added. Repeating it is a no-op.
      */
     public void reverseResolveCredit(long attenderId, long taskId, int reopenCount, Instant at) {
         entries
@@ -116,11 +93,8 @@ public class PointsLedger {
     }
 
     /**
-     * The signed-in attender's total for the current period — their standing (section 10.2).
-     *
-     * <p>Scoped to the caller rather than taking an id, for the same reason the queue is: an
-     * attender id in the signature is an attender id someone can change in a form post (E20).
-     * Anyone else's standing is the manager's {@link LeaderboardService}.
+     * The signed-in attender's total for the current month. It takes no id, so nobody can ask for
+     * someone else's.
      */
     @Transactional(readOnly = true)
     public long myPeriodTotal() {

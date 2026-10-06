@@ -10,13 +10,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 /**
- * The manager's CSV upload — Risk 1's Plan B (section 5.8).
+ * The manager's CSV upload, the fallback when the Sheets API is unavailable.
  *
- * <p>All this class does is turn an uploaded file into a {@link ComplaintSource} and hand it to
- * {@link IngestionPipeline}. The reconciliation, the dedupe and the complaint creation are the
- * pipeline's, shared verbatim with the Sheets adapter, which is what makes re-uploading the same
- * CSV twice produce zero duplicates: the fallback inherits the guarantee rather than
- * reimplementing it.
+ * <p>It wraps the file as a {@link ComplaintSource} and hands it to {@link IngestionPipeline}, the same
+ * path the Sheets poller uses, so re-uploading a file creates no duplicates.
  */
 @Service
 public class CsvUploadService {
@@ -32,11 +29,7 @@ public class CsvUploadService {
         this.limits = limits;
     }
 
-    /**
-     * {@code @PreAuthorize} on the service is the control (section 11.3). The upload form is also
-     * hidden from an attender, but hiding a form is decoration; this is the check, and it holds for
-     * any future caller that reaches the service by another route.
-     */
+    /** Ingests an uploaded CSV. Manager-only. */
     @PreAuthorize("hasRole('MANAGER')")
     public IngestionSummary upload(UploadedFile file) {
         // Section 11.6 — media type and size are decided before a single byte is parsed, and

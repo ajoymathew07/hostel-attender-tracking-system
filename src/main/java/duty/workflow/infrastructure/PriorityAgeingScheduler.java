@@ -8,18 +8,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * The aging job of section 4.5: old low-priority work surfaces above new noise.
+ * Runs the ageing job on a schedule.
  *
- * <p><strong>{@code @SchedulerLock} is not optional here.</strong> Unlike ingestion, aging has no
- * unique constraint behind it to make a double run harmless — two instances sweeping at once would
- * each escalate the same complaint one step, and a P3 would arrive at P1 in a single tick with two
- * audit rows claiming to be the first. The lock is a row in the one database read with the
- * <em>database's</em> clock (section 2.5, point 4), which is the point: two instances are exactly
- * the situation in which two clocks disagree.
- *
- * <p>The interval is far finer than the SLA windows it polices, so the escalation is late by at most
- * one tick. The first run is one interval after start rather than at start, because a restart loop
- * on the free tier would otherwise sweep continuously.
+ * <p>{@code @SchedulerLock} is essential: if two instances ran it at once, a complaint would be
+ * escalated twice in one tick. The first run waits one interval after startup.
  */
 @Component
 public class PriorityAgeingScheduler {
@@ -33,9 +25,8 @@ public class PriorityAgeingScheduler {
     }
 
     /**
-     * Void by necessity: ShedLock's proxy can only lock a method whose result it does not have to
-     * invent when the lock is already held. What the sweep did is in {@code audit_event}, which is
-     * where an unattended job's outcome belongs.
+     * Returns void because ShedLock cannot invent a result when the lock is held. The outcome is in the
+     * audit log.
      */
     @Scheduled(
             fixedDelayString = "${workflow.sla.ageing-interval}",

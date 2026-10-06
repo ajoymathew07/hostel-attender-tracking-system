@@ -16,15 +16,10 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * One attender's hold on one task (data model section 3.6).
+ * One attender's hold on one task.
  *
- * <p>{@code uq_task_attender} makes a double claim by the same attender impossible regardless of
- * what the claim path does (section 7.6), and {@code @Version} guards the reassign-versus-resolve
- * race C2 (section 7.7).
- *
- * <p>{@code scoreSnapshot} records the computed dispatch score that chose this attender. It is the
- * cheap substitute for time-bounded coverage: "why them" is answered from the snapshot rather than
- * by replaying a historical roster (section 3.4).
+ * <p>Unique per task and attender. {@code @Version} stops a reassignment and a resolve overwriting each
+ * other. {@code scoreSnapshot} records why dispatch chose them.
  */
 @Entity
 @Table(name = "task_assignment")
@@ -85,11 +80,8 @@ public class TaskAssignment {
     }
 
     /**
-     * Puts this attender back on the task after a release (transition T6).
-     *
-     * <p>{@code uq_task_attender} allows one row per (task, attender) ever, so a manager who
-     * releases a task and then hands it back to the same attender has to revive this row rather
-     * than insert a second one.
+     * Puts the attender back on the task after a release. The row is reused because only one row per task
+     * and attender is allowed.
      */
     public void assignAgain(Long assigner, Instant at) {
         this.assignMethod = AssignMethod.MANUAL;
@@ -98,12 +90,12 @@ public class TaskAssignment {
         this.status = AssignmentStatus.ACTIVE;
     }
 
-    /** Handed back or superseded by a reassignment (transitions T6, T8). */
+    /** Released, or replaced by a reassignment. */
     public void release() {
         this.status = AssignmentStatus.RELEASED;
     }
 
-    /** The attender marked their part done (transition T14, section 7.5). */
+    /** The attender finished their part. */
     public void complete() {
         this.status = AssignmentStatus.COMPLETED;
     }
