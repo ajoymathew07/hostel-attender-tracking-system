@@ -2,4 +2,4 @@
 # application context exists, which is the whole reason ProfileCheck can fail the start before any
 # datasource is created.
 org.springframework.boot.env.EnvironmentPostProcessor=\
-in.ac.iitm.hostel.duty.ProfileCheck
+duty.ProfileCheck

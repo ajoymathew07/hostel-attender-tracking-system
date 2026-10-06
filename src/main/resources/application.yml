@@ -236,7 +236,7 @@ management:
 
 logging:
   level:
-    in.ac.iitm.hostel.duty: INFO
+    duty: INFO
 
 ---
 spring:
@@ -259,7 +259,7 @@ spring:
 
 logging:
   level:
-    in.ac.iitm.hostel.duty: DEBUG
+    duty: DEBUG
 
 ---
 # Render, and the standby jar on the manager's desktop — the same jar, the same profile, the same
