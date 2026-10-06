@@ -18,11 +18,9 @@ import java.util.List;
  * The four layering rules of architecture section 2.4, enforced continuously (test plan section
  * 12.1).
  *
- * <p>ArchUnit's default {@code failOnEmptyShould} is deliberately left on. Every layer package
- * carries a {@code package-info.java}, so each {@code that()} clause already matches classes and no
- * rule is vacuous today. Keeping the check on means a rule whose selector stops matching — a
- * renamed module, a mistyped package — fails loudly instead of passing forever without testing
- * anything.
+ * <p>ArchUnit's default {@code failOnEmptyShould} is deliberately left on, so a rule whose selector
+ * stops matching — a renamed module, a mistyped package — fails loudly instead of passing forever
+ * without testing anything.
  */
 @AnalyzeClasses(
         packages = LayeringRulesTest.ROOT,
@@ -31,17 +29,16 @@ class LayeringRulesTest {
 
     static final String ROOT = "duty";
 
-    /** The bounded modules of architecture section 2.3. */
+    /**
+     * The modules that exist today. Section 2.3 also names {@code analytics}, {@code notification}
+     * and {@code reporting}; each is added here when its first class lands.
+     */
     private static final List<String> MODULES =
             List.of(
                     "ingestion",
-                    "categorization",
                     "dispatch",
                     "workflow",
                     "ledger",
-                    "analytics",
-                    "notification",
-                    "reporting",
                     "identity",
                     "audit",
                     // Not in section 2.3's list. It stores what the manager may change without a
