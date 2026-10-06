@@ -32,13 +32,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
  * and nowhere else (section 11.2).
  */
 @ExtendWith(MockitoExtension.class)
-class AllowlistSignInServiceTest {
+class SignInServiceTest {
 
     @Mock private AppUserRepository users;
     @Mock private AuditTrail audit;
 
-    private AllowlistSignInService signIn() {
-        return new AllowlistSignInService(users, audit);
+    private SignInService signIn() {
+        return new SignInService(users, audit);
     }
 
     /**

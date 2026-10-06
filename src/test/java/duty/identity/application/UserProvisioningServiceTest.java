@@ -42,15 +42,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
  * switched off from the very screen it is supposed to protect.
  */
 @ExtendWith(MockitoExtension.class)
-class DefaultUserProvisioningServiceTest {
+class UserProvisioningServiceTest {
 
     private static final String HOSTILE = "a\",\"to\":\"attacker@evil.example.com";
 
     @Mock private AppUserRepository users;
     @Mock private AuditTrail audit;
 
-    private DefaultUserProvisioningService provisioning() {
-        return new DefaultUserProvisioningService(users, audit);
+    private UserProvisioningService provisioning() {
+        return new UserProvisioningService(users, audit);
     }
 
     private static AppUser persisted(UserRole role, String email, boolean active) {

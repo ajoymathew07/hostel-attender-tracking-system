@@ -9,7 +9,7 @@ import duty.dispatch.domain.FloorAssignment;
 import duty.dispatch.infrastructure.AvailabilityWindowRepository;
 import duty.dispatch.infrastructure.FloorAssignmentRepository;
 import duty.dispatch.infrastructure.FloorRepository;
-import duty.identity.application.AttenderDirectory;
+import duty.identity.application.UserProvisioningService;
 import duty.workflow.application.AttenderWorkload;
 import duty.workflow.application.AttenderWorkloadService;
 import java.time.Instant;
@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AttenderDispatcher {
 
-    private final AttenderDirectory attenders;
+    private final UserProvisioningService attenders;
     private final AvailabilityWindowRepository availability;
     private final FloorAssignmentRepository coverage;
     private final FloorRepository floors;
@@ -46,7 +46,7 @@ public class AttenderDispatcher {
     private final DispatchSettings settings;
 
     AttenderDispatcher(
-            AttenderDirectory attenders,
+            UserProvisioningService attenders,
             AvailabilityWindowRepository availability,
             FloorAssignmentRepository coverage,
             FloorRepository floors,
