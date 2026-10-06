@@ -10,8 +10,8 @@ import java.util.Objects;
  * Builds the JSON of {@link AuditEntry#detail()} — <strong>by serialising, never by
  * concatenating</strong>.
  *
- * <p>PR 3's review found audit detail being assembled with string concatenation. That is not a
- * style problem. A value containing a quote and a comma closes the string and opens a second key,
+ * <p>Concatenation is not a style problem. A value containing a quote and a comma closes the
+ * string and opens a second key,
  * so a user-supplied field — an email address, a filename, a rejected header — can make the audit
  * log claim something other than what happened. The log is the evidence used to settle bonus
  * disputes and reconstruct history (section 11.7); a log that can be written by the thing it is

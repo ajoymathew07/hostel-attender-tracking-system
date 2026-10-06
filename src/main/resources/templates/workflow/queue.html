@@ -5,9 +5,8 @@
   Mobile-only. Section 10.1 is explicit that this is not the manager's screen at a narrower
   breakpoint: one column, no table, no horizontal scrolling, and tap targets of at least 48px.
 
-  What section 10.2 puts here and this PR does NOT draw:
-    - Task actions on the card (START WORK, docket, resolve). They are the state machine's
-      `nextActions` (section 9.3) and arrive with it in PR 11. The one action on a card today is
+  What section 10.2 puts here and this screen does NOT draw:
+    - Task actions on the card (START WORK, docket, resolve). The one action on a card is
       opening it, which keeps section 10.2's "never more than one primary action visible per
       task" true; the docket and resolve controls live on the task screen behind that tap.
     - The duties tab and the bottom navigation, whose routes do not exist yet. An inert control

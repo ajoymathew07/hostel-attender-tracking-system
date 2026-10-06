@@ -11,8 +11,8 @@ import java.time.Instant;
  *
  * <p>The manager's view is the one that carries the student's details: section 11.4 retains name,
  * roll number and phone number on the record for the manager, while the attender's view of them
- * expires 7 days after resolution. That window is the attender screen's problem (PR 5); this is
- * the manager's screen, so the fields are present.
+ * expires 7 days after resolution. That window is the attender screen's problem; this is the
+ * manager's screen, so the fields are present.
  */
 public record ComplaintListItem(
         long id,

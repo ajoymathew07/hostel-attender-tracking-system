@@ -10,7 +10,7 @@ import java.util.Objects;
  * <p>This is deliberately <em>not</em> {@code SourceRow}. {@code SourceRow} is the persistent
  * idempotency anchor and carries a response key, a content hash and the run that observed it, all
  * of which the pipeline computes. An adapter knows none of that; it knows cells. Keeping the two
- * types apart is what lets the Sheets adapter (PR 8) drop in behind the same port without either
+ * types apart is what lets the Sheets adapter drop in behind the same port without either
  * adapter learning anything about dedupe.
  *
  * @param rowIndex the row's position in the source — a hint for diagnostics, never identity

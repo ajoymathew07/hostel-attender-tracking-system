@@ -13,12 +13,12 @@ import java.util.List;
  * from.
  *
  * <p>The alternative is what usually happens without this boundary: the CSV path grows its own copy
- * of the dedupe and categorization logic, a fix lands in one copy and not the other, and the two
+ * of the dedupe and normalization logic, a fix lands in one copy and not the other, and the two
  * quietly disagree. This interface is what makes the fallback path <em>the same path</em> — which
  * is also why re-uploading the same CSV twice cannot create duplicates. It inherits the guarantee
  * rather than reimplementing it.
  *
- * <p>{@code GoogleSheetsSource} arrives in PR 8 and implements this and nothing else.
+ * <p>Two implementations: {@code CsvComplaintSource} and {@code GoogleSheetsSource}.
  */
 public interface ComplaintSource {
 

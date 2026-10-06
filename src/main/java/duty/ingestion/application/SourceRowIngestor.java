@@ -23,12 +23,12 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><strong>Its own transaction, deliberately.</strong> Section 5.3 requires each row to be
  * processed independently so that one malformed response cannot abort the whole run. That is also
- * why this is a separate bean from {@link DefaultCsvUploadService} rather than a private method on
+ * why this is a separate bean from {@link CsvUploadService} rather than a private method on
  * it: a self-invocation would not pass through the proxy, and {@code REQUIRES_NEW} would silently
  * do nothing.
  *
- * <p>This is shared by every source. The Sheets adapter of PR 8 reconciles through this same
- * class, which is the point of the port (section 5.8).
+ * <p>This is shared by every source: the CSV upload and the Sheets adapter reconcile through this
+ * same class, which is the point of the port (section 5.8).
  */
 @Service
 class SourceRowIngestor {

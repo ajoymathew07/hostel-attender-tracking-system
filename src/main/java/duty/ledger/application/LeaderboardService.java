@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 @PreAuthorize("hasRole('MANAGER')")
 public class LeaderboardService {
 
-    /** Section 7.8's ordering, minus the tie-break this PR has no column to show. */
+    /** Section 7.8's ordering, minus the tie-break the screen has no column to show. */
     private static final Comparator<LeaderboardRow> HIGHEST_FIRST =
             Comparator.comparingLong(LeaderboardRow::total)
                     .reversed()

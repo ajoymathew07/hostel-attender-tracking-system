@@ -50,10 +50,9 @@ import org.springframework.transaction.annotation.Transactional;
  * choose is an actor a caller can forge. {@code CurrentUser} is where the rest of the system reads
  * it, for the same reason.
  *
- * <p><strong>What the table cannot do yet.</strong> T2 and T3 are rows here, but their side
- * effects — snapshot the dispatch score, record the triage reason — belong to the dispatcher, which
- * is a later PR. The states move correctly today; what is missing is marked in
- * {@link #applySideEffects}.
+ * <p>T2 and T3 are rows here, but their side effects — snapshot the dispatch score, record the
+ * triage reason — are written by {@link AutoDispatchService}, which then calls this for the state
+ * move.
  */
 @Service
 @Transactional
@@ -221,9 +220,8 @@ public class WorkflowService {
     /**
      * The Side effects column of section 4.2, and the audit detail they produce.
      *
-     * <p>Two effects in the design are not here, each because it belongs to a module that does not
-     * exist yet: T2's score snapshot and T3's triage reason are the dispatcher's. The state moves are
-     * right; the score arrives with the dispatcher.
+     * <p>T2's score snapshot and T3's triage reason are not here: {@link AutoDispatchService}
+     * writes them. The triage reason still reaches the audit row, as the payload's {@code reason}.
      *
      * <p>Assignment rows are not created here either. {@link ManualAssignmentService} owns them and
      * calls this method for the status move, which is what section 4.1 says must be single —

@@ -17,8 +17,8 @@ import java.util.Objects;
  * (section 5.8).
  *
  * <p>This class does one job — turn bytes into raw rows — and deliberately knows nothing about
- * response keys, complaints or the database. Dedupe, normalization and categorization happen
- * downstream, shared verbatim with the Sheets adapter of PR 8. That is what makes re-uploading the
+ * response keys, complaints or the database. Dedupe and normalization happen downstream, shared
+ * verbatim with the Sheets adapter. That is what makes re-uploading the
  * same CSV twice produce zero duplicates: the fallback inherits the guarantee rather than
  * reimplementing it.
  *
