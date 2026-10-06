@@ -65,25 +65,5 @@ class AccessGuardTest {
         AccessGuard guard = new AccessGuard((userId, taskId) -> true);
 
         assertThat(guard.ownsTask(TASK)).isFalse();
-        assertThat(guard.isSelf(9L)).isFalse();
-    }
-
-    @Test
-    @DisplayName("isSelf distinguishes a user's own detail from someone else's — section 11.3")
-    void isSelfComparesTheSignedInUser() {
-        signedIn(9L, UserRole.ATTENDER);
-        AccessGuard guard = new AccessGuard((userId, taskId) -> false);
-
-        assertThat(guard.isSelf(9L)).isTrue();
-        assertThat(guard.isSelf(10L)).isFalse();
-    }
-
-    @Test
-    @DisplayName("with no task module wired in yet, the lookup denies rather than admits")
-    void defaultsToDenyingUntilTheWorkflowModuleSuppliesALookup() {
-        signedIn(9L, UserRole.ATTENDER);
-
-        assertThat(new DeniesEveryTaskAssignment().holdsActiveAssignment(9L, TASK)).isFalse();
-        assertThat(new AccessGuard(new DeniesEveryTaskAssignment()).ownsTask(TASK)).isFalse();
     }
 }

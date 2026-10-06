@@ -1,7 +1,5 @@
 package duty.identity.application;
 
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,16 +25,6 @@ public class AccessGuard {
 
     private final TaskAssignmentLookup assignments;
 
-    /**
-     * {@code getIfUnique} rather than a required dependency: the {@code workflow} module supplies
-     * the real lookup in a later PR, and until then — or if two ever compete — the deny-by-default
-     * implementation stands in.
-     */
-    @Autowired
-    AccessGuard(ObjectProvider<TaskAssignmentLookup> lookups) {
-        this(lookups.getIfUnique(DeniesEveryTaskAssignment::new));
-    }
-
     public AccessGuard(TaskAssignmentLookup assignments) {
         this.assignments = assignments;
     }
@@ -46,13 +34,5 @@ public class AccessGuard {
         return CurrentUser.get()
                 .map(user -> assignments.holdsActiveAssignment(user.getUserId(), taskId))
                 .orElse(false);
-    }
-
-    /**
-     * Whether the signed-in user <em>is</em> this user — the check behind "an attender sees their
-     * own point detail, a manager sees anyone's" (section 11.3).
-     */
-    public boolean isSelf(long userId) {
-        return CurrentUser.get().map(user -> user.getUserId() == userId).orElse(false);
     }
 }

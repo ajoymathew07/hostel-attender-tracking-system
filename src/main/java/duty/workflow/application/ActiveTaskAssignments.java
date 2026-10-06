@@ -6,12 +6,11 @@ import duty.workflow.infrastructure.TaskAssignmentRepository;
 import org.springframework.stereotype.Component;
 
 /**
- * The real answer to {@code @access.ownsTask}, at last (section 11.3).
+ * The answer to {@code @access.ownsTask} (section 11.3).
  *
  * <p>{@code task_assignment} is this module's table, and no other module may reach its
  * repositories (architecture section 2.4, rule 3). The identity module therefore declares the
- * question as a port and {@code workflow} answers it here — which is why {@code AccessGuard} has
- * been denying everyone since PR 3: nothing implemented the port. This class is the wire.
+ * question as a port and {@code workflow} answers it here.
  *
  * <p>{@code uq_task_attender} makes the lookup single-valued, so it is one indexed read.
  */
