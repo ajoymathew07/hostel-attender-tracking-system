@@ -2,19 +2,18 @@ package duty.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import duty.audit.infrastructure.AuditEventRepository;
-import duty.identity.application.EmailAlreadyProvisionedException;
-import duty.identity.application.SignInOutcome;
-import duty.identity.application.SignInRejection;
+import duty.identity.application.CurrentUser.SignedInUser;
+import duty.identity.application.SignInService.OidcIdentity;
+import duty.identity.application.SignInService.SignInOutcome;
+import duty.identity.application.SignInService.SignInRejection;
 import duty.identity.application.SignInService;
-import duty.identity.application.SignedInUser;
-import duty.identity.application.OidcIdentity;
-import duty.identity.application.UnknownUserException;
+import duty.identity.application.UserProvisioningService.EmailAlreadyProvisionedException;
+import duty.identity.application.UserProvisioningService.UnknownUserException;
+import duty.identity.application.UserProvisioningService.UserSummary;
 import duty.identity.application.UserProvisioningService;
-import duty.identity.application.UserSummary;
+import duty.identity.domain.AppUser.UserRole;
 import duty.identity.domain.AppUser;
-import duty.identity.domain.UserRole;
 import duty.identity.infrastructure.AppUserRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;

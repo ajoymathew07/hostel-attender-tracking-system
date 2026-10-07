@@ -1,17 +1,22 @@
 package duty.ingestion.application;
 
+import duty.ingestion.application.IngestionPipeline.IngestionSummary;
 import duty.ingestion.domain.ColumnMapping;
-import duty.ingestion.domain.FetchWindow;
-import duty.ingestion.domain.SourceType;
-import duty.ingestion.domain.TriggerType;
+import duty.ingestion.domain.ComplaintSource.FetchWindow;
+import duty.ingestion.domain.IngestionRun.TriggerType;
+import duty.ingestion.domain.SourceRow.SourceType;
+import duty.ingestion.infrastructure.GoogleSheetsSource.SheetReader;
 import duty.ingestion.infrastructure.GoogleSheetsSource;
-import duty.ingestion.infrastructure.SheetReader;
-import duty.ingestion.infrastructure.SheetsProperties;
+import duty.ingestion.infrastructure.IngestionConfiguration.SheetsProperties;
 import duty.ingestion.infrastructure.SourceRowRepository;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 /**
@@ -116,5 +121,57 @@ public class SheetsIngestionService {
         Integer lastRowSeen =
                 sourceRows.maxRowIndex(SourceType.GOOGLE_SHEETS, properties.getSpreadsheetId());
         return GoogleSheetsSource.windowFrom(lastRowSeen);
+    }
+
+    /**
+     * Tracks failures of unattended ingestion runs: drives the retry backoff and the "ingestion is failing"
+     * banner.
+     *
+     * <p>Only unattended runs count (poll, startup, wake); "Sync Now" shows its own error. Kept in memory
+     * on purpose: after a restart nobody knows whether the sheet is reachable until it is tried.
+     * {@code synchronized} because the scheduler, wake endpoint and dashboard all use it.
+     */
+    @Component
+    public static class IngestionHealth {
+
+        /**
+         * Wait before the next poll after 1, 2, 3 or more consecutive failures. The first is zero because the
+         * normal 3-minute poll interval already gives the 3-minute retry; the last repeats.
+         */
+        private static final List<Duration> RETRY_DELAY =
+                List.of(Duration.ZERO, Duration.ofMinutes(6), Duration.ofMinutes(12), Duration.ofMinutes(30));
+
+        /** Consecutive failures before the manager is shown the banner. */
+        private static final int DEGRADED_AFTER = 3;
+
+        private int consecutiveFailures;
+
+        private Instant retryAfter = Instant.EPOCH;
+
+        /** Records an unattended run's result. A success resets the count. */
+        public synchronized void record(IngestionSummary summary) {
+            if (!summary.failed()) {
+                consecutiveFailures = 0;
+                retryAfter = Instant.EPOCH;
+                return;
+            }
+            consecutiveFailures++;
+            retryAfter = Instant.now().plus(RETRY_DELAY.get(Math.min(consecutiveFailures, RETRY_DELAY.size()) - 1));
+        }
+
+        /** Whether the scheduled poll should skip this tick rather than call the API again. */
+        public synchronized boolean backingOff() {
+            return Instant.now().isBefore(retryAfter);
+        }
+
+        /** Whether the dashboard shows the degraded-ingestion banner. */
+        public synchronized boolean degraded() {
+            return consecutiveFailures >= DEGRADED_AFTER;
+        }
+
+        /** How many unattended runs have failed in a row, for the banner to say so. */
+        public synchronized int consecutiveFailures() {
+            return consecutiveFailures;
+        }
     }
 }

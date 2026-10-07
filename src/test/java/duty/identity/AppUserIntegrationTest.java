@@ -2,9 +2,8 @@ package duty.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
+import duty.identity.domain.AppUser.UserRole;
 import duty.identity.domain.AppUser;
-import duty.identity.domain.UserRole;
 import duty.identity.infrastructure.AppUserRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;

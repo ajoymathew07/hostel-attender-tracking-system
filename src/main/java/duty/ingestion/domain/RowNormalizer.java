@@ -1,11 +1,18 @@
 package duty.ingestion.domain;
 
+import duty.ingestion.domain.ColumnMapping.SourceField;
+import duty.ingestion.domain.ComplaintSource.RawRow;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -144,5 +151,123 @@ public final class RowNormalizer {
             return null;
         }
         return international ? "+" + digits : digits;
+    }
+
+    /**
+     * A raw row turned into complaint fields.
+     *
+     * @param rawText the description, exactly as typed
+     * @param reportedAt the form timestamp, read as Asia/Kolkata time and stored as UTC
+     * @param reporterRoom the room number, or {@code null} (the complaint then goes to triage)
+     * @param reporterContact the resident's email; purged after 90 days
+     * @param reportedDomain the category chosen on the form, as text; workflow interprets it
+     */
+    public record NormalizedRow(
+            String rawText,
+            Instant reportedAt,
+            String reporterRoom,
+            String reporterName,
+            String reporterRollNo,
+            String reporterPhone,
+            String reporterContact,
+            String reportedDomain) {
+
+        /** Leaves out the student's details so they cannot reach a log. */
+        @Override
+        public String toString() {
+            return "NormalizedRow[reportedAt=" + reportedAt + ", room=" + (reporterRoom == null ? "none" : "known") + "]";
+        }
+    }
+
+    /**
+     * One row could not become a complaint. Only that row is skipped; the run continues.
+     *
+     * <p>The message has the row number and field name only, never the cell value (it may hold student
+     * data).
+     */
+    public static class MalformedRowException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        private final int rowIndex;
+
+        public MalformedRowException(int rowIndex, String reason) {
+            super("row " + rowIndex + ": " + reason);
+            this.rowIndex = rowIndex;
+        }
+
+        public int getRowIndex() {
+            return rowIndex;
+        }
+    }
+
+    /**
+     * Computes a row's identity and its change-detection hash.
+     *
+     * <pre>
+     * response_key = SHA256( normalize(timestamp) || "\x1f" || normalize(email) )
+     * content_hash = SHA256( join("\x1f", [normalize(cell) for cell in row]) )
+     * </pre>
+     *
+     * <p>{@code response_key} does not depend on row position, so deleting a sheet row creates no
+     * duplicates. {@code content_hash} changes when any answer is edited.
+     */
+    public static final class RowDigest {
+
+        /**
+         * ASCII unit separator: a form answer cannot contain it, so cell boundaries cannot be faked.
+         */
+        private static final String UNIT_SEPARATOR = "\u001f";
+
+        private RowDigest() {}
+
+        /**
+         * Ignores missing values, extra whitespace and Unicode compatibility forms. Case is kept, because a
+         * capitalisation fix is a real edit.
+         */
+        public static String normalize(String value) {
+            if (value == null) {
+                return "";
+            }
+            return Normalizer.normalize(value, Normalizer.Form.NFKC).trim().replaceAll("\\s+", " ");
+        }
+
+        /**
+         * The stable identity of one response. The email is lower-cased since addresses are
+         * case-insensitive.
+         *
+         * @param ordinal 0 normally; higher for repeat submissions by the same person in the same second
+         */
+        public static String responseKey(String timestamp, String email, int ordinal) {
+            String material =
+                    normalize(timestamp) + UNIT_SEPARATOR + normalize(email).toLowerCase(Locale.ROOT);
+            if (ordinal > 0) {
+                material = material + UNIT_SEPARATOR + ordinal;
+            }
+            return sha256(material);
+        }
+
+        /** Changes whenever any answer changes, and only then. */
+        public static String contentHash(List<String> cells) {
+            StringBuilder material = new StringBuilder();
+            for (int i = 0; i < cells.size(); i++) {
+                if (i > 0) {
+                    material.append(UNIT_SEPARATOR);
+                }
+                material.append(normalize(cells.get(i)));
+            }
+            return sha256(material.toString());
+        }
+
+        private static String sha256(String material) {
+            try {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                return HexFormat.of().formatHex(digest.digest(material.getBytes(StandardCharsets.UTF_8)));
+            } catch (NoSuchAlgorithmException impossible) {
+                // SHA-256 is required of every Java platform; there is no recovery and no fallback
+                // worth having, because a weaker digest would silently weaken the idempotency key.
+                throw new IllegalStateException("SHA-256 is unavailable", impossible);
+            }
+        }
     }
 }

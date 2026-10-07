@@ -10,6 +10,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Objects;
 
 /**
@@ -204,4 +206,120 @@ public class PointLedgerEntry {
     public Instant getCreatedAt() {
         return createdAt;
     }
+
+    /** Why a point movement happened. Matches the {@code ck_ledger_reason} constraint. */
+    public enum ReasonCode {
+
+        /** +2 by default, on transition to RESOLVED. Key: {@code RESOLVE:{task}:{attender}}. */
+        COMPLAINT_RESOLVED,
+
+        /** {@code task.point_value}, on duty completion. Key: {@code DUTY:{task}:{attender}}. */
+        SPECIAL_DUTY,
+
+        /** −1 by default, raised by the manager. Key: {@code PENALTY:{uuid}} from the request. */
+        PENALTY,
+
+        /** Any amount, raised by the manager with a mandatory note. Key: {@code ADJ:{uuid}}. */
+        MANUAL_ADJUSTMENT,
+
+        /** The negation of a target row, never a delete. Key: {@code REV:{reverses_id}}. */
+        REVERSAL;
+
+        /** Whether the manager must supply a note for this code. */
+        public boolean requiresNote() {
+            return this == MANUAL_ADJUSTMENT;
+        }
+    }
+
+    /**
+     * Builds the ledger's idempotency keys.
+     *
+     * <p>Automatic credits are keyed on the task and attender, never on the request, so a retried request
+     * collides on the unique key and cannot credit twice.
+     */
+    public static final class IdempotencyKeys {
+
+        private IdempotencyKeys() {}
+
+        /**
+         * {@code RESOLVE:{task}:{attender}}, plus {@code :r{n}} after a reopen so a genuine re-resolution is
+         * credited again.
+         */
+        public static String forResolve(Long taskId, Long attenderId, int reopenCount) {
+            if (reopenCount < 0) {
+                throw new IllegalArgumentException("reopenCount must not be negative");
+            }
+            String base = "RESOLVE:" + require(taskId, "taskId") + ":" + require(attenderId, "attenderId");
+            return reopenCount > 0 ? base + ":r" + reopenCount : base;
+        }
+
+        /** {@code DUTY:{task}:{attender}}: one key per assignee of a shared duty. */
+        public static String forSpecialDuty(Long taskId, Long attenderId) {
+            return "DUTY:" + require(taskId, "taskId") + ":" + require(attenderId, "attenderId");
+        }
+
+        /** {@code PENALTY:{uuid}} — the key comes from the manager's request. */
+        public static String forPenalty(String requestId) {
+            return "PENALTY:" + requireText(requestId, "requestId");
+        }
+
+        /** {@code ADJ:{uuid}} — the key comes from the manager's request. */
+        public static String forAdjustment(String requestId) {
+            return "ADJ:" + requireText(requestId, "requestId");
+        }
+
+        /** {@code REV:{reverses_id}} — one reversal per target row, enforced by the constraint. */
+        public static String forReversal(Long reversesId) {
+            return "REV:" + require(reversesId, "reversesId");
+        }
+
+        private static Long require(Long value, String field) {
+            return Objects.requireNonNull(value, field);
+        }
+
+        private static String requireText(String value, String field) {
+            Objects.requireNonNull(value, field);
+            if (value.isBlank()) {
+                throw new IllegalArgumentException(field + " must not be blank");
+            }
+            return value;
+        }
+    }
+
+    /**
+     * Derives {@code period_key} ({@code YYYY-MM}) from the Asia/Kolkata date, not the UTC instant.
+     *
+     * <p>Why: a job finished at 02:00 IST on 1 October belongs to October, though it is still September in
+     * UTC.
+     */
+    public static final class PeriodKey {
+
+        /** The business timezone. Timestamps are stored UTC; the *business date* is local. */
+        public static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Kolkata");
+
+        /** Width of a {@code YYYY-MM} key, matching the column. */
+        public static final int LENGTH = 7;
+
+        private PeriodKey() {}
+
+        /** {@code 'YYYY-MM'} for a business date. */
+        public static String of(LocalDate effectiveDate) {
+            Objects.requireNonNull(effectiveDate, "effectiveDate");
+            return String.format("%04d-%02d", effectiveDate.getYear(), effectiveDate.getMonthValue());
+        }
+
+        /** The Asia/Kolkata business date of a UTC instant. */
+        public static LocalDate businessDateOf(java.time.Instant instant) {
+            Objects.requireNonNull(instant, "instant");
+            return ZonedDateTime.ofInstant(instant, BUSINESS_ZONE).toLocalDate();
+        }
+
+        /** {@code 'YYYY-MM'} for the business date on which an instant falls. */
+        public static String ofInstant(java.time.Instant instant) {
+            return of(businessDateOf(instant));
+        }
+    }
+
+    /** One attender's summed points for one period, as returned by the leaderboard query. */
+    public record PeriodTotal(Long attenderId, Long total) {}
 }

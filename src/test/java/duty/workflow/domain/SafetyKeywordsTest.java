@@ -1,7 +1,8 @@
 package duty.workflow.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
+import duty.workflow.domain.Complaint.Priority;
+import duty.workflow.domain.Complaint.SafetyKeywords;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

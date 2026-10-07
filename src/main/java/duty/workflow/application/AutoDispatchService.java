@@ -1,16 +1,17 @@
 package duty.workflow.application;
 
-import duty.audit.application.AuditDetail;
-import duty.audit.application.AuditEntry;
+import duty.audit.application.AuditTrail.AuditDetail;
+import duty.audit.application.AuditTrail.AuditEntry;
 import duty.audit.application.AuditTrail;
+import duty.dispatch.application.AttenderDispatcher.DispatchResult;
 import duty.dispatch.application.AttenderDispatcher;
-import duty.dispatch.application.DispatchResult;
-import duty.workflow.domain.AssignMethod;
-import duty.workflow.domain.AssignmentStatus;
+import duty.workflow.application.WorkflowService.TransitionPayload;
 import duty.workflow.domain.Complaint;
+import duty.workflow.domain.ComplaintTransitions.WorkflowEvent;
 import duty.workflow.domain.Task;
+import duty.workflow.domain.TaskAssignment.AssignMethod;
+import duty.workflow.domain.TaskAssignment.AssignmentStatus;
 import duty.workflow.domain.TaskAssignment;
-import duty.workflow.domain.WorkflowEvent;
 import duty.workflow.infrastructure.TaskAssignmentRepository;
 import duty.workflow.infrastructure.TaskRepository;
 import java.time.Instant;

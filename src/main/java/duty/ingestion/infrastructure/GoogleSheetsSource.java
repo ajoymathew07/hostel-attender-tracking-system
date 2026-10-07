@@ -1,14 +1,24 @@
 package duty.ingestion.infrastructure;
 
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.sheets.v4.Sheets;
+import com.google.api.services.sheets.v4.SheetsScopes;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import duty.ingestion.domain.ColumnMapping.ResolvedColumns;
 import duty.ingestion.domain.ColumnMapping;
+import duty.ingestion.domain.ComplaintSource.FetchWindow;
+import duty.ingestion.domain.ComplaintSource.RawRow;
 import duty.ingestion.domain.ComplaintSource;
-import duty.ingestion.domain.FetchWindow;
-import duty.ingestion.domain.RawRow;
-import duty.ingestion.domain.ResolvedColumns;
-import duty.ingestion.domain.SourceType;
+import duty.ingestion.domain.SourceRow.SourceType;
+import duty.ingestion.infrastructure.IngestionConfiguration.SheetsProperties;
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.stereotype.Component;
 
 /**
  * The Google Form response sheet as a {@link ComplaintSource}. It only turns cells into rows; dedupe
@@ -112,5 +122,97 @@ public final class GoogleSheetsSource implements ComplaintSource {
     @Override
     public String toString() {
         return "GoogleSheetsSource[spreadsheetId=" + spreadsheetId + ", sheetName=" + sheetName + "]";
+    }
+
+    /**
+     * Reads the cells of a sheet tab.
+     *
+     * <p>An interface so tests can substitute a fake instead of calling Google. One read-only method,
+     * matching the read-only service account.
+     */
+    public interface SheetReader {
+
+        /**
+         * Reads a block of cells in A1 notation. Rows may be shorter than the header, because the API omits
+         * trailing empty cells.
+         *
+         * @throws SheetsUnavailableException if the sheet cannot be read
+         */
+        List<List<Object>> readValues(String spreadsheetId, String range);
+    }
+
+    /**
+     * {@link SheetReader} using the real Google Sheets API.
+     *
+     * <p>The client is built on first use, not at startup, so the app still starts without a credential
+     * (as on a developer machine or in CI). The scope is read-only.
+     */
+    @Component
+    static class GoogleApiSheetReader implements SheetReader {
+
+        /** Sent as the User-Agent. */
+        private static final String APPLICATION_NAME = "duty-tracker";
+
+        private final SheetsProperties properties;
+
+        /** Built on first read. Volatile because the poller and "Sync Now" run on different threads. */
+        private volatile Sheets client;
+
+        GoogleApiSheetReader(SheetsProperties properties) {
+            this.properties = properties;
+        }
+
+        @Override
+        public List<List<Object>> readValues(String spreadsheetId, String range) {
+            try {
+                List<List<Object>> values =
+                        client().spreadsheets().values().get(spreadsheetId, range).execute().getValues();
+                // An empty tab comes back with no `values` member at all rather than an empty list.
+                return values == null ? List.of() : values;
+            } catch (Exception failed) {
+                throw new SheetsUnavailableException(spreadsheetId, failed);
+            }
+        }
+
+        private Sheets client() throws Exception {
+            Sheets built = client;
+            if (built == null) {
+                built = build();
+                client = built;
+            }
+            return built;
+        }
+
+        private Sheets build() throws Exception {
+            byte[] json = Base64.getDecoder().decode(Objects.requireNonNull(properties.getCredentials()));
+            GoogleCredentials credentials =
+                    GoogleCredentials.fromStream(new ByteArrayInputStream(json))
+                            .createScoped(SheetsScopes.SPREADSHEETS_READONLY);
+            return new Sheets.Builder(
+                            GoogleNetHttpTransport.newTrustedTransport(),
+                            GsonFactory.getDefaultInstance(),
+                            new HttpCredentialsAdapter(credentials))
+                    .setApplicationName(APPLICATION_NAME)
+                    .build();
+        }
+    }
+
+    /**
+     * The sheet could not be read (no credential, no network, or the API refused). Fails the run, and the
+     * reason is shown to the manager. Never includes the credential.
+     */
+    public static class SheetsUnavailableException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public SheetsUnavailableException(String spreadsheetId, Throwable cause) {
+            super(
+                    "the response sheet "
+                            + spreadsheetId
+                            + " could not be read ("
+                            + cause.getClass().getSimpleName()
+                            + ")",
+                    cause);
+        }
     }
 }

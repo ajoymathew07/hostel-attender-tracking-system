@@ -2,11 +2,10 @@ package duty.dispatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import duty.dispatch.domain.AvailabilityStatus;
+import duty.dispatch.domain.AvailabilityWindow.AvailabilityStatus;
 import duty.dispatch.domain.AvailabilityWindow;
-import duty.dispatch.domain.Coverage;
 import duty.dispatch.domain.Floor;
+import duty.dispatch.domain.FloorAssignment.Coverage;
 import duty.dispatch.domain.FloorAssignment;
 import duty.dispatch.infrastructure.AvailabilityWindowRepository;
 import duty.dispatch.infrastructure.FloorAssignmentRepository;

@@ -13,12 +13,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
-
 import duty.identity.domain.AppUser;
 import duty.identity.infrastructure.AppUserRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;
-import duty.workflow.domain.ComplaintDomain;
+import duty.workflow.domain.Complaint.ComplaintDomain;
 import duty.workflow.infrastructure.ComplaintRepository;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.DisplayName;

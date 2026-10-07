@@ -1,16 +1,16 @@
 package duty.support;
 
-import duty.identity.application.SignedInUser;
+import duty.identity.application.CurrentUser.SignedInUser;
+import duty.identity.domain.AppUser.UserRole;
 import duty.identity.domain.AppUser;
-import duty.identity.domain.UserRole;
+import duty.ingestion.domain.IngestionRun.TriggerType;
 import duty.ingestion.domain.IngestionRun;
-import duty.ingestion.domain.SourceType;
-import duty.ingestion.domain.TriggerType;
-import duty.workflow.domain.ClassificationMethod;
+import duty.ingestion.domain.SourceRow.SourceType;
+import duty.workflow.domain.Complaint.ClassificationMethod;
+import duty.workflow.domain.Complaint.ComplaintDomain;
+import duty.workflow.domain.Complaint.ComplaintStatus;
+import duty.workflow.domain.Complaint.Priority;
 import duty.workflow.domain.Complaint;
-import duty.workflow.domain.ComplaintDomain;
-import duty.workflow.domain.ComplaintStatus;
-import duty.workflow.domain.Priority;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.security.authentication.TestingAuthenticationToken;

@@ -10,8 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
-
-import duty.dispatch.application.DispatchSettings;
+import duty.dispatch.application.AttenderDispatcher.DispatchSettings;
 import duty.settings.infrastructure.SettingRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.workflow.application.SlaSettings;

@@ -1,8 +1,11 @@
 package duty.workflow.application;
 
-import duty.workflow.domain.AssignmentStatus;
+import duty.workflow.domain.Complaint.ClassificationMethod;
+import duty.workflow.domain.Complaint.ComplaintDomain;
+import duty.workflow.domain.Complaint.ComplaintStatus;
+import duty.workflow.domain.Complaint.Priority;
 import duty.workflow.domain.Complaint;
-import duty.workflow.domain.ComplaintStatus;
+import duty.workflow.domain.TaskAssignment.AssignmentStatus;
 import duty.workflow.domain.TaskAssignment;
 import duty.workflow.infrastructure.ComplaintRepository;
 import duty.workflow.infrastructure.TaskAssignmentRepository;
@@ -127,4 +130,54 @@ public class ComplaintQueryService {
                 complaint.getStatus(),
                 assigneeId);
     }
+
+    /**
+     * One row of the manager's complaint list. Includes the student's details, which the manager may always
+     * see.
+     */
+    public record ComplaintListItem(
+            long id,
+            String publicRef,
+            Instant reportedAt,
+            String reporterRoom,
+            String reporterName,
+            String reporterRollNo,
+            String reporterPhone,
+            String rawText,
+            ComplaintDomain domain,
+            ClassificationMethod classifiedBy,
+            Priority priority,
+            Priority basePriority,
+            Instant slaDueAt,
+            boolean slaOverdue,
+            ComplaintStatus status,
+            Long assigneeId) {
+
+        /**
+         * Whether the priority was raised by ageing rather than set at intake, so the list can show "P1 (aged
+         * from P3)".
+         */
+        public boolean aged() {
+            return priority != basePriority;
+        }
+
+        /** Leaves out the student's name, roll number and phone. */
+        @Override
+        public String toString() {
+            return "ComplaintListItem[" + publicRef + ", " + status + ", " + priority + "]";
+        }
+    }
+
+    /**
+     * The counts across the top of the manager's dashboard.
+     *
+     * <p>No "new" count: auto-dispatch runs during intake, so a complaint is already assigned or in triage
+     * when the manager first sees it.
+     *
+     * @param triage waiting for the manager
+     * @param active someone is on it, including work on hold
+     * @param resolvedToday resolved today, in local time
+     * @param overdue open complaints past their due date
+     */
+    public record DashboardCounters(long triage, long active, long resolvedToday, long overdue) {}
 }

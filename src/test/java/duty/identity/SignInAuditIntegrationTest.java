@@ -1,11 +1,10 @@
 package duty.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
-import duty.audit.application.CorrelationId;
+import duty.audit.application.AuditTrail.CorrelationId;
 import duty.audit.domain.AuditEvent;
 import duty.audit.infrastructure.AuditEventRepository;
-import duty.identity.application.OidcIdentity;
+import duty.identity.application.SignInService.OidcIdentity;
 import duty.identity.application.SignInService;
 import duty.identity.domain.AppUser;
 import duty.identity.infrastructure.AppUserRepository;

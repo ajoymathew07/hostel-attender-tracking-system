@@ -2,17 +2,16 @@ package duty.workflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import duty.dispatch.domain.Floor;
 import duty.dispatch.infrastructure.FloorRepository;
 import duty.identity.infrastructure.AppUserRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;
-import duty.workflow.domain.ClassificationMethod;
+import duty.workflow.domain.Complaint.ClassificationMethod;
+import duty.workflow.domain.Complaint.ComplaintDomain;
+import duty.workflow.domain.Complaint.ComplaintStatus;
+import duty.workflow.domain.Complaint.Priority;
 import duty.workflow.domain.Complaint;
-import duty.workflow.domain.ComplaintDomain;
-import duty.workflow.domain.ComplaintStatus;
-import duty.workflow.domain.Priority;
 import duty.workflow.infrastructure.ComplaintRepository;
 import java.time.Instant;
 import java.util.List;

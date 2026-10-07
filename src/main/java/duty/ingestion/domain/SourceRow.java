@@ -189,4 +189,26 @@ public class SourceRow {
     public Long getComplaintId() {
         return complaintId;
     }
+
+    /** Matches {@code ck_sr_state}. */
+    public enum SourceRowState {
+
+        /** The row as last observed in the source. */
+        ACTIVE,
+
+        /**
+         * Reserved for edited responses, which are not handled yet; an edited row is currently skipped.
+         */
+        AMENDED
+    }
+
+    /** Where a row came from. */
+    public enum SourceType {
+
+        /** The Google Form response sheet. */
+        GOOGLE_SHEETS,
+
+        /** A CSV uploaded by the manager. */
+        CSV_UPLOAD
+    }
 }

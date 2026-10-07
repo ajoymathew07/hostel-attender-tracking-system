@@ -6,9 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import duty.identity.domain.AppUser.UserRole;
 import duty.identity.domain.AppUser;
-import duty.identity.domain.UserRole;
 import duty.identity.infrastructure.AppUserRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;

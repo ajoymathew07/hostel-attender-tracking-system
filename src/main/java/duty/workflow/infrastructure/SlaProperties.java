@@ -1,8 +1,8 @@
 package duty.workflow.infrastructure;
 
-import duty.workflow.domain.ComplaintDomain;
-import duty.workflow.domain.Priority;
-import duty.workflow.domain.SlaTargets;
+import duty.workflow.domain.Complaint.ComplaintDomain;
+import duty.workflow.domain.Complaint.Priority;
+import duty.workflow.domain.WorkingCalendar.SlaTargets;
 import duty.workflow.domain.WorkingCalendar;
 import java.time.DayOfWeek;
 import java.time.Duration;
@@ -17,6 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 /**
  * The default SLA windows and working day from {@code application.yml}. The manager can override them
@@ -131,6 +134,25 @@ public class SlaProperties {
 
         public void setHolidays(List<String> holidays) {
             this.holidays = holidays;
+        }
+    }
+
+    /**
+     * Creates the SLA domain objects as beans from YAML. Domain classes cannot carry Spring annotations,
+     * so the beans are declared here.
+     */
+    @Configuration
+    @EnableConfigurationProperties(SlaProperties.class)
+    static class WorkflowConfiguration {
+
+        @Bean
+        SlaTargets slaTargets(SlaProperties properties) {
+            return properties.toSlaTargets();
+        }
+
+        @Bean
+        WorkingCalendar workingCalendar(SlaProperties properties) {
+            return properties.toWorkingCalendar();
         }
     }
 }

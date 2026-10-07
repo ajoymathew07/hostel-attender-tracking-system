@@ -89,4 +89,14 @@ public final class UploadLimits {
         String bare = parameters < 0 ? contentType : contentType.substring(0, parameters);
         return bare.trim().toLowerCase(Locale.ROOT);
     }
+
+    /** An upload refused by the limits: not a CSV, over 5 MB, or over 5000 rows. */
+    public static class UploadRejectedException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public UploadRejectedException(String reason) {
+            super(reason);
+        }
+    }
 }

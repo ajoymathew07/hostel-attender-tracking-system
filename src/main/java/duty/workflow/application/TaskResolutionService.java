@@ -1,13 +1,15 @@
 package duty.workflow.application;
 
+import duty.identity.application.CurrentUser.SignedInUser;
 import duty.identity.application.CurrentUser;
-import duty.identity.application.SignedInUser;
 import duty.ledger.application.PointsLedger;
-import duty.workflow.domain.AssignmentStatus;
+import duty.workflow.application.WorkflowService.DocketRequiredException;
+import duty.workflow.application.WorkflowService.TransitionPayload;
 import duty.workflow.domain.Complaint;
+import duty.workflow.domain.ComplaintTransitions.WorkflowEvent;
 import duty.workflow.domain.Task;
+import duty.workflow.domain.TaskAssignment.AssignmentStatus;
 import duty.workflow.domain.TaskAssignment;
-import duty.workflow.domain.WorkflowEvent;
 import duty.workflow.infrastructure.TaskAssignmentRepository;
 import duty.workflow.infrastructure.TaskRepository;
 import org.springframework.security.access.AccessDeniedException;
@@ -128,4 +130,14 @@ public class TaskResolutionService {
                 .filter(assignment -> assignment.getStatus() != AssignmentStatus.RELEASED)
                 .orElseThrow(() -> new AccessDeniedException("this task is not yours to resolve"));
     }
+
+    /**
+     * What the attender is shown after tapping Resolve.
+     *
+     * @param pointsAwarded points credited by this call; {@code 0} on a repeated tap
+     * @param periodTotal their total for the month afterwards
+     * @param alreadyApplied {@code true} on a repeated tap; the screen looks the same either way
+     */
+    public record ResolvedTask(
+            String publicRef, int pointsAwarded, long periodTotal, boolean alreadyApplied) {}
 }

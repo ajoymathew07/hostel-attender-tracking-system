@@ -1,6 +1,6 @@
 package duty.dispatch.infrastructure;
 
-import duty.dispatch.domain.Coverage;
+import duty.dispatch.domain.FloorAssignment.Coverage;
 import duty.dispatch.domain.FloorAssignment;
 import java.util.List;
 import java.util.Optional;

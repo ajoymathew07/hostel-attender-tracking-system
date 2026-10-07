@@ -1,7 +1,7 @@
 package duty.ingestion.infrastructure;
 
+import duty.ingestion.domain.SourceRow.SourceType;
 import duty.ingestion.domain.SourceRow;
-import duty.ingestion.domain.SourceType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;

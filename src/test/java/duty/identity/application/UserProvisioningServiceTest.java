@@ -10,13 +10,14 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import duty.audit.application.AuditEntry;
+import duty.audit.application.AuditTrail.AuditEntry;
 import duty.audit.application.AuditTrail;
+import duty.identity.application.UserProvisioningService.InvalidEmailException;
+import duty.identity.application.UserProvisioningService.LastManagerException;
+import duty.identity.domain.AppUser.UserRole;
 import duty.identity.domain.AppUser;
-import duty.identity.domain.UserRole;
 import duty.identity.infrastructure.AppUserRepository;
 import java.time.Instant;
 import java.util.Optional;

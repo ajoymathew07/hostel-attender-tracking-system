@@ -2,10 +2,9 @@ package duty.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import duty.audit.application.AuditEntry;
+import duty.audit.application.AuditTrail.AuditEntry;
+import duty.audit.application.AuditTrail.CorrelationId;
 import duty.audit.application.AuditTrail;
-import duty.audit.application.CorrelationId;
 import duty.audit.domain.AuditEvent;
 import duty.audit.infrastructure.AuditEventRepository;
 import duty.dispatch.domain.Floor;

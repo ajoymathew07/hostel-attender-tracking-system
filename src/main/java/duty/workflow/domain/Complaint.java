@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -410,5 +411,138 @@ public class Complaint {
 
     public long getVersion() {
         return version;
+    }
+
+    /**
+     * The complaint lifecycle states. Which moves are legal is defined by {@link ComplaintTransitions}.
+     */
+    public enum ComplaintStatus {
+        NEW,
+        TRIAGE,
+        ASSIGNED,
+        INSPECTING,
+        AWAITING_CMS,
+        IN_PROGRESS,
+        ON_HOLD,
+        RESOLVED,
+        CLOSED,
+        REJECTED;
+
+        /** Whether no further transitions are possible. */
+        public boolean isTerminal() {
+            return this == CLOSED || this == REJECTED;
+        }
+    }
+
+    /**
+     * The maintenance domain of a complaint. Matches {@code ck_domain}.
+     *
+     * <p>{@link #UNCLASSIFIED} means "Others" or no answer; such complaints go to triage.
+     */
+    public enum ComplaintDomain {
+        ELECTRICAL,
+        CIVIL,
+        RO_PLANT,
+        NETWORK,
+        UNCLASSIFIED;
+
+        /** Whether dispatch can act on it, or it must go to triage. */
+        public boolean isDispatchable() {
+            return this != UNCLASSIFIED;
+        }
+
+        /**
+         * The domain for the category a resident chose. Ignores case and spaces; accepts {@code LAN} for
+         * {@link #NETWORK} and {@code RO} for {@link #RO_PLANT}. Anything else is {@link #UNCLASSIFIED}, so a
+         * changed Form fills the triage queue instead of mislabelling complaints.
+         */
+        public static ComplaintDomain reported(String answer) {
+            if (answer == null) {
+                return UNCLASSIFIED;
+            }
+            return switch (answer.trim().toUpperCase().replace(' ', '_')) {
+                case "ELECTRICAL", "ELECTRIC" -> ELECTRICAL;
+                case "CIVIL" -> CIVIL;
+                case "RO", "RO_PLANT", "RO_WATER", "WATER" -> RO_PLANT;
+                case "LAN", "NETWORK", "INTERNET" -> NETWORK;
+                default -> UNCLASSIFIED;
+            };
+        }
+    }
+
+    /**
+     * Complaint priority. Matches {@code ck_priority}.
+     *
+     * <p>Ageing raises P3 → P2 → P1 once a complaint is open past 1.5× its SLA window, so old work does not
+     * get buried.
+     */
+    public enum Priority {
+        P1,
+        P2,
+        P3;
+
+        /** One step up, capped at P1. */
+        public Priority escalated() {
+            return switch (this) {
+                case P3 -> P2;
+                case P2, P1 -> P1;
+            };
+        }
+    }
+
+    /** How a complaint's domain was decided. */
+    public enum ClassificationMethod {
+
+        /** The resident chose it on the form. */
+        REPORTED,
+
+        /** A manager set the domain from the triage queue. */
+        MANUAL,
+
+        /** The resident chose "Others", or chose nothing; the complaint went to triage. */
+        FALLBACK
+    }
+
+    /**
+     * The safety words that make a complaint P1 on arrival.
+     *
+     * <p>Exact whole-word matching on purpose: a fuzzy match could wrongly jump a routine complaint ahead
+     * of real safety work, and substring matching would read "sparkling" as "spark".
+     */
+    public static final class SafetyKeywords {
+
+        /** The keyword list; a phrase matches consecutive words. */
+        private static final List<List<String>> PHRASES =
+                List.of(
+                        List.of("shock"),
+                        List.of("spark"),
+                        List.of("no", "water"),
+                        List.of("sewage"),
+                        List.of("short", "circuit"));
+
+        private SafetyKeywords() {}
+
+        /** Whether the text contains a safety keyword. */
+        public static boolean hit(String text) {
+            if (text == null || text.isBlank()) {
+                return false;
+            }
+            List<String> words = List.of(text.toLowerCase().split("[^a-z0-9]+"));
+            return PHRASES.stream().anyMatch(phrase -> containsInOrder(words, phrase));
+        }
+
+        /** P1 if a safety keyword appears, otherwise P2. */
+        public static Priority basePriorityFor(String text) {
+            return hit(text) ? Priority.P1 : Priority.P2;
+        }
+
+        private static boolean containsInOrder(List<String> words, List<String> phrase) {
+            for (int start = 0; start + phrase.size() <= words.size(); start++) {
+                if (words.subList(start, start + phrase.size()).equals(phrase)) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }

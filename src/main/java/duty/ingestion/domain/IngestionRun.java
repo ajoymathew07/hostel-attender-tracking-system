@@ -1,5 +1,6 @@
 package duty.ingestion.domain;
 
+import duty.ingestion.domain.SourceRow.SourceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -143,5 +144,25 @@ public class IngestionRun {
 
     public Long getTriggeredBy() {
         return triggeredBy;
+    }
+
+    /** State of one ingestion run. */
+    public enum IngestionStatus {
+        RUNNING,
+        SUCCESS,
+        FAILED
+    }
+
+    /** What started an ingestion run. */
+    public enum TriggerType {
+
+        /** The periodic poll, serialised across instances by a database lock. */
+        SCHEDULED,
+
+        /** The manager's "Sync Now" button, or the Apps Script trigger waking the instance. */
+        MANUAL,
+
+        /** Catch-up on application start, so a wake after sleep loses nothing. */
+        STARTUP
     }
 }

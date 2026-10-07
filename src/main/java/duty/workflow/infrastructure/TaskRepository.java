@@ -1,8 +1,8 @@
 package duty.workflow.infrastructure;
 
+import duty.workflow.domain.Task.TaskStatus;
+import duty.workflow.domain.Task.TaskType;
 import duty.workflow.domain.Task;
-import duty.workflow.domain.TaskStatus;
-import duty.workflow.domain.TaskType;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;

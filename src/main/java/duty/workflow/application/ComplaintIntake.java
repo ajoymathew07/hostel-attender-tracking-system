@@ -1,16 +1,17 @@
 package duty.workflow.application;
 
-import duty.audit.application.AuditDetail;
-import duty.audit.application.AuditEntry;
+import duty.audit.application.AuditTrail.AuditDetail;
+import duty.audit.application.AuditTrail.AuditEntry;
 import duty.audit.application.AuditTrail;
-import duty.dispatch.application.FloorLocator;
+import duty.dispatch.application.AttenderDispatcher.FloorLocator;
 import duty.identity.application.CurrentUser;
-import duty.workflow.domain.ClassificationMethod;
+import duty.workflow.application.SlaSettings.SlaClock;
+import duty.workflow.domain.Complaint.ClassificationMethod;
+import duty.workflow.domain.Complaint.ComplaintDomain;
+import duty.workflow.domain.Complaint.ComplaintStatus;
+import duty.workflow.domain.Complaint.Priority;
+import duty.workflow.domain.Complaint.SafetyKeywords;
 import duty.workflow.domain.Complaint;
-import duty.workflow.domain.ComplaintDomain;
-import duty.workflow.domain.ComplaintStatus;
-import duty.workflow.domain.Priority;
-import duty.workflow.domain.SafetyKeywords;
 import duty.workflow.infrastructure.ComplaintReferenceGenerator;
 import duty.workflow.infrastructure.ComplaintRepository;
 import java.time.Instant;
@@ -119,4 +120,45 @@ public class ComplaintIntake {
 
         return new IngestedComplaint(saved.getId(), publicRef);
     }
+
+    /**
+     * The data ingestion passes in to create a complaint. Plain values only, so ingestion never touches the
+     * {@code Complaint} entity.
+     *
+     * @param rawText the resident's wording, exactly as typed
+     * @param reportedAt the form timestamp, in UTC
+     * @param reporterContact the resident's email; purged after 90 days
+     * @param reporterRoom the room number, or {@code null} (goes to triage)
+     * @param reportedDomain the category chosen on the form; anything unrecognised goes to triage
+     * @param sourceRowId the source row this complaint came from
+     */
+    public record NewComplaint(
+            String rawText,
+            Instant reportedAt,
+            String reporterName,
+            String reporterRollNo,
+            String reporterPhone,
+            String reporterContact,
+            String reporterRoom,
+            String reportedDomain,
+            Long sourceRowId) {
+
+        public NewComplaint {
+            Objects.requireNonNull(rawText, "rawText");
+            Objects.requireNonNull(reportedAt, "reportedAt");
+        }
+
+        /** Leaves out the student's details and the complaint text, so they cannot reach a log. */
+        @Override
+        public String toString() {
+            return "NewComplaint[reportedAt=" + reportedAt + ", sourceRowId=" + sourceRowId + "]";
+        }
+    }
+
+    /**
+     * Returned after a complaint is created.
+     *
+     * @param publicRef the human-facing reference, e.g. {@code CAU-2026-0417}
+     */
+    public record IngestedComplaint(long id, String publicRef) {}
 }

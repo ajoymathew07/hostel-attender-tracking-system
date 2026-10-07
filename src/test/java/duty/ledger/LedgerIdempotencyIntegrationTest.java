@@ -2,12 +2,11 @@ package duty.ledger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import duty.identity.domain.AppUser;
 import duty.identity.infrastructure.AppUserRepository;
-import duty.ledger.domain.IdempotencyKeys;
+import duty.ledger.domain.PointLedgerEntry.IdempotencyKeys;
+import duty.ledger.domain.PointLedgerEntry.ReasonCode;
 import duty.ledger.domain.PointLedgerEntry;
-import duty.ledger.domain.ReasonCode;
 import duty.ledger.infrastructure.PointLedgerRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;

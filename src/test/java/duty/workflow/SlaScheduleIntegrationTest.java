@@ -1,16 +1,15 @@
 package duty.workflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import duty.support.AbstractIntegrationTest;
+import duty.workflow.application.ComplaintIntake.IngestedComplaint;
+import duty.workflow.application.ComplaintIntake.NewComplaint;
 import duty.workflow.application.ComplaintIntake;
-import duty.workflow.application.IngestedComplaint;
-import duty.workflow.application.NewComplaint;
 import duty.workflow.application.PriorityService;
 import duty.workflow.application.TriageService;
+import duty.workflow.domain.Complaint.ComplaintDomain;
+import duty.workflow.domain.Complaint.Priority;
 import duty.workflow.domain.Complaint;
-import duty.workflow.domain.ComplaintDomain;
-import duty.workflow.domain.Priority;
 import duty.workflow.infrastructure.ComplaintRepository;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
