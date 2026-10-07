@@ -2,16 +2,15 @@ package duty.ingestion.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
+import duty.ingestion.domain.ColumnMapping.MissingRequiredColumnException;
+import duty.ingestion.domain.ColumnMapping.SourceField;
 import duty.ingestion.domain.ColumnMapping;
+import duty.ingestion.domain.ComplaintSource.FetchWindow;
+import duty.ingestion.domain.ComplaintSource.RawRow;
 import duty.ingestion.domain.ComplaintSource;
-import duty.ingestion.domain.FetchWindow;
-import duty.ingestion.domain.MissingRequiredColumnException;
-import duty.ingestion.domain.RawRow;
-import duty.ingestion.domain.SourceField;
-import duty.ingestion.domain.SourceType;
+import duty.ingestion.domain.SourceRow.SourceType;
+import duty.ingestion.domain.UploadLimits.UploadRejectedException;
 import duty.ingestion.domain.UploadLimits;
-import duty.ingestion.domain.UploadRejectedException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;

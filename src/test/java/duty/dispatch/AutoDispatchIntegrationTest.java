@@ -1,26 +1,25 @@
 package duty.dispatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
-import duty.dispatch.domain.AvailabilityStatus;
+import duty.dispatch.domain.AvailabilityWindow.AvailabilityStatus;
 import duty.dispatch.domain.AvailabilityWindow;
-import duty.dispatch.domain.Coverage;
 import duty.dispatch.domain.Floor;
+import duty.dispatch.domain.FloorAssignment.Coverage;
 import duty.dispatch.domain.FloorAssignment;
 import duty.dispatch.infrastructure.AvailabilityWindowRepository;
 import duty.dispatch.infrastructure.FloorAssignmentRepository;
 import duty.dispatch.infrastructure.FloorRepository;
+import duty.identity.domain.AppUser.UserRole;
 import duty.identity.domain.AppUser;
-import duty.identity.domain.UserRole;
 import duty.identity.infrastructure.AppUserRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;
+import duty.workflow.application.ComplaintIntake.NewComplaint;
 import duty.workflow.application.ComplaintIntake;
-import duty.workflow.application.NewComplaint;
-import duty.workflow.domain.AssignmentStatus;
-import duty.workflow.domain.AssignMethod;
+import duty.workflow.domain.Complaint.ComplaintStatus;
 import duty.workflow.domain.Complaint;
-import duty.workflow.domain.ComplaintStatus;
+import duty.workflow.domain.TaskAssignment.AssignMethod;
+import duty.workflow.domain.TaskAssignment.AssignmentStatus;
 import duty.workflow.domain.TaskAssignment;
 import duty.workflow.infrastructure.ComplaintRepository;
 import duty.workflow.infrastructure.TaskAssignmentRepository;

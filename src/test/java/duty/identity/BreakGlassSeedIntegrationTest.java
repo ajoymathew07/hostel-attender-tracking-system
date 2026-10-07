@@ -1,11 +1,10 @@
 package duty.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
-import duty.identity.application.OidcIdentity;
+import duty.identity.application.SignInService.OidcIdentity;
 import duty.identity.application.SignInService;
+import duty.identity.domain.AppUser.UserRole;
 import duty.identity.domain.AppUser;
-import duty.identity.domain.UserRole;
 import duty.identity.infrastructure.AppUserRepository;
 import duty.support.AbstractIntegrationTest;
 import java.util.List;

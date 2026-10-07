@@ -1,8 +1,11 @@
 package duty.dispatch.infrastructure;
 
+import duty.dispatch.domain.DispatchPolicy.FloorProximity;
 import duty.dispatch.domain.DispatchPolicy;
-import duty.dispatch.domain.FloorProximity;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 /** The default dispatch weights and proximity table from {@code application.yml}. */
 @ConfigurationProperties(prefix = "dispatch")
@@ -129,6 +132,20 @@ public class DispatchProperties {
 
         public void setMinimum(double minimum) {
             this.minimum = minimum;
+        }
+    }
+
+    /**
+     * Creates the {@link DispatchPolicy} bean from YAML. Domain classes cannot carry Spring annotations,
+     * so the bean is declared here.
+     */
+    @Configuration
+    @EnableConfigurationProperties(DispatchProperties.class)
+    static class DispatchConfiguration {
+
+        @Bean
+        DispatchPolicy dispatchPolicy(DispatchProperties properties) {
+            return properties.toPolicy();
         }
     }
 }

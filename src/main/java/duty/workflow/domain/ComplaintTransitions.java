@@ -1,29 +1,29 @@
 package duty.workflow.domain;
 
-import static duty.workflow.domain.ComplaintStatus.ASSIGNED;
-import static duty.workflow.domain.ComplaintStatus.AWAITING_CMS;
-import static duty.workflow.domain.ComplaintStatus.CLOSED;
-import static duty.workflow.domain.ComplaintStatus.INSPECTING;
-import static duty.workflow.domain.ComplaintStatus.IN_PROGRESS;
-import static duty.workflow.domain.ComplaintStatus.NEW;
-import static duty.workflow.domain.ComplaintStatus.ON_HOLD;
-import static duty.workflow.domain.ComplaintStatus.REJECTED;
-import static duty.workflow.domain.ComplaintStatus.RESOLVED;
-import static duty.workflow.domain.ComplaintStatus.TRIAGE;
-import static duty.workflow.domain.TransitionActor.ASSIGNED_ATTENDER;
-import static duty.workflow.domain.TransitionActor.ATTENDER_OR_MANAGER;
-import static duty.workflow.domain.TransitionActor.MANAGER;
-import static duty.workflow.domain.TransitionActor.SYSTEM;
-import static duty.workflow.domain.TransitionGuard.DIFFERENT_ATTENDER;
-import static duty.workflow.domain.TransitionGuard.DISPATCH_CANDIDATE;
-import static duty.workflow.domain.TransitionGuard.DOCKET_FILED;
-import static duty.workflow.domain.TransitionGuard.DOCKET_FORMAT;
-import static duty.workflow.domain.TransitionGuard.NONE;
-import static duty.workflow.domain.TransitionGuard.NO_DISPATCH_CANDIDATE;
-import static duty.workflow.domain.TransitionGuard.REASON;
-import static duty.workflow.domain.TransitionGuard.SEVEN_DAYS_SINCE_RESOLUTION;
-import static duty.workflow.domain.TransitionGuard.TARGET_ATTENDER;
-
+import static duty.workflow.domain.Complaint.ComplaintStatus.ASSIGNED;
+import static duty.workflow.domain.Complaint.ComplaintStatus.AWAITING_CMS;
+import static duty.workflow.domain.Complaint.ComplaintStatus.CLOSED;
+import static duty.workflow.domain.Complaint.ComplaintStatus.INSPECTING;
+import static duty.workflow.domain.Complaint.ComplaintStatus.IN_PROGRESS;
+import static duty.workflow.domain.Complaint.ComplaintStatus.NEW;
+import static duty.workflow.domain.Complaint.ComplaintStatus.ON_HOLD;
+import static duty.workflow.domain.Complaint.ComplaintStatus.REJECTED;
+import static duty.workflow.domain.Complaint.ComplaintStatus.RESOLVED;
+import static duty.workflow.domain.Complaint.ComplaintStatus.TRIAGE;
+import static duty.workflow.domain.ComplaintTransitions.TransitionActor.ASSIGNED_ATTENDER;
+import static duty.workflow.domain.ComplaintTransitions.TransitionActor.ATTENDER_OR_MANAGER;
+import static duty.workflow.domain.ComplaintTransitions.TransitionActor.MANAGER;
+import static duty.workflow.domain.ComplaintTransitions.TransitionActor.SYSTEM;
+import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.DIFFERENT_ATTENDER;
+import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.DISPATCH_CANDIDATE;
+import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.DOCKET_FILED;
+import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.DOCKET_FORMAT;
+import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.NONE;
+import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.NO_DISPATCH_CANDIDATE;
+import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.REASON;
+import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.SEVEN_DAYS_SINCE_RESOLUTION;
+import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.TARGET_ATTENDER;
+import duty.workflow.domain.Complaint.ComplaintStatus;
 import java.util.List;
 
 /**
@@ -79,5 +79,137 @@ public final class ComplaintTransitions {
             TransitionActor actor,
             TransitionGuard guard) {
         return new ComplaintTransition(from, event, to, actor, guard);
+    }
+
+    /**
+     * One row of the transition table: from-state, event, to-state, who may do it, and its condition.
+     * Side effects live in {@code WorkflowService}, since they need repositories.
+     */
+    public record ComplaintTransition(
+            ComplaintStatus from,
+            WorkflowEvent event,
+            ComplaintStatus to,
+            TransitionActor actor,
+            TransitionGuard guard) {}
+
+    /**
+     * Who may make a transition.
+     *
+     * <p>Attender moves require holding an {@code ACTIVE} assignment, not just the attender role, so
+     * nobody can act on someone else's task.
+     */
+    public enum TransitionActor {
+
+        /** The system (a scheduled job or the dispatcher). */
+        SYSTEM,
+
+        /** The manager. */
+        MANAGER,
+
+        /** The attender holding an {@code ACTIVE} assignment on this complaint's task. */
+        ASSIGNED_ATTENDER,
+
+        /** Either the assigned attender or the manager (block and unblock). */
+        ATTENDER_OR_MANAGER
+    }
+
+    /**
+     * A transition's condition, with the message shown when it fails. Evaluated in
+     * {@code WorkflowService}, since some checks need the database.
+     */
+    public enum TransitionGuard {
+
+        /** No condition. */
+        NONE("no guard"),
+
+        /** T2: an attender was found. */
+        DISPATCH_CANDIDATE("no attender was available for this complaint"),
+
+        /** T3: no attender was found. */
+        NO_DISPATCH_CANDIDATE("dispatch found a candidate, so this complaint does not need triage"),
+
+        /** T4: an attender is given. */
+        TARGET_ATTENDER("an attender to assign the work to is required"),
+
+        /** T6: a different attender from the current one. */
+        DIFFERENT_ATTENDER("this attender already holds the work"),
+
+        /** A reason is required. */
+        REASON("a reason is required"),
+
+        /** T11: the docket number matches the format. */
+        DOCKET_FORMAT("the docket number does not match the configured pattern"),
+
+        /** T14: a docket is filed. No docket, no points. */
+        DOCKET_FILED("this complaint was never filed with the Engineering Unit"),
+
+        /** T16: seven days have passed since resolution. */
+        SEVEN_DAYS_SINCE_RESOLUTION("seven days have not passed since this was resolved");
+
+        private final String reason;
+
+        TransitionGuard(String reason) {
+            this.reason = reason;
+        }
+
+        /** The message shown when this condition fails. */
+        public String reason() {
+            return reason;
+        }
+    }
+
+    /**
+     * Everything that can happen to an existing complaint. The event says what was asked for; the
+     * transition table decides the resulting state.
+     *
+     * <p>Creating a complaint (T1) is not here, because it has no prior state; {@code ComplaintIntake}
+     * handles it.
+     */
+    public enum WorkflowEvent {
+
+        /** T2/T3: auto-dispatch ran; its result decides between {@code ASSIGNED} and {@code TRIAGE}. */
+        AUTO_DISPATCH,
+
+        /** T4 — the manager picks a name. */
+        MANAGER_ASSIGN,
+
+        /** T5 — not a real complaint, or not ours. */
+        MANAGER_REJECT,
+
+        /** T6 — the manager moves live work to somebody else. */
+        MANAGER_REASSIGN,
+
+        /** T7 — the attender is on their way. */
+        ATTENDER_START,
+
+        /** T8 — the attender hands the work back. */
+        ATTENDER_RELEASE,
+
+        /** T9 — there is a defect, and the Engineering Unit needs a docket for it. */
+        DEFECT_CONFIRMED,
+
+        /** T10 — nothing wrong on site. */
+        NO_DEFECT_FOUND,
+
+        /** T11 — the number the Engineering Unit gave back. */
+        DOCKET_RECORDED,
+
+        /** T12 — waiting on parts or on access. */
+        BLOCK,
+
+        /** T13 — the block cleared. */
+        UNBLOCK,
+
+        /** T14 — the work is done and the +2 is due. */
+        MARK_RESOLVED,
+
+        /** T15 — the manager signs it off. */
+        MANAGER_CLOSE,
+
+        /** T16 — nobody signed it off and seven days passed. */
+        AUTO_CLOSE,
+
+        /** T17 — it was not fixed after all; the credit is reversed. */
+        MANAGER_REOPEN
     }
 }

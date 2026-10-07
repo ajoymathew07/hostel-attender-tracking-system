@@ -1,11 +1,11 @@
 package duty.ledger.infrastructure;
 
-import duty.ledger.domain.PeriodTotal;
+import duty.ledger.domain.PointLedgerEntry.PeriodTotal;
 import duty.ledger.domain.PointLedgerEntry;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.repository.Repository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
 /** The points ledger. Extends the bare {@code Repository} so no update or delete method exists. */
@@ -35,7 +35,7 @@ public interface PointLedgerRepository extends Repository<PointLedgerEntry, Long
     /** Every attender's total for one period. Attenders with no rows are absent. */
     @Query(
             """
-            select new duty.ledger.domain.PeriodTotal(l.attenderId, sum(l.points))
+            select new duty.ledger.domain.PointLedgerEntry$PeriodTotal(l.attenderId, sum(l.points))
               from PointLedgerEntry l
              where l.periodKey = :periodKey
              group by l.attenderId

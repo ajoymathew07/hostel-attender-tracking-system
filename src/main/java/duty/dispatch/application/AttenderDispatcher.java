@@ -1,16 +1,20 @@
 package duty.dispatch.application;
 
-import duty.audit.application.AuditDetail;
-import duty.dispatch.domain.Coverage;
-import duty.dispatch.domain.DispatchCandidate;
-import duty.dispatch.domain.DispatchDecision;
+import duty.audit.application.AuditTrail.AuditDetail;
+import duty.dispatch.domain.DispatchPolicy.DispatchCandidate;
+import duty.dispatch.domain.DispatchPolicy.DispatchDecision;
+import duty.dispatch.domain.DispatchPolicy.FloorProximity;
+import duty.dispatch.domain.DispatchPolicy.RoomFloor;
 import duty.dispatch.domain.DispatchPolicy;
+import duty.dispatch.domain.FloorAssignment.Coverage;
 import duty.dispatch.domain.FloorAssignment;
 import duty.dispatch.infrastructure.AvailabilityWindowRepository;
 import duty.dispatch.infrastructure.FloorAssignmentRepository;
 import duty.dispatch.infrastructure.FloorRepository;
 import duty.identity.application.UserProvisioningService;
-import duty.workflow.application.AttenderWorkload;
+import duty.settings.application.SettingsStore.Settings;
+import duty.settings.application.SettingsStore;
+import duty.workflow.application.AttenderWorkloadService.AttenderWorkload;
 import duty.workflow.application.AttenderWorkloadService;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -20,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -165,4 +170,115 @@ public class AttenderDispatcher {
         return new DispatchResult(
                 decision.attenderId(), snapshot, decision.capacityExceeded(), decision.uncoveredFloor());
     }
+
+    /**
+     * What dispatch returns to the rest of the system: who was chosen, and a JSON snapshot explaining why.
+     *
+     * @param capacityExceeded every eligible attender was already full
+     * @param uncoveredFloor nobody eligible covers this floor, so the choice was made on load alone
+     */
+    public record DispatchResult(
+            long attenderId, String scoreSnapshot, boolean capacityExceeded, boolean uncoveredFloor) {}
+
+    /**
+     * Turns the room number a resident typed into a {@code floor_id}.
+     *
+     * <p>Room numbers carry no wing, so the wing comes from configuration (the hostel has one).
+     */
+    @Service
+    public static class FloorLocator {
+
+        private final FloorRepository floors;
+        private final String wing;
+
+        FloorLocator(FloorRepository floors, @Value("${dispatch.wing}") String wing) {
+            this.floors = floors;
+            this.wing = wing;
+        }
+
+        /** Empty when the room is unreadable or names a floor this hostel does not have. */
+        public Optional<Long> floorIdFor(String room) {
+            OptionalInt floorNumber = RoomFloor.floorNumber(room);
+            if (floorNumber.isEmpty()) {
+                return Optional.empty();
+            }
+            return floors.findByWingAndFloorNumber(wing, floorNumber.getAsInt()).map(floor -> floor.getId());
+        }
+    }
+
+    /**
+     * The dispatch weights currently in force: the YAML defaults, overridden by the settings screen.
+     *
+     * <p>Read on every dispatch, so a change applies to the next complaint without a restart. The
+     * proximity table is not editable because only the order of its values matters.
+     */
+    @Service
+    public static class DispatchSettings {
+
+        public static final String FLOOR_WEIGHT = "dispatch.weights.floor";
+        public static final String LOAD_WEIGHT = "dispatch.weights.load";
+        public static final String LOAD_CAP = "dispatch.load-cap";
+
+        private final DispatchPolicy defaults;
+        private final SettingsStore store;
+
+        DispatchSettings(DispatchPolicy defaults, SettingsStore store) {
+            this.defaults = defaults;
+            this.store = store;
+        }
+
+        /** The three editable numbers, for the settings screen. */
+        public DispatchWeights current() {
+            DispatchPolicy policy = from(store.current());
+            return new DispatchWeights(policy.floorWeight(), policy.loadWeight(), policy.loadCap());
+        }
+
+        /** The full scorer, for the dispatcher. */
+        DispatchPolicy policy() {
+            return from(store.current());
+        }
+
+        DispatchPolicy from(Settings settings) {
+            return new DispatchPolicy(
+                    settings.number(FLOOR_WEIGHT, defaults.floorWeight()),
+                    settings.number(LOAD_WEIGHT, defaults.loadWeight()),
+                    settings.integer(LOAD_CAP, defaults.loadCap()),
+                    defaults.proximity());
+        }
+
+        /**
+         * Validates new weights and returns them as settings rows. Refuses weights that do not sum to 1
+         * rather than rescaling them.
+         *
+         * <p>Returns rows instead of saving them so the settings screen can save all sections in one
+         * transaction.
+         */
+        public Map<String, String> edits(double floorWeight, double loadWeight, int loadCap) {
+            if (Math.abs(floorWeight + loadWeight - 1) > 1e-9) {
+                throw new IllegalArgumentException(
+                        "the floor and load weights must sum to 1, but sum to " + (floorWeight + loadWeight));
+            }
+            if (loadCap < 1) {
+                throw new IllegalArgumentException("the load cap must be at least 1");
+            }
+            return Map.of(
+                    FLOOR_WEIGHT, String.valueOf(floorWeight),
+                    LOAD_WEIGHT, String.valueOf(loadWeight),
+                    LOAD_CAP, String.valueOf(loadCap));
+        }
+
+        /** The fixed proximity table, for the settings screen to display. */
+        public ProximityTable proximity() {
+            FloorProximity table = defaults.proximity();
+            return new ProximityTable(
+                    table.primary(), table.secondary(), table.adjacent(), table.step(), table.minimum());
+        }
+    }
+
+    /** The weights a manager may change: floor weight, load weight and load cap. */
+    public record DispatchWeights(double floor, double load, int loadCap) {}
+
+    /** The floor-proximity values, so the settings screen can show them (read-only). */
+    public record ProximityTable(
+            double primary, double secondary, double adjacent, double step, double minimum) {}
 }

@@ -2,7 +2,11 @@ package duty.ingestion.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
+import duty.ingestion.domain.ColumnMapping.SourceField;
+import duty.ingestion.domain.ComplaintSource.FetchWindow;
+import duty.ingestion.domain.ComplaintSource.RawRow;
+import duty.ingestion.domain.RowNormalizer.MalformedRowException;
+import duty.ingestion.domain.RowNormalizer.NormalizedRow;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;

@@ -7,9 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import duty.ingestion.infrastructure.SheetReader;
-import duty.ingestion.infrastructure.SheetsUnavailableException;
+import duty.ingestion.infrastructure.GoogleSheetsSource.SheetReader;
+import duty.ingestion.infrastructure.GoogleSheetsSource.SheetsUnavailableException;
 import duty.support.AbstractIntegrationTest;
 import java.io.IOException;
 import java.util.List;

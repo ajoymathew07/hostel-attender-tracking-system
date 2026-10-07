@@ -2,17 +2,16 @@ package duty.workflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import duty.identity.infrastructure.AppUserRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;
-import duty.workflow.domain.AssignMethod;
-import duty.workflow.domain.AssignmentStatus;
 import duty.workflow.domain.Complaint;
+import duty.workflow.domain.Task.TaskStatus;
+import duty.workflow.domain.Task.TaskType;
 import duty.workflow.domain.Task;
+import duty.workflow.domain.TaskAssignment.AssignMethod;
+import duty.workflow.domain.TaskAssignment.AssignmentStatus;
 import duty.workflow.domain.TaskAssignment;
-import duty.workflow.domain.TaskStatus;
-import duty.workflow.domain.TaskType;
 import duty.workflow.infrastructure.ComplaintRepository;
 import duty.workflow.infrastructure.TaskAssignmentRepository;
 import duty.workflow.infrastructure.TaskRepository;

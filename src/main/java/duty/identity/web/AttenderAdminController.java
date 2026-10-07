@@ -1,13 +1,17 @@
 package duty.identity.web;
 
-import duty.identity.application.EmailAlreadyProvisionedException;
-import duty.identity.application.InvalidEmailException;
-import duty.identity.application.LastManagerException;
-import duty.identity.application.UnknownUserException;
+import duty.identity.application.UserProvisioningService.EmailAlreadyProvisionedException;
+import duty.identity.application.UserProvisioningService.InvalidEmailException;
+import duty.identity.application.UserProvisioningService.LastManagerException;
+import duty.identity.application.UserProvisioningService.UnknownUserException;
+import duty.identity.application.UserProvisioningService.UserSummary;
 import duty.identity.application.UserProvisioningService;
-import duty.identity.application.UserSummary;
-import duty.identity.domain.UserRole;
+import duty.identity.domain.AppUser.UserRole;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -122,5 +126,45 @@ class AttenderAdminController {
                 "error",
                 "That would leave nobody able to administer. Add or reactivate another manager first.");
         return REDIRECT;
+    }
+
+    /** The "add a user" form. A mutable bean so Spring can bind a failed submission back into it. */
+    static class ProvisionUserForm {
+
+        @NotBlank
+        @Size(max = 128)
+        private String displayName;
+
+        /** The Google account: the allowlist key. */
+        @NotBlank
+        @Email
+        @Size(max = 255)
+        private String email;
+
+        @NotNull private UserRole role = UserRole.ATTENDER;
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public void setDisplayName(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+
+        public UserRole getRole() {
+            return role;
+        }
+
+        public void setRole(UserRole role) {
+            this.role = role;
+        }
     }
 }

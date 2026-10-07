@@ -139,4 +139,30 @@ public class TaskAssignment {
     public long getVersion() {
         return version;
     }
+
+    /** How an assignment was made. Matches {@code ck_asg_method}. */
+    public enum AssignMethod {
+
+        /** Chosen by the dispatch heuristic; {@code score_snapshot} records why. */
+        AUTO,
+
+        /** A manager assigned or reassigned it. */
+        MANUAL,
+
+        /** An attender claimed a posted special duty. */
+        CLAIMED
+    }
+
+    /** State of one attender's hold on a task. */
+    public enum AssignmentStatus {
+
+        /** The attender currently owns the work. */
+        ACTIVE,
+
+        /** Handed back, or superseded by a reassignment. */
+        RELEASED,
+
+        /** The attender finished their part. */
+        COMPLETED
+    }
 }

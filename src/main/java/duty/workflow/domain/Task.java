@@ -196,4 +196,23 @@ public class Task {
     public long getVersion() {
         return version;
     }
+
+    /** The task lifecycle states. */
+    public enum TaskStatus {
+        OPEN,
+        CLAIMED,
+        COMPLETED,
+        CANCELLED,
+        EXPIRED
+    }
+
+    /** Kind of task. Matches {@code ck_task_type}. */
+    public enum TaskType {
+
+        /** Work derived from a resident complaint. Credits +2 by default. */
+        COMPLAINT,
+
+        /** A posted duty with no complaint, claimed rather than dispatched. */
+        SPECIAL_DUTY
+    }
 }

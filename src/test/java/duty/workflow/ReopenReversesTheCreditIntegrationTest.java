@@ -1,24 +1,23 @@
 package duty.workflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import duty.identity.domain.AppUser;
 import duty.identity.infrastructure.AppUserRepository;
-import duty.ledger.application.LeaderboardRow;
+import duty.ledger.application.LeaderboardService.LeaderboardRow;
 import duty.ledger.application.LeaderboardService;
+import duty.ledger.domain.PointLedgerEntry.ReasonCode;
 import duty.ledger.domain.PointLedgerEntry;
-import duty.ledger.domain.ReasonCode;
 import duty.ledger.infrastructure.PointLedgerRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;
 import duty.workflow.application.ManualAssignmentService;
-import duty.workflow.application.ResolvedTask;
+import duty.workflow.application.TaskResolutionService.ResolvedTask;
 import duty.workflow.application.TaskResolutionService;
-import duty.workflow.application.TransitionPayload;
+import duty.workflow.application.WorkflowService.TransitionPayload;
 import duty.workflow.application.WorkflowService;
-import duty.workflow.domain.AssignmentStatus;
-import duty.workflow.domain.ComplaintStatus;
-import duty.workflow.domain.WorkflowEvent;
+import duty.workflow.domain.Complaint.ComplaintStatus;
+import duty.workflow.domain.ComplaintTransitions.WorkflowEvent;
+import duty.workflow.domain.TaskAssignment.AssignmentStatus;
 import duty.workflow.infrastructure.ComplaintRepository;
 import duty.workflow.infrastructure.TaskAssignmentRepository;
 import duty.workflow.infrastructure.TaskRepository;

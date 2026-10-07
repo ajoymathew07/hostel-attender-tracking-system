@@ -1,19 +1,19 @@
 package duty.workflow.web;
 
+import duty.identity.application.UserProvisioningService.UserSummary;
 import duty.identity.application.UserProvisioningService;
-import duty.identity.application.UserSummary;
-import duty.ingestion.application.IngestionHealth;
+import duty.ingestion.application.SheetsIngestionService.IngestionHealth;
 import duty.ledger.application.LeaderboardService;
 import duty.workflow.application.ComplaintQueryService;
-import duty.workflow.application.GuardFailedException;
-import duty.workflow.application.IllegalTransitionException;
 import duty.workflow.application.ManualAssignmentService;
 import duty.workflow.application.PriorityService;
-import duty.workflow.application.TransitionPayload;
 import duty.workflow.application.TriageService;
+import duty.workflow.application.WorkflowService.GuardFailedException;
+import duty.workflow.application.WorkflowService.IllegalTransitionException;
+import duty.workflow.application.WorkflowService.TransitionPayload;
 import duty.workflow.application.WorkflowService;
-import duty.workflow.domain.ComplaintDomain;
-import duty.workflow.domain.WorkflowEvent;
+import duty.workflow.domain.Complaint.ComplaintDomain;
+import duty.workflow.domain.ComplaintTransitions.WorkflowEvent;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -169,5 +169,22 @@ class ManagerDashboardController {
         Map<Long, String> names = new LinkedHashMap<>();
         everyone.forEach(user -> names.put(user.id(), user.displayName()));
         return names;
+    }
+
+    /**
+     * The icon shown on each domain badge, so colour is never the only signal. Hidden from screen readers,
+     * which read the text label.
+     */
+    static final class DomainGlyphs {
+
+        static final Map<String, String> BY_DOMAIN =
+                Map.of(
+                        ComplaintDomain.ELECTRICAL.name(), "⚡",
+                        ComplaintDomain.CIVIL.name(), "🔧",
+                        ComplaintDomain.RO_PLANT.name(), "💧",
+                        ComplaintDomain.NETWORK.name(), "🌐",
+                        ComplaintDomain.UNCLASSIFIED.name(), "❓");
+
+        private DomainGlyphs() {}
     }
 }

@@ -5,11 +5,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import duty.ingestion.domain.IngestionRun.TriggerType;
 import duty.ingestion.domain.IngestionRun;
-import duty.ingestion.domain.TriggerType;
+import duty.ingestion.infrastructure.GoogleSheetsSource.SheetReader;
 import duty.ingestion.infrastructure.IngestionRunRepository;
-import duty.ingestion.infrastructure.SheetReader;
 import duty.support.AbstractIntegrationTest;
 import duty.workflow.infrastructure.ComplaintRepository;
 import java.util.ArrayList;

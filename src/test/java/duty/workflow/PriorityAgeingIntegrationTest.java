@@ -1,19 +1,18 @@
 package duty.workflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import duty.audit.domain.AuditEvent;
 import duty.audit.infrastructure.AuditEventRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;
-import duty.workflow.application.ComplaintListItem;
+import duty.workflow.application.ComplaintQueryService.ComplaintListItem;
 import duty.workflow.application.ComplaintQueryService;
 import duty.workflow.application.PriorityService;
-import duty.workflow.domain.ClassificationMethod;
+import duty.workflow.domain.Complaint.ClassificationMethod;
+import duty.workflow.domain.Complaint.ComplaintDomain;
+import duty.workflow.domain.Complaint.ComplaintStatus;
+import duty.workflow.domain.Complaint.Priority;
 import duty.workflow.domain.Complaint;
-import duty.workflow.domain.ComplaintDomain;
-import duty.workflow.domain.ComplaintStatus;
-import duty.workflow.domain.Priority;
 import duty.workflow.infrastructure.ComplaintRepository;
 import duty.workflow.infrastructure.PriorityAgeingScheduler;
 import java.time.Duration;

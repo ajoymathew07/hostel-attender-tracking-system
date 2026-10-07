@@ -2,13 +2,12 @@ package duty.ingestion;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
+import duty.ingestion.domain.IngestionRun.IngestionStatus;
+import duty.ingestion.domain.IngestionRun.TriggerType;
 import duty.ingestion.domain.IngestionRun;
-import duty.ingestion.domain.IngestionStatus;
+import duty.ingestion.domain.SourceRow.SourceRowState;
+import duty.ingestion.domain.SourceRow.SourceType;
 import duty.ingestion.domain.SourceRow;
-import duty.ingestion.domain.SourceRowState;
-import duty.ingestion.domain.SourceType;
-import duty.ingestion.domain.TriggerType;
 import duty.ingestion.infrastructure.IngestionRunRepository;
 import duty.ingestion.infrastructure.SourceRowRepository;
 import duty.support.AbstractIntegrationTest;

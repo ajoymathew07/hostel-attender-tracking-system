@@ -2,8 +2,7 @@ package duty.settings;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import duty.dispatch.application.DispatchSettings;
+import duty.dispatch.application.AttenderDispatcher.DispatchSettings;
 import duty.identity.domain.AppUser;
 import duty.identity.infrastructure.AppUserRepository;
 import duty.settings.application.SettingsStore;

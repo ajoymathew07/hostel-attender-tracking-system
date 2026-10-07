@@ -2,18 +2,17 @@ package duty.ingestion;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import duty.audit.domain.AuditEvent;
 import duty.audit.infrastructure.AuditEventRepository;
+import duty.ingestion.application.CsvUploadService.UploadedFile;
 import duty.ingestion.application.CsvUploadService;
-import duty.ingestion.application.IngestionSummary;
-import duty.ingestion.application.UploadedFile;
+import duty.ingestion.application.IngestionPipeline.IngestionSummary;
 import duty.support.AbstractIntegrationTest;
-import duty.workflow.application.ComplaintListItem;
+import duty.workflow.application.ComplaintQueryService.ComplaintListItem;
 import duty.workflow.application.ComplaintQueryService;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;

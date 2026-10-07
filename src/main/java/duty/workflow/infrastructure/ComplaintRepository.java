@@ -1,7 +1,7 @@
 package duty.workflow.infrastructure;
 
+import duty.workflow.domain.Complaint.ComplaintStatus;
 import duty.workflow.domain.Complaint;
-import duty.workflow.domain.ComplaintStatus;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;

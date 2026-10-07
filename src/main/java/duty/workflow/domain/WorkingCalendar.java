@@ -1,5 +1,7 @@
 package duty.workflow.domain;
 
+import duty.workflow.domain.Complaint.ComplaintDomain;
+import duty.workflow.domain.Complaint.Priority;
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
@@ -8,7 +10,9 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -86,5 +90,23 @@ public record WorkingCalendar(
 
     private ZonedDateTime openingOn(LocalDate date) {
         return date.atTime(dayStart).atZone(zone);
+    }
+
+    /**
+     * The SLA window per domain and priority, in working hours. The values come from YAML.
+     *
+     * <p>{@link ComplaintDomain#UNCLASSIFIED} has no window, hence {@link Optional}: it gets a due date
+     * once a manager sets its domain.
+     */
+    public record SlaTargets(Map<ComplaintDomain, Map<Priority, Duration>> windows) {
+
+        public SlaTargets {
+            windows = Map.copyOf(Objects.requireNonNull(windows, "windows"));
+        }
+
+        /** The working-hours window for this pair, or empty if the domain has no target. */
+        public Optional<Duration> window(ComplaintDomain domain, Priority priority) {
+            return Optional.ofNullable(windows.get(domain)).map(byPriority -> byPriority.get(priority));
+        }
     }
 }

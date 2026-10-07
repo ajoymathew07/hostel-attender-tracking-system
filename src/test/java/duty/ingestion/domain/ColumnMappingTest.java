@@ -2,7 +2,9 @@ package duty.ingestion.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
+import duty.ingestion.domain.ColumnMapping.MissingRequiredColumnException;
+import duty.ingestion.domain.ColumnMapping.ResolvedColumns;
+import duty.ingestion.domain.ColumnMapping.SourceField;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

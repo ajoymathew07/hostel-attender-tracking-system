@@ -1,7 +1,10 @@
 package duty.workflow.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
+import duty.workflow.domain.Complaint.ComplaintStatus;
+import duty.workflow.domain.ComplaintTransitions.ComplaintTransition;
+import duty.workflow.domain.ComplaintTransitions.TransitionGuard;
+import duty.workflow.domain.ComplaintTransitions.WorkflowEvent;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

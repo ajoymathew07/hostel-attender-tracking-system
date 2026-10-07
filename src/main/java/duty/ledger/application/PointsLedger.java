@@ -1,10 +1,10 @@
 package duty.ledger.application;
 
 import duty.identity.application.CurrentUser;
-import duty.ledger.domain.IdempotencyKeys;
-import duty.ledger.domain.PeriodKey;
+import duty.ledger.domain.PointLedgerEntry.IdempotencyKeys;
+import duty.ledger.domain.PointLedgerEntry.PeriodKey;
+import duty.ledger.domain.PointLedgerEntry.ReasonCode;
 import duty.ledger.domain.PointLedgerEntry;
-import duty.ledger.domain.ReasonCode;
 import duty.ledger.infrastructure.PointLedgerRepository;
 import java.time.Instant;
 import org.springframework.stereotype.Service;

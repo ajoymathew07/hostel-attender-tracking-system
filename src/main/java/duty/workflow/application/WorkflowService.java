@@ -1,22 +1,22 @@
 package duty.workflow.application;
 
-import duty.audit.application.AuditDetail;
-import duty.audit.application.AuditEntry;
+import duty.audit.application.AuditTrail.AuditDetail;
+import duty.audit.application.AuditTrail.AuditEntry;
 import duty.audit.application.AuditTrail;
 import duty.identity.application.CurrentUser;
 import duty.ledger.application.PointsLedger;
-import duty.workflow.domain.AssignmentStatus;
+import duty.workflow.domain.Complaint.ComplaintDomain;
+import duty.workflow.domain.Complaint.ComplaintStatus;
 import duty.workflow.domain.Complaint;
-import duty.workflow.domain.ComplaintDomain;
-import duty.workflow.domain.ComplaintStatus;
-import duty.workflow.domain.ComplaintTransition;
+import duty.workflow.domain.ComplaintTransitions.ComplaintTransition;
+import duty.workflow.domain.ComplaintTransitions.TransitionActor;
+import duty.workflow.domain.ComplaintTransitions.TransitionGuard;
+import duty.workflow.domain.ComplaintTransitions.WorkflowEvent;
 import duty.workflow.domain.ComplaintTransitions;
+import duty.workflow.domain.Task.TaskStatus;
 import duty.workflow.domain.Task;
+import duty.workflow.domain.TaskAssignment.AssignmentStatus;
 import duty.workflow.domain.TaskAssignment;
-import duty.workflow.domain.TaskStatus;
-import duty.workflow.domain.TransitionActor;
-import duty.workflow.domain.TransitionGuard;
-import duty.workflow.domain.WorkflowEvent;
 import duty.workflow.infrastructure.ComplaintRepository;
 import duty.workflow.infrastructure.TaskAssignmentRepository;
 import duty.workflow.infrastructure.TaskRepository;
@@ -299,4 +299,93 @@ public class WorkflowService {
     /** Everything a condition or side effect may read, loaded once per transition. */
     private record Context(
             Complaint complaint, Task task, TaskAssignment assignment, TransitionPayload payload) {}
+
+    /**
+     * Refuses to resolve a complaint that has no Engineering Unit docket number. No docket, no points.
+     */
+    public static class DocketRequiredException extends GuardFailedException {
+
+        private static final long serialVersionUID = 1L;
+
+        public DocketRequiredException(long taskId) {
+            super("Task " + taskId + " has no CMS docket; it cannot be resolved for points");
+        }
+    }
+
+    /**
+     * The move is allowed from this state, but its condition is not met (e.g. a missing reason).
+     *
+     * <p>Separate from {@link IllegalTransitionException} so the message can tell the user which one
+     * happened.
+     */
+    public static class GuardFailedException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public GuardFailedException(String reason) {
+            super(reason);
+        }
+    }
+
+    /**
+     * The move is not allowed from the complaint's current state. Thrown before anything is written.
+     *
+     * <p>Usually caused by a stale screen, e.g. the same task open on two phones.
+     */
+    public static class IllegalTransitionException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public IllegalTransitionException(ComplaintStatus from, WorkflowEvent event) {
+            super("A complaint that is " + from + " cannot be moved by " + event);
+        }
+    }
+
+    /**
+     * The docket number does not match the configured format. There is no Engineering Unit API, so only
+     * the format can be checked.
+     */
+    public static class InvalidDocketException extends GuardFailedException {
+
+        private static final long serialVersionUID = 1L;
+
+        private final String docketNo;
+
+        public InvalidDocketException(String docketNo) {
+            super("Not a usable CMS docket number");
+            this.docketNo = docketNo;
+        }
+
+        public String getDocketNo() {
+            return docketNo;
+        }
+    }
+
+    /**
+     * Extra values a transition may need: a reason, a docket number, or an attender. One record with
+     * nullable fields rather than a class per event.
+     *
+     * @param reason required for reject, release, no-defect, block and reopen
+     * @param docketNo the Engineering Unit's number (T11)
+     * @param attenderId who the work goes to (T2, T4, T6)
+     */
+    public record TransitionPayload(String reason, String docketNo, Long attenderId) {
+
+        /** No extra values. */
+        public static TransitionPayload none() {
+            return new TransitionPayload(null, null, null);
+        }
+
+        public static TransitionPayload reason(String reason) {
+            return new TransitionPayload(reason, null, null);
+        }
+
+        public static TransitionPayload docket(String docketNo) {
+            return new TransitionPayload(null, docketNo, null);
+        }
+
+        public static TransitionPayload attender(long attenderId) {
+            return new TransitionPayload(null, null, attenderId);
+        }
+    }
 }

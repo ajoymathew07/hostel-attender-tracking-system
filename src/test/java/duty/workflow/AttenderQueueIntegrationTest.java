@@ -1,19 +1,18 @@
 package duty.workflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import duty.identity.application.AccessGuard;
 import duty.identity.domain.AppUser;
 import duty.identity.infrastructure.AppUserRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;
+import duty.workflow.application.AttenderQueueService.QueuedTask;
 import duty.workflow.application.AttenderQueueService;
-import duty.workflow.application.ComplaintListItem;
+import duty.workflow.application.ComplaintQueryService.ComplaintListItem;
 import duty.workflow.application.ComplaintQueryService;
 import duty.workflow.application.ManualAssignmentService;
-import duty.workflow.application.QueuedTask;
+import duty.workflow.domain.Complaint.ComplaintStatus;
 import duty.workflow.domain.Complaint;
-import duty.workflow.domain.ComplaintStatus;
 import duty.workflow.infrastructure.ComplaintRepository;
 import duty.workflow.infrastructure.TaskRepository;
 import java.time.Duration;

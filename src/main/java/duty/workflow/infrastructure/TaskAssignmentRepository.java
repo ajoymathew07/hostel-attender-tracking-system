@@ -1,6 +1,6 @@
 package duty.workflow.infrastructure;
 
-import duty.workflow.domain.AssignmentStatus;
+import duty.workflow.domain.TaskAssignment.AssignmentStatus;
 import duty.workflow.domain.TaskAssignment;
 import java.time.Instant;
 import java.util.List;

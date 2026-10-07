@@ -1,12 +1,13 @@
 package duty.workflow.application;
 
-import duty.audit.application.AuditDetail;
-import duty.audit.application.AuditEntry;
+import duty.audit.application.AuditTrail.AuditDetail;
+import duty.audit.application.AuditTrail.AuditEntry;
 import duty.audit.application.AuditTrail;
 import duty.identity.application.CurrentUser;
+import duty.workflow.application.SlaSettings.SlaClock;
+import duty.workflow.domain.Complaint.ComplaintStatus;
+import duty.workflow.domain.Complaint.Priority;
 import duty.workflow.domain.Complaint;
-import duty.workflow.domain.ComplaintStatus;
-import duty.workflow.domain.Priority;
 import duty.workflow.infrastructure.ComplaintRepository;
 import java.time.Instant;
 import java.util.EnumSet;

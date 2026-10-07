@@ -1,14 +1,15 @@
 package duty.workflow.web;
 
 import duty.ledger.application.PointsLedger;
+import duty.workflow.application.AttenderQueueService.QueuedTask;
 import duty.workflow.application.AttenderQueueService;
-import duty.workflow.application.DocketRequiredException;
-import duty.workflow.application.GuardFailedException;
-import duty.workflow.application.IllegalTransitionException;
-import duty.workflow.application.InvalidDocketException;
-import duty.workflow.application.QueuedTask;
-import duty.workflow.application.ResolvedTask;
+import duty.workflow.application.TaskResolutionService.ResolvedTask;
 import duty.workflow.application.TaskResolutionService;
+import duty.workflow.application.WorkflowService.DocketRequiredException;
+import duty.workflow.application.WorkflowService.GuardFailedException;
+import duty.workflow.application.WorkflowService.IllegalTransitionException;
+import duty.workflow.application.WorkflowService.InvalidDocketException;
+import duty.workflow.web.ManagerDashboardController.DomainGlyphs;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;

@@ -1,7 +1,7 @@
 package duty.ingestion.infrastructure;
 
+import duty.ingestion.domain.IngestionRun.IngestionStatus;
 import duty.ingestion.domain.IngestionRun;
-import duty.ingestion.domain.IngestionStatus;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 

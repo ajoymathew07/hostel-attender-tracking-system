@@ -1,9 +1,9 @@
 package duty.identity.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
-import duty.identity.application.SignedInUser;
-import duty.identity.domain.UserRole;
+import duty.identity.application.CurrentUser.SignedInUser;
+import duty.identity.domain.AppUser.UserRole;
+import duty.identity.web.SecurityConfig.RoleBasedLanding;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;

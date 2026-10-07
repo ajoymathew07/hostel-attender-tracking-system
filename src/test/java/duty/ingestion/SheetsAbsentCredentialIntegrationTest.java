@@ -1,11 +1,10 @@
 package duty.ingestion;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
+import duty.ingestion.application.CsvUploadService.UploadedFile;
 import duty.ingestion.application.CsvUploadService;
-import duty.ingestion.application.IngestionSummary;
+import duty.ingestion.application.IngestionPipeline.IngestionSummary;
 import duty.ingestion.application.SheetsIngestionService;
-import duty.ingestion.application.UploadedFile;
 import duty.ingestion.infrastructure.IngestionRunRepository;
 import duty.support.AbstractIntegrationTest;
 import java.nio.charset.StandardCharsets;

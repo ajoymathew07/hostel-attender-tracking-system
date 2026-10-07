@@ -1,7 +1,11 @@
 package duty.dispatch.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
+import duty.dispatch.domain.DispatchPolicy.DispatchCandidate;
+import duty.dispatch.domain.DispatchPolicy.DispatchDecision;
+import duty.dispatch.domain.DispatchPolicy.FloorProximity;
+import duty.dispatch.domain.DispatchPolicy.TieBreak;
+import duty.dispatch.domain.FloorAssignment.Coverage;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;

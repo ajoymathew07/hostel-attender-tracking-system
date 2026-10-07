@@ -1,9 +1,9 @@
 package duty.ledger.application;
 
+import duty.identity.application.UserProvisioningService.UserSummary;
 import duty.identity.application.UserProvisioningService;
-import duty.identity.application.UserSummary;
-import duty.ledger.domain.PeriodKey;
-import duty.ledger.domain.PeriodTotal;
+import duty.ledger.domain.PointLedgerEntry.PeriodKey;
+import duty.ledger.domain.PointLedgerEntry.PeriodTotal;
 import duty.ledger.infrastructure.PointLedgerRepository;
 import java.time.Instant;
 import java.util.Comparator;
@@ -62,4 +62,10 @@ public class LeaderboardService {
         return new LeaderboardRow(
                 attender.id(), attender.displayName(), totals.getOrDefault(attender.id(), 0L));
     }
+
+    /** The standings for one {@code YYYY-MM} period, highest first. */
+    public record Leaderboard(String periodKey, List<LeaderboardRow> rows) {}
+
+    /** One attender's total for the period; {@code 0} if they have no points, so they still appear. */
+    public record LeaderboardRow(long attenderId, String displayName, long total) {}
 }
