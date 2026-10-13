@@ -272,7 +272,7 @@
             <tbody>
               <tr th:each="complaint : ${complaints}">
                 <td class="font-mono whitespace-nowrap" th:text="${complaint.publicRef()}">CAU-2026-0001</td>
-                <td class="whitespace-nowrap text-slate-600" th:text="${complaint.reportedAt()}">when</td>
+                <td class="whitespace-nowrap text-slate-600" th:text="${@ist.format(complaint.reportedAt())}">when</td>
                 <td class="whitespace-nowrap" th:text="${complaint.reporterRoom()} ?: '—'">214</td>
                 <td th:text="${complaint.rawText()}">what the resident wrote</td>
                 <td>
@@ -314,13 +314,13 @@
                   <span
                     class="block mt-1 text-xs text-slate-500"
                     th:if="${complaint.slaDueAt()} and not ${complaint.slaOverdue()}"
-                    th:text="'due ' + ${complaint.slaDueAt()}"
+                    th:text="'due ' + ${@ist.format(complaint.slaDueAt())}"
                     >due</span
                   >
                   <span
                     class="block mt-1 text-xs text-red-700 font-medium"
                     th:if="${complaint.slaOverdue()}"
-                    th:text="'overdue since ' + ${complaint.slaDueAt()}"
+                    th:text="'overdue since ' + ${@ist.format(complaint.slaDueAt())}"
                     >overdue</span
                   >
 

@@ -46,9 +46,9 @@
 
         <p class="mt-4 text-base" th:text="${task.rawText()}">what the resident wrote</p>
 
-        <p class="mt-4 text-xs text-slate-500" th:text="'Assigned to you ' + ${task.assignedAt()}">assigned</p>
+        <p class="mt-4 text-xs text-slate-500" th:text="'Assigned to you ' + ${@ist.format(task.assignedAt())}">assigned</p>
         <p class="mt-1 text-xs text-slate-500" th:if="${task.slaDueAt()}">
-          <span aria-hidden="true">⏱</span> <span th:text="'Due ' + ${task.slaDueAt()}">due</span>
+          <span aria-hidden="true">⏱</span> <span th:text="'Due ' + ${@ist.format(task.slaDueAt())}">due</span>
         </p>
       </div>
 

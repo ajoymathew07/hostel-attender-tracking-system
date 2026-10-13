@@ -80,7 +80,7 @@
                 <td>
                   <span class="badge" th:text="${user.active()} ? 'Active' : 'Deactivated'">Active</span>
                 </td>
-                <td class="text-slate-600 text-xs" th:text="${user.lastLoginAt()} ?: 'never'">never</td>
+                <td class="text-slate-600 text-xs" th:text="${@ist.format(user.lastLoginAt())} ?: 'never'">never</td>
                 <td>
                   <div class="flex items-center gap-2 flex-wrap">
                     <form
