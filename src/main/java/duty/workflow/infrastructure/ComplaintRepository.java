@@ -26,6 +26,8 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
     /** Complaints resolved since {@code from}: the "resolved today" tile. */
     long countByStatusAndResolvedAtAfter(ComplaintStatus status, Instant from);
 
+    List<Complaint> findByStatusAndResolvedAtBefore(ComplaintStatus status, Instant cutoff);
+
     /**
      * Open complaints past their due date, counted against now rather than the periodically updated
      * breach flag.

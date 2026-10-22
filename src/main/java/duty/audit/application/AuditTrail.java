@@ -6,6 +6,7 @@ import duty.audit.domain.AuditEvent;
 import duty.audit.infrastructure.AuditEventRepository;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -13,6 +14,7 @@ import java.util.function.Supplier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -26,9 +28,11 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class AuditTrail {
 
     private final ApplicationEventPublisher events;
+    private final AuditEventRepository auditEvents;
 
-    AuditTrail(ApplicationEventPublisher events) {
+    AuditTrail(ApplicationEventPublisher events, AuditEventRepository auditEvents) {
         this.events = events;
+        this.auditEvents = auditEvents;
     }
 
     /**
@@ -39,12 +43,39 @@ public class AuditTrail {
         events.publishEvent(Objects.requireNonNull(entry, "entry"));
     }
 
+    /** Everything recorded about one thing, oldest first: a complaint's history page. */
+    @Transactional(readOnly = true)
+    public List<AuditRecord> historyOf(String entityType, long entityId) {
+        return auditEvents.findByEntityTypeAndEntityIdOrderByOccurredAtAsc(entityType, entityId).stream()
+                .map(
+                        event ->
+                                new AuditRecord(
+                                        event.getOccurredAt(),
+                                        event.getActorId(),
+                                        event.getOnBehalfOf(),
+                                        event.getEventType(),
+                                        event.getFromState(),
+                                        event.getToState(),
+                                        event.getDetail()))
+                .toList();
+    }
+
+    /** One recorded change, as the history page shows it. {@code actorId} is {@code null} for the system. */
+    public record AuditRecord(
+            Instant occurredAt,
+            Long actorId,
+            Long onBehalfOf,
+            String eventType,
+            String fromState,
+            String toState,
+            String detail) {}
+
     /**
      * One change, as handed to {@link AuditTrail} by the module that made it.
      *
      * <p>It lives in {@code application} because other modules build it and may not reach
      * {@code audit.domain}. The subject is named by {@code (entityType, entityId)} because one log covers
-     * many tables.
+     * many tables. {@code onBehalfOf} is set only when the manager acts for an attender.
      */
     public record AuditEntry(
             Instant occurredAt,
@@ -56,7 +87,25 @@ public class AuditTrail {
             String fromState,
             String toState,
             String detail,
-            String correlationId) {
+            String correlationId,
+            Long onBehalfOf) {
+
+        /** Everything but {@code onBehalfOf}: every change except an act-as. */
+        public AuditEntry(
+                Instant occurredAt,
+                Long actorId,
+                String actorRole,
+                String entityType,
+                Long entityId,
+                String eventType,
+                String fromState,
+                String toState,
+                String detail,
+                String correlationId) {
+            this(
+                    occurredAt, actorId, actorRole, entityType, entityId, eventType, fromState, toState, detail,
+                    correlationId, null);
+        }
 
         /** Fills in the two ambient values so callers never have to think about them. */
         public AuditEntry {
@@ -219,7 +268,8 @@ public class AuditTrail {
                             entry.fromState(),
                             entry.toState(),
                             entry.detail(),
-                            entry.correlationId()));
+                            entry.correlationId(),
+                            entry.onBehalfOf()));
         }
     }
 }
