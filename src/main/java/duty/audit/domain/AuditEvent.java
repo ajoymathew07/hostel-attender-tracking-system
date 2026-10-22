@@ -56,6 +56,10 @@ public class AuditEvent {
     @Column(name = "correlation_id", length = 64)
     private String correlationId;
 
+    /** The attender the manager acted for (act-as); {@code null} otherwise. */
+    @Column(name = "on_behalf_of")
+    private Long onBehalfOf;
+
     /** For JPA only. */
     protected AuditEvent() {}
 
@@ -70,7 +74,8 @@ public class AuditEvent {
             String fromState,
             String toState,
             String detail,
-            String correlationId) {
+            String correlationId,
+            Long onBehalfOf) {
         this.occurredAt = Objects.requireNonNull(occurredAt, "occurredAt");
         this.actorId = actorId;
         this.actorRole = actorRole;
@@ -81,6 +86,7 @@ public class AuditEvent {
         this.toState = toState;
         this.detail = detail;
         this.correlationId = correlationId;
+        this.onBehalfOf = onBehalfOf;
     }
 
     /** Whether the system rather than a person made this change. */
@@ -91,6 +97,10 @@ public class AuditEvent {
     /** Whether this row records a state transition, as opposed to a field-level change. */
     public boolean isStateTransition() {
         return fromState != null || toState != null;
+    }
+
+    public Long getOnBehalfOf() {
+        return onBehalfOf;
     }
 
     public Long getId() {

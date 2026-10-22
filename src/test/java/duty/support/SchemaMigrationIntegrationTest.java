@@ -183,7 +183,8 @@ class SchemaMigrationIntegrationTest extends AbstractIntegrationTest {
         assertThat(foreignKeys)
                 .describedAs("one log records changes to many tables, so entity_id can reference none")
                 .doesNotContain("entity_id")
-                .containsExactly("actor_id");
+                // Both name an app_user: who acted, and whom the manager acted for (act-as).
+                .containsExactlyInAnyOrder("actor_id", "on_behalf_of");
     }
 
     @Test

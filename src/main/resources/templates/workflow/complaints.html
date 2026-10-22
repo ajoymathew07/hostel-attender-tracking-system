@@ -207,7 +207,7 @@
             th:each="item : ${triage}"
             class="bg-white border rounded-lg shadow-sm p-4">
             <p class="text-sm text-slate-600">
-              <span class="font-mono" th:text="${item.publicRef()}">CAU-2026-0421</span>
+              <a class="font-mono" th:href="@{/complaints/{id}(id=${item.id()})}" th:text="${item.publicRef()}">CAU-2026-0421</a>
               <span aria-hidden="true"> · </span>
               <span th:text="${item.reporterRoom()} ? 'Room ' + ${item.reporterRoom()} : 'room unknown'"
                 >Room 421</span
@@ -271,7 +271,9 @@
             </thead>
             <tbody>
               <tr th:each="complaint : ${complaints}">
-                <td class="font-mono whitespace-nowrap" th:text="${complaint.publicRef()}">CAU-2026-0001</td>
+                <td class="font-mono whitespace-nowrap">
+                  <a th:href="@{/complaints/{id}(id=${complaint.id()})}" th:text="${complaint.publicRef()}">CAU-2026-0001</a>
+                </td>
                 <td class="whitespace-nowrap text-slate-600" th:text="${@ist.format(complaint.reportedAt())}">when</td>
                 <td class="whitespace-nowrap" th:text="${complaint.reporterRoom()} ?: '—'">214</td>
                 <td th:text="${complaint.rawText()}">what the resident wrote</td>
