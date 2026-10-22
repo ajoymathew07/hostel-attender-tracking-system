@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<!--
+  Points and duties, `/points` (manager). Penalties and adjustments, special duties, and this
+  month's point movements. Every number on this page is summed from the ledger when it is drawn.
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head th:replace="~{layout/shell :: head('Points & duties')}">
+    <title>Points &amp; duties · Hostel Duty Tracker</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header th:replace="~{layout/shell :: masthead('points')}"></header>
+
+    <main id="main" class="mx-auto max-w-7xl px-6 py-8">
+      <div th:replace="~{layout/shell :: flashes}"></div>
+
+      <h1 class="text-2xl font-semibold text-slate-900 mt-6">Points &amp; duties</h1>
+
+      <div class="mt-6 flex items-start gap-6 flex-wrap sm-stack">
+        <section class="bg-white border rounded-lg shadow-sm p-6" aria-labelledby="penalty-heading">
+          <h2 id="penalty-heading" class="text-lg font-semibold text-slate-900">Log a penalty (−1)</h2>
+          <form class="mt-4" th:action="@{/points/penalty}" method="post">
+            <input type="hidden" name="requestId" th:value="${requestId}" />
+            <label class="label" for="penalty-attender">Attender</label>
+            <select class="input" id="penalty-attender" name="attenderId" required>
+              <option th:each="a : ${attenders}" th:value="${a.id()}" th:text="${a.displayName()}">Name</option>
+            </select>
+            <label class="label mt-2" for="penalty-note">What happened (optional)</label>
+            <input class="input" type="text" id="penalty-note" name="note" maxlength="500" />
+            <button class="btn mt-4" type="submit">Log penalty</button>
+          </form>
+        </section>
+
+        <section class="bg-white border rounded-lg shadow-sm p-6" aria-labelledby="adjust-heading">
+          <h2 id="adjust-heading" class="text-lg font-semibold text-slate-900">Adjust points</h2>
+          <form class="mt-4" th:action="@{/points/adjustment}" method="post">
+            <input type="hidden" name="requestId" th:value="${requestId}" />
+            <label class="label" for="adjust-attender">Attender</label>
+            <select class="input" id="adjust-attender" name="attenderId" required>
+              <option th:each="a : ${attenders}" th:value="${a.id()}" th:text="${a.displayName()}">Name</option>
+            </select>
+            <label class="label mt-2" for="adjust-points">Points (negative to take away)</label>
+            <input class="input" type="number" id="adjust-points" name="points" required />
+            <label class="label mt-2" for="adjust-note">Why</label>
+            <input class="input" type="text" id="adjust-note" name="note" required maxlength="500" />
+            <button class="btn mt-4" type="submit">Record adjustment</button>
+          </form>
+        </section>
+
+        <section class="bg-white border rounded-lg shadow-sm p-6" aria-labelledby="duty-heading">
+          <h2 id="duty-heading" class="text-lg font-semibold text-slate-900">Post a special duty</h2>
+          <form class="mt-4" th:action="@{/duties}" method="post">
+            <label class="label" for="duty-title">Title</label>
+            <input class="input" type="text" id="duty-title" name="title" required maxlength="255" />
+            <label class="label mt-2" for="duty-description">Details (optional)</label>
+            <input class="input" type="text" id="duty-description" name="description" />
+            <label class="label mt-2" for="duty-points">Points each</label>
+            <input class="input" type="number" id="duty-points" name="points" min="1" value="2" required />
+            <label class="label mt-2" for="duty-slots">How many attenders</label>
+            <input class="input" type="number" id="duty-slots" name="slots" min="1" value="1" required />
+            <label class="label mt-2" for="duty-closes">Claim by (optional)</label>
+            <input class="input" type="datetime-local" id="duty-closes" name="closesAt" />
+            <button class="btn mt-4" type="submit">Post duty</button>
+          </form>
+        </section>
+      </div>
+
+      <section class="mt-8" aria-labelledby="live-heading">
+        <h2 id="live-heading" class="text-lg font-semibold text-slate-900 mb-2">Open duties</h2>
+        <p th:if="${#lists.isEmpty(duties)}" class="notice bg-white">No open duties.</p>
+        <div th:unless="${#lists.isEmpty(duties)}" class="bg-white border rounded-lg shadow-sm overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Duty</th>
+                <th scope="col">Points</th>
+                <th scope="col">Places taken</th>
+                <th scope="col">Working on it</th>
+                <th scope="col">Claim by</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="duty : ${duties}">
+                <td>
+                  <span class="font-medium" th:text="${duty.title()}">title</span>
+                  <span class="block text-xs text-slate-500" th:text="${duty.description()}">details</span>
+                </td>
+                <td th:text="${duty.points()}">2</td>
+                <td th:text="${duty.taken()} + ' / ' + ${duty.slots()}">0 / 1</td>
+                <td>
+                  <span th:each="id, it : ${duty.holderIds()}" th:text="${names.get(id)} + (${it.last} ? '' : ', ')">name</span>
+                  <span th:if="${#lists.isEmpty(duty.holderIds())}" class="text-slate-500">—</span>
+                </td>
+                <td class="text-xs" th:text="${@ist.format(duty.closesAt())} ?: 'no limit'">no limit</td>
+                <td>
+                  <form th:action="@{'/duties/' + ${duty.taskId()} + '/cancel'}" method="post">
+                    <button class="btn btn-secondary" type="submit">Cancel</button>
+                  </form>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="mt-8 flex items-start gap-6 flex-wrap sm-stack">
+        <section aria-labelledby="board-heading">
+          <h2 id="board-heading" class="text-lg font-semibold text-slate-900 mb-2">
+            Standings, <span th:text="${leaderboard.periodKey()}">2026-10</span>
+          </h2>
+          <div class="bg-white border rounded-lg shadow-sm overflow-x-auto">
+            <table class="table">
+              <thead>
+                <tr><th scope="col">Attender</th><th scope="col">Points</th></tr>
+              </thead>
+              <tbody>
+                <tr th:each="row : ${leaderboard.rows()}">
+                  <td th:text="${row.displayName()}">Name</td>
+                  <td th:text="${row.total()}">0</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section aria-labelledby="lines-heading">
+          <h2 id="lines-heading" class="text-lg font-semibold text-slate-900 mb-2">This month's point movements</h2>
+          <p th:if="${#lists.isEmpty(lines)}" class="notice bg-white">Nothing yet this month.</p>
+          <div th:unless="${#lists.isEmpty(lines)}" class="bg-white border rounded-lg shadow-sm overflow-x-auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">When</th>
+                  <th scope="col">Attender</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Points</th>
+                  <th scope="col">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="line : ${lines}">
+                  <td class="text-xs whitespace-nowrap" th:text="${@ist.format(line.createdAt())}">when</td>
+                  <td th:text="${names.get(line.attenderId())}">Name</td>
+                  <td th:text="${line.reason()}">REASON</td>
+                  <td th:text="${line.points() > 0} ? '+' + ${line.points()} : ${line.points()}">+2</td>
+                  <td class="text-xs" th:text="${line.note()}">note</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <footer th:replace="~{layout/shell :: pageFooter}"></footer>
+    </main>
+  </body>
+</html>

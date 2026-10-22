@@ -4,6 +4,7 @@ import duty.workflow.domain.Task.TaskStatus;
 import duty.workflow.domain.Task.TaskType;
 import duty.workflow.domain.Task;
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,6 +16,8 @@ import org.springframework.data.repository.query.Param;
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByStatusAndTaskType(TaskStatus status, TaskType taskType);
+
+    List<Task> findByTaskTypeAndStatusInOrderByCreatedAtDesc(TaskType taskType, Collection<TaskStatus> statuses);
 
     Optional<Task> findByComplaintId(Long complaintId);
 
