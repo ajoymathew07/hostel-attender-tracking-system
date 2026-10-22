@@ -65,8 +65,18 @@ The proposal promises real-time attender task lists at the mid-demo; the design 
 Phase 4 (§13.6). PR 14 closes the gap with polling auto-refresh, which is demonstrable and cheap,
 leaving true SSE where the design put it.
 
-## After the mid-demo
+## After the mid-demo — to the final evaluation (6 Nov)
 
-Phases 3 to 5 — penalties and special duties, Excel export, Web Push, SSE, shared-task concurrency,
-analytics and anomaly detectors, then hardening — are roughly another twenty PRs, planned once
-mid-demo scope is closed.
+Five larger PRs rather than twenty small ones. Each closes one area of the design end to end —
+schema, service, screen and tests together — so it can be demonstrated on its own.
+
+| # | PR | Contents | Design |
+|---|---|---|---|
+| F1 | Penalties, adjustments and special duties | Manager logs a −1 penalty or a noted adjustment; posts special duties, shared or single, with points and an optional closing time; attenders claim and complete them on `/m/duties` and see this month's point movements; expiry job; concurrency tests X4, X5 | §1 S5, §2.1, §5.2 |
+| F2 | Act-as, complaint history and auto-close | Manager performs an attender's step during roll-call, audited with `on_behalf_of`, points still to the attender; a history page per complaint with every transition and ledger row; the seven-day auto-close job (T16); concurrency test X3 | §2.1, §3.6, §4.4, §5 |
+| F3 | Live updates and push | SSE feed for the manager dashboard after commit; Web Push to attender phones (PWA manifest, service worker, VAPID, subscription revoked on `410` or three failures); payload carries reference and room only | §1 S6, §3.2, §7 |
+| F4 | Analytics and export | MTTR and bottleneck panels, the anomaly detectors writing `analytics_alert`, and a multi-tab `.xlsx` export via Apache POI | §1 S7, §3.3 |
+| F5 | Final hardening | Retention purges checked against §7, Gitleaks and dependency checks in CI, load test X9, runbook and demo seed data | §7, §9 |
+
+**Exit criterion for the final evaluation:** every in-scope item S1–S8 of §1.1 can be shown on the
+deployed app.
