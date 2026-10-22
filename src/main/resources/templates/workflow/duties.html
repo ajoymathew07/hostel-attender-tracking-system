@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+  The attender's duties and points, `/m/duties`. Claim a posted duty, mark your part done, and see
+  this month's point movements: only their own, never anyone else's.
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head th:replace="~{layout/shell :: head('Duties')}">
+    <title>Duties · Hostel Duty Tracker</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header th:replace="~{layout/shell :: mobileBar('Duties')}"></header>
+
+    <main id="main" class="mx-auto max-w-lg px-4 py-4">
+      <div th:replace="~{layout/shell :: flashes}"></div>
+
+      <a class="btn btn-secondary mt-4" th:href="@{/m}">← My queue</a>
+
+      <p class="card mt-4 text-base font-medium">
+        <span aria-hidden="true">★</span>
+        <span th:text="${standing}">0</span> points this month
+      </p>
+
+      <h2 class="text-lg font-semibold mt-6">My duties</h2>
+      <p th:if="${#lists.isEmpty(mine)}" class="notice bg-white mt-2">You have not claimed any duty.</p>
+      <ul class="list-plain">
+        <li th:each="duty : ${mine}" class="card mt-4">
+          <p class="text-base font-medium" th:text="${duty.title()}">title</p>
+          <p class="mt-1 text-sm text-slate-600" th:text="${duty.description()}">details</p>
+          <p class="mt-1 text-sm" th:text="'+' + ${duty.points()} + ' point(s)'">+2 point(s)</p>
+          <form th:action="@{'/m/duties/' + ${duty.taskId()} + '/done'}" method="post">
+            <button class="btn btn-lg mt-4" type="submit">Mark done</button>
+          </form>
+        </li>
+      </ul>
+
+      <h2 class="text-lg font-semibold mt-6">Open duties</h2>
+      <p th:if="${#lists.isEmpty(claimable)}" class="notice bg-white mt-2">No duties to claim right now.</p>
+      <ul class="list-plain">
+        <li th:each="duty : ${claimable}" class="card mt-4">
+          <p class="text-base font-medium" th:text="${duty.title()}">title</p>
+          <p class="mt-1 text-sm text-slate-600" th:text="${duty.description()}">details</p>
+          <p class="mt-1 text-sm">
+            <span th:text="'+' + ${duty.points()} + ' point(s)'">+2 point(s)</span>
+            <span th:text="' · ' + (${duty.slots()} - ${duty.taken()}) + ' place(s) left'"> · 1 place(s) left</span>
+          </p>
+          <p class="mt-1 text-xs text-slate-500" th:if="${duty.closesAt()}"
+             th:text="'Claim by ' + ${@ist.format(duty.closesAt())}">claim by</p>
+          <form th:action="@{'/m/duties/' + ${duty.taskId()} + '/claim'}" method="post">
+            <button class="btn btn-lg mt-4" type="submit">Claim</button>
+          </form>
+        </li>
+      </ul>
+
+      <h2 class="text-lg font-semibold mt-6">My points this month</h2>
+      <p th:if="${#lists.isEmpty(lines)}" class="notice bg-white mt-2">No points yet this month.</p>
+      <ul class="list-plain">
+        <li th:each="line : ${lines}" class="card mt-2">
+          <p class="text-sm">
+            <span class="font-medium" th:text="${line.points() > 0} ? '+' + ${line.points()} : ${line.points()}">+2</span>
+            <span th:text="' · ' + ${line.reason()}"> · REASON</span>
+          </p>
+          <p class="text-xs text-slate-500" th:text="${@ist.format(line.createdAt())}">when</p>
+          <p class="text-xs text-slate-600" th:if="${line.note()}" th:text="${line.note()}">note</p>
+        </li>
+      </ul>
+
+      <footer th:replace="~{layout/shell :: mobileFooter}"></footer>
+    </main>
+  </body>
+</html>

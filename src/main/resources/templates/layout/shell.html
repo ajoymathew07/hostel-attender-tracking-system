@@ -39,6 +39,12 @@
           >
           <a
             class="btn btn-secondary"
+            th:href="@{/points}"
+            th:attr="aria-current=${active == 'points'} ? 'page' : null"
+            >Points &amp; duties</a
+          >
+          <a
+            class="btn btn-secondary"
             th:href="@{/admin/attenders}"
             th:attr="aria-current=${active == 'attenders'} ? 'page' : null"
             >Users</a

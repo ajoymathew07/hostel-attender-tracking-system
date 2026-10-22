@@ -14,7 +14,7 @@ import duty.workflow.domain.Complaint.ComplaintStatus;
 import duty.workflow.domain.Complaint.Priority;
 import duty.workflow.domain.Complaint;
 import duty.workflow.infrastructure.ComplaintRepository;
-import duty.workflow.infrastructure.PriorityAgeingScheduler;
+import duty.workflow.infrastructure.WorkflowScheduler;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -36,7 +36,7 @@ class PriorityAgeingIntegrationTest extends AbstractIntegrationTest {
     private static final String LOCK_NAME = "priorityAgeing";
 
     @Autowired private PriorityService priorities;
-    @Autowired private PriorityAgeingScheduler scheduler;
+    @Autowired private WorkflowScheduler scheduler;
     @Autowired private ComplaintRepository complaints;
     @Autowired private ComplaintQueryService queries;
     @Autowired private AuditEventRepository auditEvents;

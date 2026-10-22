@@ -59,6 +59,8 @@ public class AttenderQueueService {
         Instant now = Instant.now();
         return CurrentUser.get()
                 .flatMap(user -> assignments.findByTaskIdAndAttenderId(taskId, user.getUserId()))
+                // A special duty has no complaint to show; it lives on /m/duties.
+                .filter(assignment -> assignment.getTask().getComplaint() != null)
                 .map(assignment -> toCard(assignment, now));
     }
 

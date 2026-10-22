@@ -9,8 +9,7 @@
     - Task actions on the card (START WORK, docket, resolve). The one action on a card is
       opening it, which keeps section 10.2's "never more than one primary action visible per
       task" true; the docket and resolve controls live on the task screen behind that tap.
-    - The duties tab and the bottom navigation, whose routes do not exist yet. An inert control
-      that looks real is worse than an absent one.
+    - The bottom navigation. Duties and the month's points are one link away, on /m/duties.
 -->
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
   <head th:replace="~{layout/shell :: head('My queue')}">
@@ -38,6 +37,8 @@
         <span aria-hidden="true">★</span>
         <span th:text="${standing}">0</span> points this month
       </p>
+
+      <a class="btn btn-secondary mt-4" th:href="@{/m/duties}">Duties &amp; my points</a>
 
       <p th:if="${#lists.isEmpty(tasks)}" class="notice bg-white mt-4">
         Nothing assigned to you right now.
