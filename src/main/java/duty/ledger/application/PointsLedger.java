@@ -62,10 +62,9 @@ public class PointsLedger {
                         points,
                         PeriodKey.businessDateOf(at),
                         key,
-                        // The attender who did the work is also the one who recorded it. When the
-                        // manager's act-as path (section 9.4) lands it hands in a different actor;
-                        // the points still go to the attender, because the manager is the typist.
-                        attenderId,
+                        // Whoever recorded it: the attender, or the manager acting for them. The
+                        // points go to the attender either way, because the manager is the typist.
+                        CurrentUser.idOrNull() == null ? attenderId : CurrentUser.idOrNull(),
                         at));
         return true;
     }
@@ -216,6 +215,13 @@ public class PointsLedger {
         return entries.findByPeriodKeyOrderByCreatedAtDesc(PeriodKey.ofInstant(Instant.now())).stream()
                 .map(LedgerLine::of)
                 .toList();
+    }
+
+    /** Every movement for one task, oldest first: a complaint's history page. */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('MANAGER')")
+    public List<LedgerLine> linesForTask(long taskId) {
+        return entries.findByTaskIdOrderByCreatedAtAsc(taskId).stream().map(LedgerLine::of).toList();
     }
 
     /**

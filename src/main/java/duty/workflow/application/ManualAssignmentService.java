@@ -4,7 +4,9 @@ import duty.audit.application.AuditTrail.AuditDetail;
 import duty.audit.application.AuditTrail.AuditEntry;
 import duty.audit.application.AuditTrail;
 import duty.identity.application.CurrentUser;
+import duty.workflow.application.WorkflowService.GuardFailedException;
 import duty.workflow.application.WorkflowService.TransitionPayload;
+import duty.workflow.domain.Complaint.ComplaintStatus;
 import duty.workflow.domain.Complaint;
 import duty.workflow.domain.ComplaintTransitions.WorkflowEvent;
 import duty.workflow.domain.Task;
@@ -15,7 +17,9 @@ import duty.workflow.infrastructure.ComplaintRepository;
 import duty.workflow.infrastructure.TaskAssignmentRepository;
 import duty.workflow.infrastructure.TaskRepository;
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +35,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class ManualAssignmentService {
 
     private static final String ENTITY_TYPE = "task";
+
+    /** Finished work cannot be handed to anyone; it has to be reopened first. */
+    private static final Set<ComplaintStatus> FINISHED =
+            EnumSet.of(ComplaintStatus.RESOLVED, ComplaintStatus.CLOSED, ComplaintStatus.REJECTED);
 
     private final ComplaintRepository complaints;
     private final TaskRepository tasks;
@@ -56,6 +64,10 @@ public class ManualAssignmentService {
      * reassign, since the screen has one control for both.
      */
     public void assign(long complaintId, long attenderId) {
+        ComplaintStatus status = complaints.findById(complaintId).orElseThrow().getStatus();
+        if (FINISHED.contains(status)) {
+            throw new GuardFailedException("this complaint is " + status + "; reopen it before assigning it");
+        }
         Instant now = Instant.now();
         Task task = taskFor(complaintId, now);
 

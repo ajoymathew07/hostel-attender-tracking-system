@@ -23,6 +23,8 @@ public interface PointLedgerRepository extends Repository<PointLedgerEntry, Long
 
     List<PointLedgerEntry> findByPeriodKeyOrderByCreatedAtDesc(String periodKey);
 
+    List<PointLedgerEntry> findByTaskIdOrderByCreatedAtAsc(Long taskId);
+
     long count();
 
     /** One attender's total for a period; 0 if they have none. */

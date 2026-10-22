@@ -42,7 +42,9 @@ import org.springframework.transaction.annotation.Transactional;
  * </ol>
  *
  * <p>The actor comes from the security context, not a parameter, so a caller cannot fake it. The
- * side effects of T2 and T3 are written by {@link AutoDispatchService}.
+ * one exception is act-as: the manager may name an attender in {@link TransitionPayload#onBehalfOf},
+ * and the move then runs exactly as if that attender had made it, with the manager recorded as the
+ * actor. The side effects of T2 and T3 are written by {@link AutoDispatchService}.
  */
 @Service
 @Transactional
@@ -94,7 +96,12 @@ public class WorkflowService {
         }
 
         Task task = tasks.findByComplaintId(complaintId).orElse(null);
-        Context context = new Context(complaint, task, callersAssignment(task), payload);
+        Long onBehalfOf = payload.onBehalfOf();
+        if (onBehalfOf != null && !isManager()) {
+            throw new AccessDeniedException("only the manager can act for an attender");
+        }
+        TaskAssignment acting = assignmentOf(task, onBehalfOf != null ? onBehalfOf : CurrentUser.idOrNull());
+        Context context = new Context(complaint, task, acting, payload);
 
         // Every row for one pair names the same actor — the T2/T3 fork is in the guard, not in who
         // may fire it — so authorization is settled before the branch is chosen.
@@ -120,19 +127,34 @@ public class WorkflowService {
                         from.name(),
                         row.to().name(),
                         detail,
-                        null));
+                        null,
+                        onBehalfOf));
         // Flushed here so the version check fires inside this call rather than at some later
         // commit: the loser of a race must be told, not silently allowed to clobber (section 7.2).
         complaints.saveAndFlush(complaint);
     }
 
-    /** What the caller holds on this complaint's task, if anything. */
-    private TaskAssignment callersAssignment(Task task) {
-        Long me = CurrentUser.idOrNull();
-        if (task == null || me == null) {
+    /**
+     * Closes every complaint resolved more than seven days ago that nobody signed off (T16, scheduled).
+     *
+     * @return how many were closed
+     */
+    public int autoCloseResolved() {
+        List<Complaint> due =
+                complaints.findByStatusAndResolvedAtBefore(
+                        ComplaintStatus.RESOLVED, Instant.now().minus(AUTO_CLOSE_AFTER));
+        for (Complaint complaint : due) {
+            transition(complaint.getId(), WorkflowEvent.AUTO_CLOSE, TransitionPayload.none());
+        }
+        return due.size();
+    }
+
+    /** What this user holds on the complaint's task, if anything. */
+    private TaskAssignment assignmentOf(Task task, Long userId) {
+        if (task == null || userId == null) {
             return null;
         }
-        return assignments.findByTaskIdAndAttenderId(task.getId(), me).orElse(null);
+        return assignments.findByTaskIdAndAttenderId(task.getId(), userId).orElse(null);
     }
 
     /** Checks the caller is the actor the transition requires. */
@@ -368,24 +390,30 @@ public class WorkflowService {
      * @param reason required for reject, release, no-defect, block and reopen
      * @param docketNo the Engineering Unit's number (T11)
      * @param attenderId who the work goes to (T2, T4, T6)
+     * @param onBehalfOf the attender the manager is acting for (act-as); {@code null} otherwise
      */
-    public record TransitionPayload(String reason, String docketNo, Long attenderId) {
+    public record TransitionPayload(String reason, String docketNo, Long attenderId, Long onBehalfOf) {
 
         /** No extra values. */
         public static TransitionPayload none() {
-            return new TransitionPayload(null, null, null);
+            return new TransitionPayload(null, null, null, null);
         }
 
         public static TransitionPayload reason(String reason) {
-            return new TransitionPayload(reason, null, null);
+            return new TransitionPayload(reason, null, null, null);
         }
 
         public static TransitionPayload docket(String docketNo) {
-            return new TransitionPayload(null, docketNo, null);
+            return new TransitionPayload(null, docketNo, null, null);
         }
 
         public static TransitionPayload attender(long attenderId) {
-            return new TransitionPayload(null, null, attenderId);
+            return new TransitionPayload(null, null, attenderId, null);
+        }
+
+        /** The same values, applied by the manager for this attender. */
+        public TransitionPayload actingFor(long attender) {
+            return new TransitionPayload(reason, docketNo, attenderId, attender);
         }
     }
 }

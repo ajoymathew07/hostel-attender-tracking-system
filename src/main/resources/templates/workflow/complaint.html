@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<!--
+  One complaint, `/complaints/{id}` (manager). Its details, the act-as controls for whoever holds
+  it, and its full history: every transition, assignment and point movement, oldest first.
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head th:replace="~{layout/shell :: head(${history.complaint().publicRef()})}">
+    <title>Complaint · Hostel Duty Tracker</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900" th:with="c=${history.complaint()}">
+    <header th:replace="~{layout/shell :: masthead('complaints')}"></header>
+
+    <main id="main" class="mx-auto max-w-7xl px-6 py-8">
+      <div th:replace="~{layout/shell :: flashes}"></div>
+
+      <a class="btn btn-secondary mt-6" th:href="@{/complaints}">← All complaints</a>
+
+      <section class="mt-6 bg-white border rounded-lg shadow-sm p-6" aria-labelledby="complaint-heading">
+        <h1 id="complaint-heading" class="text-2xl font-semibold text-slate-900 font-mono" th:text="${c.publicRef()}">CAU-2026-0001</h1>
+        <div class="mt-2 flex items-center gap-2 flex-wrap">
+          <span class="badge" th:text="${c.status()}">ASSIGNED</span>
+          <span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(c.priority())}" th:text="${c.priority()}">P2</span>
+          <span class="badge">
+            <span aria-hidden="true" th:text="${domainGlyphs.get(c.domain().name())} ?: '❓'">❓</span>
+            <span th:text="${c.domain()}">CIVIL</span>
+          </span>
+        </div>
+        <p class="mt-4 text-base" th:text="${c.rawText()}">what the resident wrote</p>
+        <p class="mt-2 text-sm text-slate-600">
+          Reported <span th:text="${@ist.format(c.reportedAt())}">when</span>
+          · Room <span th:text="${c.reporterRoom()} ?: 'unknown'">214</span>
+          · Docket <span class="font-mono" th:text="${history.docketNo()} ?: 'none yet'">none</span>
+        </p>
+        <p class="mt-1 text-sm text-slate-600">
+          Resident: <span th:text="${c.reporterName()} ?: '—'">name</span>
+          <span th:if="${c.reporterRollNo()}" th:text="' · ' + ${c.reporterRollNo()}"> · roll</span>
+          <span th:if="${c.reporterPhone()}" th:text="' · ' + ${c.reporterPhone()}"> · phone</span>
+        </p>
+        <p class="mt-1 text-sm text-slate-600">
+          Held by: <span th:text="${c.assigneeId()} ? ${names.get(c.assigneeId())} : 'nobody'">nobody</span>
+        </p>
+      </section>
+
+      <!-- Act-as (section 2.1): for roll-call, when the attender cannot use their phone. The same
+           state machine and guards run; the history names both people and the points go to the
+           attender. -->
+      <section th:if="${c.assigneeId()}" class="mt-6 bg-white border rounded-lg shadow-sm p-6" aria-labelledby="actas-heading">
+        <h2 id="actas-heading" class="text-lg font-semibold text-slate-900">
+          Act for <span th:text="${names.get(c.assigneeId())}">attender</span>
+        </h2>
+        <form class="mt-4 flex items-end gap-3 flex-wrap sm-stack" th:action="@{/complaints/{id}/act-as(id=${c.id()})}" method="post">
+          <div>
+            <label class="label" for="step">Step</label>
+            <select class="input" id="step" name="step">
+              <option th:each="step : ${steps}" th:value="${step}" th:text="${step}">ATTENDER_START</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="value">Docket number or note, if the step needs one</label>
+            <input class="input" type="text" id="value" name="value" maxlength="500" />
+          </div>
+          <button class="btn" type="submit">Do it for them</button>
+        </form>
+      </section>
+
+      <section class="mt-8" aria-labelledby="history-heading">
+        <h2 id="history-heading" class="text-lg font-semibold text-slate-900 mb-2">History</h2>
+        <div class="bg-white border rounded-lg shadow-sm overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">When</th>
+                <th scope="col">Who</th>
+                <th scope="col">What</th>
+                <th scope="col">Status</th>
+                <th scope="col">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="event : ${history.events()}">
+                <td class="text-xs whitespace-nowrap" th:text="${@ist.format(event.occurredAt())}">when</td>
+                <td>
+                  <span th:text="${event.actorId()} ? ${names.get(event.actorId())} : 'System'">System</span>
+                  <span class="block text-xs text-slate-500" th:if="${event.onBehalfOf()}"
+                        th:text="'for ' + ${names.get(event.onBehalfOf())}">for attender</span>
+                </td>
+                <td th:text="${event.eventType()}">EVENT</td>
+                <td class="text-xs whitespace-nowrap"
+                    th:text="${event.fromState()} or ${event.toState()} ? (${event.fromState()} ?: '—') + ' → ' + (${event.toState()} ?: '—') : ''">A → B</td>
+                <td class="text-xs font-mono" th:text="${event.detail()}">{}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="mt-8" aria-labelledby="points-heading">
+        <h2 id="points-heading" class="text-lg font-semibold text-slate-900 mb-2">Points for this complaint</h2>
+        <p th:if="${#lists.isEmpty(history.points())}" class="notice bg-white">No points yet.</p>
+        <div th:unless="${#lists.isEmpty(history.points())}" class="bg-white border rounded-lg shadow-sm overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr><th scope="col">When</th><th scope="col">Attender</th><th scope="col">Reason</th><th scope="col">Points</th></tr>
+            </thead>
+            <tbody>
+              <tr th:each="line : ${history.points()}">
+                <td class="text-xs whitespace-nowrap" th:text="${@ist.format(line.createdAt())}">when</td>
+                <td th:text="${names.get(line.attenderId())}">Name</td>
+                <td th:text="${line.reason()}">COMPLAINT_RESOLVED</td>
+                <td th:text="${line.points() > 0} ? '+' + ${line.points()} : ${line.points()}">+2</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer th:replace="~{layout/shell :: pageFooter}"></footer>
+    </main>
+  </body>
+</html>
