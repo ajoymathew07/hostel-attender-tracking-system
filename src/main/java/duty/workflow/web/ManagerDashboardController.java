@@ -7,6 +7,7 @@ import duty.ledger.application.LeaderboardService;
 import duty.workflow.application.ComplaintQueryService;
 import duty.workflow.application.ManualAssignmentService;
 import duty.workflow.application.PriorityService;
+import duty.workflow.application.TaskResolutionService;
 import duty.workflow.application.TriageService;
 import duty.workflow.application.WorkflowService.GuardFailedException;
 import duty.workflow.application.WorkflowService.IllegalTransitionException;
@@ -18,6 +19,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
@@ -53,6 +56,7 @@ class ManagerDashboardController {
     private final IngestionHealth ingestion;
     private final TriageService triage;
     private final PriorityService priorities;
+    private final TaskResolutionService resolution;
 
     ManagerDashboardController(
             ComplaintQueryService complaints,
@@ -62,7 +66,8 @@ class ManagerDashboardController {
             WorkflowService workflow,
             IngestionHealth ingestion,
             TriageService triage,
-            PriorityService priorities) {
+            PriorityService priorities,
+            TaskResolutionService resolution) {
         this.complaints = complaints;
         this.assignment = assignment;
         this.users = users;
@@ -71,6 +76,7 @@ class ManagerDashboardController {
         this.ingestion = ingestion;
         this.triage = triage;
         this.priorities = priorities;
+        this.resolution = resolution;
     }
 
     @GetMapping({"/", "/complaints"})
@@ -97,6 +103,39 @@ class ManagerDashboardController {
         model.addAttribute("ingestionDegraded", ingestion.degraded());
         model.addAttribute("ingestionFailures", ingestion.consecutiveFailures());
         return VIEW;
+    }
+
+    /** One complaint's history, with the act-as controls for whoever holds it. */
+    @GetMapping("/complaints/{complaintId}")
+    String history(@PathVariable long complaintId, Model model) {
+        model.addAttribute(
+                "history",
+                complaints
+                        .history(complaintId)
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
+        model.addAttribute("names", namesById(users.listUsers()));
+        model.addAttribute("steps", TaskResolutionService.ATTENDER_STEPS);
+        model.addAttribute("domainGlyphs", DomainGlyphs.BY_DOMAIN);
+        return "workflow/complaint";
+    }
+
+    /**
+     * Act-as: the manager takes the holder's step during roll-call. A refusal is shown on the same page
+     * rather than the list.
+     */
+    @PostMapping("/complaints/{complaintId}/act-as")
+    String actAs(
+            @PathVariable long complaintId,
+            @RequestParam WorkflowEvent step,
+            @RequestParam(required = false) String value,
+            RedirectAttributes flash) {
+        try {
+            resolution.actAs(complaintId, step, value);
+            flash.addFlashAttribute("message", "Done for the attender: " + step + ".");
+        } catch (IllegalTransitionException | GuardFailedException refusal) {
+            flash.addFlashAttribute("error", refusal.getMessage());
+        }
+        return "redirect:/complaints/" + complaintId;
     }
 
     /** Assign or reassign. */

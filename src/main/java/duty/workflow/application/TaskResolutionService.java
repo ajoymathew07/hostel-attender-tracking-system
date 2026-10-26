@@ -4,6 +4,7 @@ import duty.identity.application.CurrentUser.SignedInUser;
 import duty.identity.application.CurrentUser;
 import duty.ledger.application.PointsLedger;
 import duty.workflow.application.WorkflowService.DocketRequiredException;
+import duty.workflow.application.WorkflowService.GuardFailedException;
 import duty.workflow.application.WorkflowService.TransitionPayload;
 import duty.workflow.domain.Complaint;
 import duty.workflow.domain.ComplaintTransitions.WorkflowEvent;
@@ -12,6 +13,8 @@ import duty.workflow.domain.TaskAssignment.AssignmentStatus;
 import duty.workflow.domain.TaskAssignment;
 import duty.workflow.infrastructure.TaskAssignmentRepository;
 import duty.workflow.infrastructure.TaskRepository;
+import java.util.EnumSet;
+import java.util.Set;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -28,6 +31,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class TaskResolutionService {
+
+    /** The steps a manager may take for an attender during roll-call (act-as, section 2.1). */
+    public static final Set<WorkflowEvent> ATTENDER_STEPS =
+            EnumSet.of(
+                    WorkflowEvent.ATTENDER_START,
+                    WorkflowEvent.DEFECT_CONFIRMED,
+                    WorkflowEvent.NO_DEFECT_FOUND,
+                    WorkflowEvent.DOCKET_RECORDED,
+                    WorkflowEvent.BLOCK,
+                    WorkflowEvent.UNBLOCK,
+                    WorkflowEvent.MARK_RESOLVED);
 
     private final TaskRepository tasks;
     private final TaskAssignmentRepository assignments;
@@ -76,6 +90,37 @@ public class TaskResolutionService {
     public void recordDocket(long taskId, String docketNo) {
         workflow.transition(
                 complaintIdOf(taskId), WorkflowEvent.DOCKET_RECORDED, TransitionPayload.docket(docketNo));
+    }
+
+    /**
+     * Act-as: the manager takes an attender's step for the attender who holds the work, when that person
+     * cannot use their phone. The same state machine and guards run; the audit row names the manager and
+     * the attender, and any points go to the attender.
+     *
+     * @param value the note for no-defect or block, or the docket number; ignored otherwise
+     */
+    @PreAuthorize("hasRole('MANAGER')")
+    public void actAs(long complaintId, WorkflowEvent step, String value) {
+        if (!ATTENDER_STEPS.contains(step)) {
+            throw new GuardFailedException("only an attender's step can be taken for them");
+        }
+        long holder =
+                tasks.findByComplaintId(complaintId)
+                        .flatMap(
+                                task ->
+                                        assignments
+                                                .findByTaskIdAndStatus(task.getId(), AssignmentStatus.ACTIVE)
+                                                .stream()
+                                                .findFirst())
+                        .map(TaskAssignment::getAttenderId)
+                        .orElseThrow(() -> new GuardFailedException("nobody holds this complaint"));
+        TransitionPayload payload =
+                switch (step) {
+                    case NO_DEFECT_FOUND, BLOCK -> TransitionPayload.reason(value);
+                    case DOCKET_RECORDED -> TransitionPayload.docket(value);
+                    default -> TransitionPayload.none();
+                };
+        workflow.transition(complaintId, step, payload.actingFor(holder));
     }
 
     /** The complaint id for a task. */
