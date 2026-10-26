@@ -45,18 +45,21 @@ public class ManualAssignmentService {
     private final TaskAssignmentRepository assignments;
     private final AuditTrail audit;
     private final WorkflowService workflow;
+    private final AttenderAlerts alerts;
 
     ManualAssignmentService(
             ComplaintRepository complaints,
             TaskRepository tasks,
             TaskAssignmentRepository assignments,
             AuditTrail audit,
-            WorkflowService workflow) {
+            WorkflowService workflow,
+            AttenderAlerts alerts) {
         this.complaints = complaints;
         this.tasks = tasks;
         this.assignments = assignments;
         this.audit = audit;
         this.workflow = workflow;
+        this.alerts = alerts;
     }
 
     /**
@@ -64,7 +67,8 @@ public class ManualAssignmentService {
      * reassign, since the screen has one control for both.
      */
     public void assign(long complaintId, long attenderId) {
-        ComplaintStatus status = complaints.findById(complaintId).orElseThrow().getStatus();
+        Complaint complaint = complaints.findById(complaintId).orElseThrow();
+        ComplaintStatus status = complaint.getStatus();
         if (FINISHED.contains(status)) {
             throw new GuardFailedException("this complaint is " + status + "; reopen it before assigning it");
         }
@@ -102,6 +106,7 @@ public class ManualAssignmentService {
                                                 now));
         assignments.save(assignment);
         record(task, "TASK_ASSIGNED", attenderId, complaintId);
+        alerts.assigned(complaint, task, attenderId);
     }
 
     /** Hands the work back to the pool; the task stays for the next assignment. */

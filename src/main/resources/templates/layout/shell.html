@@ -14,6 +14,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title th:text="${title} + ' · Hostel Duty Tracker'">Hostel Duty Tracker</title>
     <link rel="stylesheet" th:href="@{/css/app.css}" />
+    <link rel="manifest" th:href="@{/manifest.webmanifest}" />
+    <!-- For the page scripts that POST JSON (push.js); forms carry their own hidden field. -->
+    <meta th:if="${_csrf}" name="_csrf" th:content="${_csrf.token}" />
+    <meta th:if="${_csrf}" name="_csrf_header" th:content="${_csrf.headerName}" />
   </head>
 
   <body>

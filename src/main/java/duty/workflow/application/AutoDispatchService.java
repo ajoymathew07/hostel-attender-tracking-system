@@ -50,18 +50,21 @@ public class AutoDispatchService {
     private final TaskRepository tasks;
     private final TaskAssignmentRepository assignments;
     private final AuditTrail audit;
+    private final AttenderAlerts alerts;
 
     AutoDispatchService(
             AttenderDispatcher dispatcher,
             WorkflowService workflow,
             TaskRepository tasks,
             TaskAssignmentRepository assignments,
-            AuditTrail audit) {
+            AuditTrail audit,
+            AttenderAlerts alerts) {
         this.dispatcher = dispatcher;
         this.workflow = workflow;
         this.tasks = tasks;
         this.assignments = assignments;
         this.audit = audit;
+        this.alerts = alerts;
     }
 
     /** Dispatches a newly ingested complaint, or sends it to triage with the reason. */
@@ -116,6 +119,7 @@ public class AutoDispatchService {
                 complaint.getId(),
                 WorkflowEvent.AUTO_DISPATCH,
                 TransitionPayload.attender(result.attenderId()));
+        alerts.assigned(complaint, task, result.attenderId());
 
         warnIfStretched(complaint, task, result);
     }

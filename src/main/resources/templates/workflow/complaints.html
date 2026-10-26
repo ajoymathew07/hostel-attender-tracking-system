@@ -15,11 +15,10 @@
     <title>Complaints · Hostel Duty Tracker</title>
   </head>
   <!--
-    Polling auto-refresh, section 10.3's "live" without SSE, which the design schedules for
-    Phase 4 (section 13.6). The script stands down while a control has focus, so a reload never
-    lands under the manager's hands.
+    Live through the SSE feed (section 9.5): the page refetches itself when anything changes. The
+    script stands down while a control has focus, so a reload never lands under the manager's hands.
   -->
-  <body class="min-h-screen bg-slate-50 text-slate-900" data-refresh-seconds="30">
+  <body class="min-h-screen bg-slate-50 text-slate-900" data-stream="/api/manager/stream">
     <header th:replace="~{layout/shell :: masthead('complaints')}"></header>
 
     <main id="main" class="mx-auto max-w-7xl px-6 py-8">

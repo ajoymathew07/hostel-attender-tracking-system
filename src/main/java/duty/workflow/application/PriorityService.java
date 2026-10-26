@@ -47,11 +47,13 @@ public class PriorityService {
     private final ComplaintRepository complaints;
     private final SlaClock sla;
     private final AuditTrail audit;
+    private final AttenderAlerts alerts;
 
-    PriorityService(ComplaintRepository complaints, SlaClock sla, AuditTrail audit) {
+    PriorityService(ComplaintRepository complaints, SlaClock sla, AuditTrail audit, AttenderAlerts alerts) {
         this.complaints = complaints;
         this.sla = sla;
         this.audit = audit;
+        this.alerts = alerts;
     }
 
     /**
@@ -134,5 +136,6 @@ public class PriorityService {
                                 .and("slaDueAt", Objects.toString(complaint.getSlaDueAt(), null))
                                 .json(),
                         null));
+        alerts.escalated(complaint);
     }
 }
