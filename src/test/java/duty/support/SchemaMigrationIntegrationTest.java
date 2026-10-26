@@ -30,6 +30,7 @@ class SchemaMigrationIntegrationTest extends AbstractIntegrationTest {
      */
     private static final List<String> EXPECTED_TABLES =
             List.of(
+                    "analytics_alert",
                     "app_user",
                     "audit_event",
                     "app_setting",
@@ -56,6 +57,7 @@ class SchemaMigrationIntegrationTest extends AbstractIntegrationTest {
                     "uq_task_attender",
                     "uq_ledger_idem",
                     "uq_setting_name",
+                    "uq_alert_dedupe",
                     "ck_user_role",
                     "ck_coverage",
                     "ck_avail_status",

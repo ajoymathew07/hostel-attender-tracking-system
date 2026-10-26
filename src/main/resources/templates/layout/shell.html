@@ -22,8 +22,8 @@
 
   <body>
     <!--
-      The masthead of section 10.3. `Sync Now` and `Export` are drawn by the PRs that own them
-      (9 and Phase 3); an inert button that looks real is worse than an absent one.
+      The masthead of section 10.3. The Excel export lives on the Analytics page, next to the
+      figures it carries.
     -->
     <header th:fragment="masthead(active)" class="bg-white border-b">
       <a class="sr-only" href="#main">Skip to content</a>
@@ -46,6 +46,12 @@
             th:href="@{/points}"
             th:attr="aria-current=${active == 'points'} ? 'page' : null"
             >Points &amp; duties</a
+          >
+          <a
+            class="btn btn-secondary"
+            th:href="@{/analytics}"
+            th:attr="aria-current=${active == 'analytics'} ? 'page' : null"
+            >Analytics</a
           >
           <a
             class="btn btn-secondary"
