@@ -31,6 +31,8 @@
     <google-api-sheets.version>v4-rev20250603-2.0.0</google-api-sheets.version>
     <google-auth.version>1.48.0</google-auth.version>
     <shedlock.version>6.6.0</shedlock.version>
+    <web-push.version>5.1.1</web-push.version>
+    <bouncycastle.version>1.80</bouncycastle.version>
   </properties>
 
   <dependencyManagement>
@@ -138,6 +140,21 @@
       <groupId>net.javacrumbs.shedlock</groupId>
       <artifactId>shedlock-provider-jdbc-template</artifactId>
       <version>${shedlock.version}</version>
+    </dependency>
+
+    <!--
+      Web Push to attender phones (ADR-011). The library signs with VAPID and encrypts the payload
+      (aes128gcm); it needs Bouncy Castle as its crypto provider. Reached only from WebPushClient.
+    -->
+    <dependency>
+      <groupId>nl.martijndwars</groupId>
+      <artifactId>web-push</artifactId>
+      <version>${web-push.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>${bouncycastle.version}</version>
     </dependency>
 
     <!-- Test: JUnit 5, AssertJ, Mockito. -->

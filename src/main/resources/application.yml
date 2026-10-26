@@ -200,6 +200,15 @@ dispatch:
     step: 0.05
     minimum: 0.10
 
+# Web Push to attender phones (section 9.6, ADR-011). Optional: with either key absent, as on a
+# developer machine and in CI, push is off and the "Enable alerts" button never appears. See
+# docs/runbook/deploy.md step 4 for generating the pair.
+notification:
+  vapid:
+    public-key: ${VAPID_PUBLIC_KEY:}
+    private-key: ${VAPID_PRIVATE_KEY:}
+    subject: ${VAPID_SUBJECT:mailto:manager@localhost}
+
 # A lost or shared phone exposes a session, not a secret — so the session is the thing that
 # expires (sections 11.1, 11.2). `Secure` is set by the `cloud` profile below, where TLS
 # terminates; setting it here would break sign-in over plain http on a developer machine.

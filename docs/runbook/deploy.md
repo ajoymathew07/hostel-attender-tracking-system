@@ -79,10 +79,17 @@ Not needed yet — they belong to features that are not built:
 - `GOOGLE_SA_KEY` — the Sheets service-account key. Create it now if you like
   ([`google-setup.md`](google-setup.md) step 3); nothing reads it until Google Sheets ingestion
   ships. Until then, CSV upload is the ingestion path.
-- `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — Web Push, not built yet.
 - `APP_SECRET` — §11.5 reserves it as a session signing key. Sessions are currently held in the
   application's own memory and nothing signs them, so there is nothing for this variable to do.
   Do not set it; it would be a value nobody reads.
+
+Optional — push alerts to attender phones (section 9.6). Without both keys the app runs normally
+and the "Enable alerts" button stays hidden.
+
+| Variable | Where the value comes from |
+|---|---|
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Generate once with `npx web-push generate-vapid-keys` and paste both. Keep them: a new pair makes every existing subscription stop working, and each attender has to tap "Enable alerts" again. |
+| `VAPID_SUBJECT` | `mailto:` followed by the manager's address. Push services use it to reach whoever runs the app. |
 
 ## Step 5 — deploy
 

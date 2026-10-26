@@ -60,7 +60,7 @@ class SecurityConfig {
     private static final String[] PUBLIC_PATHS = {
         "/login", "/error", "/oauth2/**", "/login/oauth2/**",
         "/actuator/health", "/actuator/health/**",
-        "/css/**", "/js/**", "/images/**", "/favicon.ico",
+        "/css/**", "/js/**", "/images/**", "/favicon.ico", "/sw.js", "/manifest.webmanifest",
         WAKE_PATH
     };
 

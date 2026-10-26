@@ -61,8 +61,8 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(model().attributeExists("counters"))
-                // Polling stands in for the SSE the design schedules for Phase 4 (section 13.6).
-                .andExpect(content().string(containsString("data-refresh-seconds=\"30\"")))
+                // Live through the manager's SSE feed (section 9.5).
+                .andExpect(content().string(containsString("data-stream=\"/api/manager/stream\"")))
                 .andExpect(content().string(containsString("/js/auto-refresh.js")))
                 // There is no NEW tile, because auto-dispatch leaves no complaint in NEW to count.
                 .andExpect(content().string(containsString("Triage")))

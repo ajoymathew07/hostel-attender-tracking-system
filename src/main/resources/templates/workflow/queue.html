@@ -40,6 +40,12 @@
 
       <a class="btn btn-secondary mt-4" th:href="@{/m/duties}">Duties &amp; my points</a>
 
+      <!-- Shown by push.js only when this browser can receive push and the server has a key. -->
+      <button id="enable-alerts" class="btn btn-secondary mt-4" type="button" hidden>
+        <span aria-hidden="true">🔔</span> Enable alerts on this phone
+      </button>
+      <p id="alerts-status" class="text-sm text-slate-600 mt-2" role="status"></p>
+
       <p th:if="${#lists.isEmpty(tasks)}" class="notice bg-white mt-4">
         Nothing assigned to you right now.
       </p>
@@ -111,5 +117,6 @@
       <footer th:replace="~{layout/shell :: mobileFooter}"></footer>
     </main>
     <script th:src="@{/js/auto-refresh.js}" defer></script>
+    <script th:src="@{/js/push.js}" defer></script>
   </body>
 </html>
