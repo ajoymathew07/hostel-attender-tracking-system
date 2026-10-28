@@ -40,7 +40,9 @@ class LayeringRulesTest {
                     // redeploy, which section 4.5, section 6.2 (R5) and section 8.2 each require
                     // of a different module's numbers; see its package-info.
                     "settings",
-                    "notification");
+                    "notification",
+                    "analytics",
+                    "reporting");
 
     private static final String SPRING_TRANSACTIONAL =
             "org.springframework.transaction.annotation.Transactional";

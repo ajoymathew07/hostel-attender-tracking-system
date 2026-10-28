@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<!--
+  Analytics, `/analytics` (manager; sections 8.2 to 8.4). Resolution time and the bottleneck stage
+  per domain over the last 90 days, the open anomaly alerts, and the Excel export.
+
+  Tables rather than Chart.js: the same numbers, with no charting library to vendor under the
+  `default-src 'self'` policy. Every figure shows its n, so six data points do not look as sure as
+  six hundred (section 8.4).
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head th:replace="~{layout/shell :: head('Analytics')}">
+    <title>Analytics · Hostel Duty Tracker</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header th:replace="~{layout/shell :: masthead('analytics')}"></header>
+
+    <main id="main" class="mx-auto max-w-7xl px-6 py-8">
+      <div th:replace="~{layout/shell :: flashes}"></div>
+
+      <div class="mt-6 flex items-center justify-between gap-4 flex-wrap">
+        <h1 class="text-2xl font-semibold text-slate-900">Analytics</h1>
+        <nav class="flex items-center gap-3 flex-wrap" aria-label="Export">
+          <span class="text-sm text-slate-600">Export to Excel:</span>
+          <a class="btn btn-secondary" th:href="@{/api/manager/reports/daily.xlsx}">Today</a>
+          <a class="btn btn-secondary" th:href="@{/api/manager/reports/weekly.xlsx}">Last 7 days</a>
+          <a class="btn btn-secondary" th:href="@{/api/manager/reports/monthly.xlsx}">This month</a>
+        </nav>
+      </div>
+
+      <section class="mt-8" aria-labelledby="mttr-heading">
+        <h2 id="mttr-heading" class="text-lg font-semibold text-slate-900 mb-2">Resolution time by domain</h2>
+        <p class="text-sm text-slate-600 mb-2">
+          Hours from the report to Resolved, with time on hold left out. Complaints reported in the last
+          90 days. The median is the headline; one complaint stuck over a weekend moves the mean.
+        </p>
+        <p th:if="${#lists.isEmpty(domains)}" class="notice bg-white">No complaints in the last 90 days.</p>
+        <div th:unless="${#lists.isEmpty(domains)}" class="bg-white border rounded-lg shadow-sm overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Domain</th>
+                <th scope="col">Resolved (n)</th>
+                <th scope="col">Median (h)</th>
+                <th scope="col">Mean (h)</th>
+                <th scope="col">p90 (h)</th>
+                <th scope="col">Where the time goes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="row : ${domains}">
+                <td class="font-medium" th:text="${row.domain()}">ELECTRICAL</td>
+                <td th:text="${row.n()}">0</td>
+                <td th:text="${row.n() > 0} ? ${#numbers.formatDecimal(row.median(), 1, 1)} : '—'">0.0</td>
+                <td th:text="${row.n() > 0} ? ${#numbers.formatDecimal(row.mean(), 1, 1)} : '—'">0.0</td>
+                <td th:text="${row.n() > 0} ? ${#numbers.formatDecimal(row.p90(), 1, 1)} : '—'">0.0</td>
+                <!-- Section 8.2: named only with n of at least 10 and a share of at least 35%. -->
+                <td>
+                  <span
+                    th:if="${row.bottleneckStage()}"
+                    th:text="${row.bottleneckStage()} + ' — ' + ${#numbers.formatDecimal(row.bottleneckShare() * 100, 1, 0)} + '% of the time'"
+                    >Filing — 52% of the time</span
+                  >
+                  <span th:unless="${row.bottleneckStage()}" class="text-slate-500" th:text="${row.n() < 10} ? 'Too few to say (needs 10)' : 'No single stage stands out'">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="mt-8" aria-labelledby="alerts-heading">
+        <div class="flex items-center justify-between gap-4 flex-wrap mb-2">
+          <h2 id="alerts-heading" class="text-lg font-semibold text-slate-900">Alerts</h2>
+          <form th:action="@{/analytics/scan}" method="post">
+            <button class="btn btn-secondary" type="submit">Run checks now</button>
+          </form>
+        </div>
+        <p class="text-sm text-slate-600 mb-2">
+          Checked every night. Advice only: nothing is reassigned or escalated because of an alert.
+        </p>
+        <p th:if="${#lists.isEmpty(alerts)}" class="notice bg-white">No open alerts.</p>
+        <ul class="list-plain">
+          <li th:each="alert : ${alerts}" class="card mt-4">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="badge" th:text="${alert.severity()}">WARN</span>
+              <span class="badge" th:text="${alert.detector()}">A2</span>
+              <span class="text-sm text-slate-600" th:text="${alert.subject()}">ROOM 214</span>
+              <span class="text-xs text-slate-500" th:text="${@ist.format(alert.detectedAt())}">when</span>
+            </div>
+            <p class="mt-2 font-medium" th:text="${alert.summary()}">summary</p>
+            <p class="mt-1 text-xs text-slate-500 font-mono" th:text="${alert.evidence()}">evidence</p>
+            <form class="mt-2" th:action="@{/analytics/alerts/{id}/acknowledge(id=${alert.id()})}" method="post">
+              <button class="btn btn-secondary" type="submit">Acknowledge</button>
+            </form>
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer th:replace="~{layout/shell :: pageFooter}"></footer>
+  </body>
+</html>
