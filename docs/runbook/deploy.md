@@ -7,7 +7,7 @@ Do [`google-setup.md`](google-setup.md) **first** — step 4 needs two values th
 the Google console work is done.
 
 **What you are building** (architecture §2.6): one Render web service running the app, one managed
-PostgreSQL database, and — kept in your pocket for the day Render is down — the *same jar* started
+PostgreSQL database on [Neon](https://neon.com), and — kept in your pocket for the day Render is down — the *same jar* started
 on your own desktop against the *same database*. There is only ever one database. The standby is
 not a copy and there is nothing to sync.
 
@@ -15,28 +15,32 @@ not a copy and there is nothing to sync.
 
 ## Step 0 — before anything
 
-- A GitHub account with this repository, and a Render account signed in with it.
-- `psql` on your desktop (`brew install libpq` on a Mac, or use Render's web shell for the
-  database). You need it once, at step 6, and it is the step that matters most.
-- Render's free PostgreSQL instance **expires after 30 days** and is then deleted. For a course
-  project that is usually fine, but note the date you created it. Everything below works the same
-  on a paid instance.
+- A GitHub account with this repository, a Render account signed in with it, and a Neon account
+  (sign in with the same GitHub or Google account; no card needed).
+- Why Neon and not Render's own Postgres: Render's free database **is deleted 30 days after it is
+  created**. Neon's free plan does not expire. It gives 0.5 GB of storage (this system uses a few
+  MB) and 100 compute-hours a month, and it suspends the database after 5 idle minutes, which costs
+  nothing. The app only sees a PostgreSQL URL, so nothing in the code is tied to Neon.
 
 ## Step 1 — create the database
 
-1. Render dashboard → **New +** → **Postgres**.
-2. Name `duty-tracker-db`. Region: whichever is nearest — **use the same region for the web
-   service in step 2**, or the two cannot talk over the internal network.
-3. PostgreSQL version 16, to match `docker-compose.yml` and the test containers.
-4. Create it, and wait until the status is *Available*.
-5. Open it and leave the **Info** tab open. You will copy five fields from it in step 4:
-   *Hostname*, *Port*, *Database*, *Username*, *Password*. There is also an *External Database
-   URL* further down — you need that one in step 8, not now.
+1. Neon console → **New project**.
+2. Name `duty-tracker`. Postgres version **16**, to match `docker-compose.yml` and the test
+   containers. Region: the AWS region nearest your Render region (Singapore with Render Singapore,
+   for example). Every query crosses between the two, so near matters.
+3. Project → **Settings → Compute**: set the compute size to a fixed **0.25 CU**. Autoscaling up
+   is what would use the monthly compute-hours quickly; eight users never need more.
+4. Project dashboard → **Connect**. Pick the `neondb` database and the `neondb_owner` role, and
+   **turn off "Connection pooling"**. The pooled host runs PgBouncer in transaction mode, which
+   breaks the session-level lock Flyway takes while it migrates; the app has its own pool of five.
+5. Neon shows a string like
+   `postgresql://neondb_owner:<password>@ep-xxxx-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`.
+   Keep it open. You will split it into three variables in step 4.
 
 ## Step 2 — create the web service
 
 1. **New +** → **Web Service** → connect this GitHub repository.
-2. Branch: `main`. Region: **the same one as the database.**
+2. Branch: `main`. Region: the one nearest the Neon region from step 1.
 3. Language / runtime: **Docker**. Render will find the `Dockerfile` at the repository root and
    needs no build or start command — the image already runs the jar.
    (Render has no native Java runtime, which is why a Dockerfile is the route.)
@@ -61,9 +65,9 @@ without any one of them and will name the ones that are missing.
 
 | Variable | Where the value comes from |
 |---|---|
-| `DATABASE_URL` | Built by hand from the database's **Info** tab: `jdbc:postgresql://<Hostname>:<Port>/<Database>`. Use the **internal** hostname (it looks like `dpg-xxxxxxxx-a`), which needs no SSL and does not leave Render's network. It must start with `jdbc:` — Render's own "Internal Database URL" starts with `postgresql://` and the app will reject it. |
-| `DATABASE_USERNAME` | Database → Info → *Username* |
-| `DATABASE_PASSWORD` | Database → Info → *Password* |
+| `DATABASE_URL` | Neon's string from step 1, rewritten: `jdbc:postgresql://ep-xxxx-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`. That is, put `jdbc:` in front and **remove `neondb_owner:<password>@`**. The JDBC driver does not read a user and password from the host part, and the app rejects a URL that does not start with `jdbc:`. Keep `?sslmode=require`; Neon refuses connections without TLS. Drop any `&channel_binding=require`. |
+| `DATABASE_USERNAME` | The part before the `:` in Neon's string, normally `neondb_owner` |
+| `DATABASE_PASSWORD` | The part between the `:` and the `@` |
 | `GOOGLE_CLIENT_ID` | Google Cloud console, from [`google-setup.md`](google-setup.md) step 2 |
 | `GOOGLE_CLIENT_SECRET` | Google Cloud console, from [`google-setup.md`](google-setup.md) step 2 |
 
@@ -94,7 +98,9 @@ and the "Enable alerts" button stays hidden.
 ## Step 5 — deploy
 
 Trigger the deploy. Watch the log. Flyway runs on boot and applies the migrations to the empty
-database — you should see it create the schema history table and apply `V1` through `V7`.
+database — you should see it create the schema history table and apply every `V…` migration in
+`src/main/resources/db/migration`. The first start after a quiet spell can take a second or two
+longer while Neon wakes the database.
 
 If the log ends in a message naming environment variables, you missed one in step 4. That message
 is deliberate: the app would rather stop than start against a database you did not mean.
@@ -114,8 +120,8 @@ Sign-in is by Google account, admitted by an allowlist of addresses in `app_user
 address matches no Google account, so **until you replace both, every sign-in is rejected** — and
 the rejection looks exactly like "the deploy is broken".
 
-Connect to the database (Render database page → **Connect** → *PSQL Command*, paste it into a
-terminal) and run, with the two real Google addresses:
+Open the Neon console → **SQL Editor** (database `neondb`), and run, with the two real Google
+addresses:
 
 ```sql
 UPDATE app_user SET email = 'the.manager@gmail.com'
@@ -164,20 +170,14 @@ Set it up *now*, while nothing is wrong, and test it once.
    ./mvnw -DskipTests package        # target/duty-tracker-0.1.0-SNAPSHOT.jar
    ```
 
-2. Get the database's **External Database URL** from the Render database page. External
-   connections must use TLS, so the JDBC URL needs `?sslmode=require`:
-
-   ```
-   jdbc:postgresql://<external-hostname>:5432/<database>?sslmode=require
-   ```
-
-   The external hostname is the long one, ending in `.render.com`.
+2. Use the same three database values as Render, from step 4. Neon has no internal network, so the
+   one URL works from Render and from your desktop alike.
 
 3. Start it, with the variables in the environment and nowhere on disk:
 
    ```bash
    SPRING_PROFILES_ACTIVE=cloud \
-   DATABASE_URL='jdbc:postgresql://<external-hostname>:5432/<database>?sslmode=require' \
+   DATABASE_URL='jdbc:postgresql://ep-xxxx-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require' \
    DATABASE_USERNAME='<username>' \
    DATABASE_PASSWORD='<password>' \
    GOOGLE_CLIENT_ID='<client id>' \
@@ -202,8 +202,31 @@ the reason the standby is built this boring way.
 |---|---|
 | Start fails naming environment variables | One of the five in step 4 is missing or blank. |
 | Start fails saying exactly one profile must be active | `SPRING_PROFILES_ACTIVE` was overridden to something other than `cloud`, or blanked. |
-| `URL must start with 'jdbc'` | `DATABASE_URL` was pasted as Render gives it. Rewrite it as `jdbc:postgresql://...`. |
-| Connection refused / timeout to the database | The web service and the database are in different regions, or the internal hostname was used from your desktop. The desktop needs the external host and `sslmode=require`. |
+| `URL must start with 'jdbc'` | `DATABASE_URL` was pasted as Neon gives it. Rewrite it as `jdbc:postgresql://...` (step 4). |
+| `password authentication failed` or `UnknownHostException` | The `user:password@` part was left in `DATABASE_URL`. Remove it; they go in the other two variables. |
+| `connection requires SSL` / `no pg_hba.conf entry` | `?sslmode=require` is missing from `DATABASE_URL`. |
+| Flyway hangs or fails taking its lock | `DATABASE_URL` points at the pooled host (it has `-pooler` in its name). Use the direct host (step 1.4). |
+| Neon says the compute quota is exhausted | 100 compute-hours were used this month. The database comes back on the 1st, or on a paid plan. Check the compute size is fixed at 0.25 CU (step 1.3). |
 | Health check passes, sign-in always fails | Step 6 was skipped, or was done for one row only. |
 | `redirect_uri_mismatch` at Google | The exact service URL is not in the registered redirect URIs. |
 | First request after a quiet period hangs ~45 s | Free instance waking. Not a fault. |
+
+## Moving from Render's database to Neon
+
+If the old Render database was already deleted, there is nothing to move. Do steps 1, 4 and 6 and
+the app rebuilds an empty schema on its next start. The data on the old database is gone, so set
+up the attenders and import the complaints again as on a first deploy.
+
+If it is still reachable, copy it across once, with the web service stopped (Render → *Suspend*)
+so nothing writes in between:
+
+```bash
+pg_dump --no-owner --no-acl '<Render External Database URL>' \
+  | psql 'postgresql://neondb_owner:<password>@ep-xxxx-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require'
+```
+
+Both of these take the `postgresql://` form, not the `jdbc:` one, and `pg_dump` must be version 16
+or newer (`pg_dump --version`). The dump includes
+`flyway_schema_history`, so Flyway sees the schema as already migrated. Then change the three
+`DATABASE_*` variables on Render (step 4) and resume the service. Step 6 is already done, because
+the manager rows came across.
