@@ -55,6 +55,15 @@ class LifecycleTest {
     }
 
     @Test
+    @DisplayName("the ingestion row starts no stage, so Dispatch runs from the report")
+    void ingestionRowIsSkipped() {
+        List<Transition> moves =
+                List.of(new Transition(null, "NEW", hour(1)), new Transition("NEW", "ASSIGNED", hour(2)));
+
+        assertThat(Lifecycle.hoursByStage(REPORTED, moves)).containsEntry("Dispatch", 2.0);
+    }
+
+    @Test
     @DisplayName("a complaint never resolved has no resolution time")
     void unresolvedHasNone() {
         assertThat(Lifecycle.resolutionHours(REPORTED, List.of(new Transition("NEW", "TRIAGE", hour(1))))).isEmpty();
