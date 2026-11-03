@@ -289,9 +289,13 @@ spring:
     password: ${DATABASE_PASSWORD}
     hikari:
       pool-name: duty-tracker-pool
-      # Managed free-tier PostgreSQL allows few connections, and the standby may be holding some
-      # at the same time. Eight users do not need more.
+      # The database is Neon's free tier (docs/runbook/deploy.md). It allows plenty of connections,
+      # but the standby may hold some at the same time, and eight users do not need more.
       maximum-pool-size: 5
+      # Neon suspends an idle database and wakes it on the next connection, which takes a second or
+      # two. Ten seconds covers the wake; a database that is really down fails fast instead of
+      # holding a request for the default thirty.
+      connection-timeout: 10000
 
   security:
     oauth2:
