@@ -134,9 +134,9 @@ public class AttenderQueueService {
             return status == ComplaintStatus.AWAITING_CMS || status == ComplaintStatus.IN_PROGRESS;
         }
 
-        /** Can resolve: only once a docket is filed (T14). */
+        /** Can resolve: once the repair has started, with or without a docket (T14). */
         public boolean canResolve() {
-            return docketNo != null && !docketNo.isBlank();
+            return status == ComplaintStatus.IN_PROGRESS;
         }
 
         /** Whether the student's contact details may still be shown. */

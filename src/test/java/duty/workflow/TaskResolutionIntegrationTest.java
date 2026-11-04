@@ -14,7 +14,6 @@ import duty.support.Fixtures;
 import duty.workflow.application.ManualAssignmentService;
 import duty.workflow.application.TaskResolutionService.ResolvedTask;
 import duty.workflow.application.TaskResolutionService;
-import duty.workflow.application.WorkflowService.DocketRequiredException;
 import duty.workflow.application.WorkflowService.InvalidDocketException;
 import duty.workflow.application.WorkflowService.TransitionPayload;
 import duty.workflow.application.WorkflowService;
@@ -47,7 +46,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @SpringBootTest
 class TaskResolutionIntegrationTest extends AbstractIntegrationTest {
 
-    private static final String DOCKET = "EU/2026/00417";
+    private static final String DOCKET = "TT000417";
 
     @Autowired private TaskResolutionService resolution;
     @Autowired private ManualAssignmentService assignment;
@@ -237,41 +236,47 @@ class TaskResolutionIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("no docket, no points: resolving is refused and nothing reaches the ledger — E15")
-    void resolvingWithoutADocketIsRefused() {
-        Fixtures.signIn(ravi);
+    @DisplayName("a repair that needs no docket starts with the field empty and still resolves for +2")
+    void aRepairWithoutADocketResolves() {
+        startAndConfirmDefectAsRavi();
 
-        assertThatThrownBy(() -> resolution.resolve(taskId))
-                .isInstanceOf(DocketRequiredException.class);
-
-        assertThat(ledger.findByAttenderIdOrderByCreatedAtDesc(ravi.getId())).isEmpty();
+        resolution.recordDocket(taskId, "  ");
         assertThat(complaints.findById(complaintId).orElseThrow())
                 .satisfies(
                         complaint -> {
-                            assertThat(complaint.getStatus()).isNotEqualTo(ComplaintStatus.RESOLVED);
-                            assertThat(complaint.getResolvedAt()).isNull();
+                            assertThat(complaint.getStatus()).isEqualTo(ComplaintStatus.IN_PROGRESS);
+                            assertThat(complaint.hasDocket()).isFalse();
                         });
+
+        assertThat(resolution.resolve(taskId).pointsAwarded()).isEqualTo(2);
+        assertThat(complaints.findById(complaintId).orElseThrow().getStatus()).isEqualTo(ComplaintStatus.RESOLVED);
     }
 
     @Test
-    @DisplayName("a docket that does not match the configured pattern is refused — T11, OQ-1")
-    void aMalformedDocketIsRefused() {
+    @DisplayName("a docket is tidied to TT and six digits, and anything else is refused — T11")
+    void aDocketIsTidiedOrRefused() {
         startAndConfirmDefectAsRavi();
 
-        assertThatThrownBy(() -> resolution.recordDocket(taskId, "  "))
-                .isInstanceOf(InvalidDocketException.class);
-        assertThat(complaints.findById(complaintId).orElseThrow().hasDocket()).isFalse();
+        for (String wrong : List.of("EU/2026/417", "TT12345", "TT1234567", "AB123456")) {
+            assertThatThrownBy(() -> resolution.recordDocket(taskId, wrong))
+                    .describedAs(wrong)
+                    .isInstanceOf(InvalidDocketException.class);
+        }
+        assertThat(complaints.findById(complaintId).orElseThrow().getStatus()).isEqualTo(ComplaintStatus.AWAITING_CMS);
 
-        assertThatCode(() -> resolution.recordDocket(taskId, DOCKET)).doesNotThrowAnyException();
+        resolution.recordDocket(taskId, " tt-000417 ");
         assertThat(complaints.findById(complaintId).orElseThrow())
                 .satisfies(
                         complaint -> {
-                            assertThat(complaint.getDocketNo()).isEqualTo(DOCKET);
+                            assertThat(complaint.getDocketNo()).isEqualTo("TT000417");
                             assertThat(complaint.getDocketFiledBy()).isEqualTo(ravi.getId());
-                            assertThat(complaint.getStatus())
-                                    .describedAs("filed with the Engineering Unit — T11")
-                                    .isEqualTo(ComplaintStatus.IN_PROGRESS);
+                            assertThat(complaint.getStatus()).isEqualTo(ComplaintStatus.IN_PROGRESS);
                         });
+
+        resolution.recordDocket(taskId, "000418");
+        assertThat(complaints.findById(complaintId).orElseThrow().getDocketNo())
+                .describedAs("six bare digits get their TT")
+                .isEqualTo("TT000418");
     }
 
     @Test

@@ -58,8 +58,11 @@ import org.springframework.test.context.ActiveProfiles;
  * <pre>
  * DATABASE_URL=... DATABASE_USERNAME=... DATABASE_PASSWORD=... \
  * GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... \
- * ./mvnw test -Dtest=LoadSimulation -Dsim=history,live,burst -Dsim.hold=60
+ * caffeinate -i ./mvnw test -Dtest=LoadSimulation -Dsim=history,live,burst -Dsim.hold=60
  * </pre>
+ *
+ * <p>Against Neon, history takes about half an hour (a second or so per step). {@code caffeinate} keeps
+ * a Mac awake for it: a sleeping laptop freezes the run, and its connections time out on waking.
  *
  * <ul>
  *   <li>{@code history} writes {@code sim.days} (56) days of past complaints, with one case planted
@@ -80,7 +83,7 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest(
         webEnvironment = WebEnvironment.DEFINED_PORT,
         properties = {
-            "server.port=8080",
+            "server.port=${sim.port:8080}",
             "logging.level.duty=INFO",
             // The ageing sweep reads the real clock, so while history is being written it would find
             // every complaint overdue. The simulation runs the sweep itself once history is in place.
@@ -232,6 +235,15 @@ class LoadSimulation {
         // here by the sweep's own rule (the due date passed while the work was still open); open
         // complaints are left to the sweep itself, which runs straight after at the real "now".
         jdbc.update("UPDATE complaint SET sla_breached = true WHERE sla_due_at < COALESCE(resolved_at, closed_at)");
+        // A point also carries its India-time business date, a DATE column that moving timestamps
+        // does not touch. The app derives it from the moment of the credit, so derive it the same way.
+        jdbc.update(
+                """
+                UPDATE point_ledger
+                SET effective_date = CAST(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata' AS date),
+                    period_key = to_char(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM')
+                WHERE reason_code IN ('COMPLAINT_RESOLVED', 'REVERSAL')
+                """);
         as(manager);
         log.info("Ageing escalated {} open complaint(s)", priorities.ageOpenComplaints());
         log.info("Analytics raised or refreshed {} alert(s)", analytics.runChecksNow());
@@ -269,7 +281,7 @@ class LoadSimulation {
                 List.of(
                         tasks::startInspection,
                         tasks::confirmDefect,
-                        taskId -> tasks.recordDocket(taskId, "EU-B" + taskId),
+                        taskId -> tasks.recordDocket(taskId, "TT%06d".formatted(taskId % 1_000_000)),
                         tasks::resolve);
         ExecutorService pool = Executors.newFixedThreadPool(attenders.size());
         for (SignedInUser attender : attenders) {
@@ -353,8 +365,10 @@ class LoadSimulation {
 
         Instant started = from.plus(hours(spread(medianHours[0]) * slowness));
         Instant inspected = started.plus(hours(spread(medianHours[1]) * slowness));
-        // The docket wait is the Engineering Unit's, so the attender's pace does not change it.
-        Instant docketed = inspected.plus(hours(spread(medianHours[2])));
+        // The docket wait is the Engineering Unit's, so the attender's pace does not change it. About a
+        // quarter of repairs need no docket and start straight away.
+        boolean needsDocket = random.nextDouble() < 0.75;
+        Instant docketed = inspected.plus(hours(needsDocket ? spread(medianHours[2]) : 0.2));
         Instant resolved = docketed.plus(hours(spread(medianHours[3]) * slowness));
         Instant closed = resolved.plus(hours(6 + random.nextDouble() * 42));
 
@@ -364,7 +378,8 @@ class LoadSimulation {
             return;
         }
         schedule(inspected, () -> attender(holder, () -> tasks.confirmDefect(taskId)));
-        schedule(docketed, () -> attender(holder, () -> tasks.recordDocket(taskId, "EU-" + complaintId)));
+        String docket = needsDocket ? "TT%06d".formatted(complaintId % 1_000_000) : "";
+        schedule(docketed, () -> attender(holder, () -> tasks.recordDocket(taskId, docket)));
         schedule(resolved, () -> attender(holder, () -> tasks.resolve(taskId)));
         schedule(
                 closed,

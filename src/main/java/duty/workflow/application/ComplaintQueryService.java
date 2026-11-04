@@ -23,9 +23,11 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -84,7 +86,19 @@ public class ComplaintQueryService {
 
     /** Every complaint, newest report first. */
     public List<ComplaintListItem> listAll() {
+        return search("", Show.ALL);
+    }
+
+    /**
+     * The complaint list, newest first, narrowed to {@code show} and to complaints whose reference,
+     * student name, roll number, room, text or docket number contains {@code text}, ignoring case.
+     *
+     * <p>Filtered here rather than in SQL because the list already loads every complaint, so this adds no
+     * query. If the list is ever paged, the filter moves into the query.
+     */
+    public List<ComplaintListItem> search(String text, Show show) {
         Instant now = Instant.now();
+        String needle = text == null ? "" : text.strip().toLowerCase(Locale.ROOT);
         // One query for every live assignment, not one per row: the manager's list is the screen
         // section 10.6 names when it says "no N+1, fetch joins on queue and dashboard".
         Map<Long, Long> assignee = new HashMap<>();
@@ -92,8 +106,56 @@ public class ComplaintQueryService {
             assignee.put(assignment.getTask().getComplaint().getId(), assignment.getAttenderId());
         }
         return complaints.findAll(NEWEST_FIRST).stream()
+                .filter(complaint -> show.includes(complaint, now))
+                .filter(complaint -> needle.isEmpty() || matches(complaint, needle))
                 .map(complaint -> toItem(complaint, assignee.get(complaint.getId()), now))
                 .toList();
+    }
+
+    private static boolean matches(Complaint complaint, String needle) {
+        return Stream.of(
+                        complaint.getPublicRef(),
+                        complaint.getReporterName(),
+                        complaint.getReporterRollNo(),
+                        complaint.getReporterRoom(),
+                        complaint.getRawText(),
+                        complaint.getDocketNo())
+                .anyMatch(field -> field != null && field.toLowerCase(Locale.ROOT).contains(needle));
+    }
+
+    /** Which complaints the list shows. Triage, active and past due are the same sets the tiles count. */
+    public enum Show {
+        ALL("All"),
+        TRIAGE("Triage"),
+        ACTIVE("Active"),
+        PAST_DUE("Past due"),
+        RESOLVED("Resolved, not signed off"),
+        CLOSED("Closed or rejected");
+
+        private final String label;
+
+        Show(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        boolean includes(Complaint complaint, Instant now) {
+            ComplaintStatus status = complaint.getStatus();
+            return switch (this) {
+                case ALL -> true;
+                case TRIAGE -> status == ComplaintStatus.TRIAGE;
+                case ACTIVE -> LIVE.contains(status);
+                case PAST_DUE ->
+                        CLOCK_RUNNING.contains(status)
+                                && complaint.getSlaDueAt() != null
+                                && now.isAfter(complaint.getSlaDueAt());
+                case RESOLVED -> status == ComplaintStatus.RESOLVED;
+                case CLOSED -> status.isTerminal();
+            };
+        }
     }
 
     /**

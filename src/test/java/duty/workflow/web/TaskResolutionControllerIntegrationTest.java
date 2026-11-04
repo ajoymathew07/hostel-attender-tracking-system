@@ -79,7 +79,7 @@ class TaskResolutionControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(
                         post("/m/tasks/{id}/docket", taskId)
-                                .param("docketNo", "EU/2026/00417")
+                                .param("docketNo", "TT000417")
                                 .with(authentication(asRavi))
                                 .with(csrf()))
                 .andExpect(status().is3xxRedirection())
@@ -87,7 +87,7 @@ class TaskResolutionControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(get("/m/tasks/{id}", taskId).with(authentication(asRavi)))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("EU/2026/00417")))
+                .andExpect(content().string(containsString("TT000417")))
                 .andExpect(content().string(containsString("Resolve")));
 
         mockMvc.perform(
@@ -122,7 +122,7 @@ class TaskResolutionControllerIntegrationTest extends AbstractIntegrationTest {
     void aStrangerIsRefused() throws Exception {
         mockMvc.perform(
                         post("/m/tasks/{id}/docket", taskId)
-                                .param("docketNo", "EU/2026/00417")
+                                .param("docketNo", "TT000417")
                                 .with(authentication(asKumar))
                                 .with(csrf()))
                 .andExpect(status().isForbidden());

@@ -36,29 +36,32 @@
       <section class="mt-6" aria-labelledby="counters-heading">
         <h2 id="counters-heading" class="sr-only">Today at a glance</h2>
         <div class="flex gap-4 flex-wrap">
-          <a class="card p-4" th:href="@{/complaints(focus='triage')}">
+          <a class="card p-4" th:href="@{/complaints(show='TRIAGE')}">
             <p class="text-xs uppercase tracking-wide text-slate-500">Triage</p>
             <p class="text-2xl font-semibold" th:text="${counters.triage}">0</p>
             <p class="text-xs text-slate-500">waiting for you</p>
           </a>
-          <div class="card p-4">
+          <a class="card p-4" th:href="@{/complaints(show='ACTIVE')}">
             <p class="text-xs uppercase tracking-wide text-slate-500">Active</p>
             <p class="text-2xl font-semibold" th:text="${counters.active}">0</p>
             <p class="text-xs text-slate-500">somebody is on it</p>
-          </div>
+          </a>
           <div class="card p-4">
             <p class="text-xs uppercase tracking-wide text-slate-500">Resolved today</p>
             <p class="text-2xl font-semibold" th:text="${counters.resolvedToday}">0</p>
             <p class="text-xs text-slate-500">since midnight</p>
           </div>
-          <div class="card p-4" th:classappend="${counters.overdue > 0} ? 'bg-red-50' : ''">
+          <a
+            class="card p-4"
+            th:href="@{/complaints(show='PAST_DUE')}"
+            th:classappend="${counters.overdue > 0} ? 'bg-red-50' : ''">
             <p class="text-xs uppercase tracking-wide text-slate-500">Past due</p>
             <p class="text-2xl font-semibold" th:text="${counters.overdue}">0</p>
             <p class="text-xs text-slate-500">open and late</p>
-          </div>
+          </a>
         </div>
         <p class="mt-2 text-xs text-slate-500">
-          This screen refreshes itself every 30 seconds, and waits while you are typing.
+          This screen updates itself when anything changes, and waits while you are typing.
         </p>
       </section>
 
@@ -239,16 +242,45 @@
 
       <section class="mt-8" aria-labelledby="list-heading">
         <div class="flex items-center justify-between gap-4 mb-2">
-          <h2 id="list-heading" class="text-2xl font-semibold text-slate-900">All complaints</h2>
+          <h2 id="list-heading" class="text-2xl font-semibold text-slate-900">Complaints</h2>
           <p class="text-sm text-slate-600">
-            <span th:text="${#lists.size(complaints)}">0</span> total
+            <span th:text="${#lists.size(complaints)}">0</span> shown
           </p>
         </div>
+
+        <!-- A GET form, so the search is in the URL: it can be bookmarked and the live refresh keeps it. -->
+        <form class="mb-3 flex items-end gap-2 flex-wrap sm-stack" th:action="@{/complaints}" method="get" role="search">
+          <div>
+            <label class="label" for="q">Search</label>
+            <input
+              class="input"
+              type="search"
+              id="q"
+              name="q"
+              th:value="${q}"
+              placeholder="CAU reference, name, roll no, text or docket"
+              autocomplete="off" />
+          </div>
+          <div>
+            <label class="label" for="show">Show</label>
+            <select class="input" id="show" name="show">
+              <option
+                th:each="option : ${shows}"
+                th:value="${option.name()}"
+                th:selected="${option == show}"
+                th:text="${option.label()}">
+                All
+              </option>
+            </select>
+          </div>
+          <button class="btn" type="submit">Search</button>
+          <a class="btn btn-secondary" th:if="${!#strings.isEmpty(q) or show.name() != 'ALL'}" th:href="@{/complaints}">Clear</a>
+        </form>
 
         <p
           th:if="${#lists.isEmpty(complaints)}"
           class="notice bg-white"
-          th:text="'No complaints yet. Upload a response CSV above to bring them in.'">
+          th:text="${#strings.isEmpty(q) and show.name() == 'ALL'} ? 'No complaints yet. Upload a response CSV above to bring them in.' : 'No complaints match.'">
           empty
         </p>
 

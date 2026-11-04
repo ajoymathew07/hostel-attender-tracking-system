@@ -23,6 +23,7 @@ import duty.workflow.infrastructure.TaskRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
@@ -192,10 +193,10 @@ public class WorkflowService {
             case TARGET_ATTENDER -> context.payload().attenderId() != null;
             case DIFFERENT_ATTENDER -> movesTheWork(context);
             case REASON -> hasText(context.payload().reason());
-            case DOCKET_FORMAT ->
-                    hasText(context.payload().docketNo())
-                            && docketPattern.matcher(context.payload().docketNo().trim()).matches();
-            case DOCKET_FILED -> context.complaint().hasDocket();
+            case DOCKET_FORMAT -> {
+                String docket = tidyDocket(context.payload().docketNo());
+                yield docket == null || docketPattern.matcher(docket).matches();
+            }
             case SEVEN_DAYS_SINCE_RESOLUTION ->
                     context.complaint().getResolvedAt() != null
                             && !Instant.now()
@@ -207,7 +208,6 @@ public class WorkflowService {
     private RuntimeException refusal(TransitionGuard guard, Context context) {
         return switch (guard) {
             case DOCKET_FORMAT -> new InvalidDocketException(context.payload().docketNo());
-            case DOCKET_FILED -> new DocketRequiredException(context.task().getId());
             default -> new GuardFailedException(guard.reason());
         };
     }
@@ -268,10 +268,22 @@ public class WorkflowService {
                 .json();
     }
 
-    /** Records the docket (T11); the audit row keeps the old and new numbers. */
+    /**
+     * The docket as the CMS writes it: spaces and hyphens dropped, upper-cased, and TT added to six bare
+     * digits, so "tt 123456", "TT-123456" and "123456" are all TT123456. Blank means no docket.
+     */
+    static String tidyDocket(String typed) {
+        if (typed == null || typed.isBlank()) {
+            return null;
+        }
+        String compact = typed.replaceAll("[\\s-]", "").toUpperCase(Locale.ROOT);
+        return compact.matches("\\d{6}") ? "TT" + compact : compact;
+    }
+
+    /** Records the docket (T11), or that there is none; the audit row keeps the old and new numbers. */
     private String recordDocket(Context context, Instant now) {
         String previous = context.complaint().getDocketNo();
-        String corrected = context.payload().docketNo().trim();
+        String corrected = tidyDocket(context.payload().docketNo());
         context.complaint().recordDocket(corrected, CurrentUser.idOrNull(), now);
         return AuditDetail.of("from", previous).and("to", corrected).json();
     }
@@ -321,18 +333,6 @@ public class WorkflowService {
     /** Everything a condition or side effect may read, loaded once per transition. */
     private record Context(
             Complaint complaint, Task task, TaskAssignment assignment, TransitionPayload payload) {}
-
-    /**
-     * Refuses to resolve a complaint that has no Engineering Unit docket number. No docket, no points.
-     */
-    public static class DocketRequiredException extends GuardFailedException {
-
-        private static final long serialVersionUID = 1L;
-
-        public DocketRequiredException(long taskId) {
-            super("Task " + taskId + " has no CMS docket; it cannot be resolved for points");
-        }
-    }
 
     /**
      * The move is allowed from this state, but its condition is not met (e.g. a missing reason).

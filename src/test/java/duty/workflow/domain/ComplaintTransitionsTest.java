@@ -90,7 +90,7 @@ class ComplaintTransitionsTest {
     }
 
     @Test
-    @DisplayName("the docket gate: RESOLVED is reachable only from IN_PROGRESS, only by T14")
+    @DisplayName("RESOLVED is reachable only from IN_PROGRESS, only by T14, with or without a docket")
     void resolvedHasExactlyOneWayIn() {
         assertThat(ComplaintTransitions.all())
                 .filteredOn(row -> row.to() == ComplaintStatus.RESOLVED)
@@ -99,7 +99,7 @@ class ComplaintTransitionsTest {
                         row -> {
                             assertThat(row.from()).isEqualTo(ComplaintStatus.IN_PROGRESS);
                             assertThat(row.event()).isEqualTo(WorkflowEvent.MARK_RESOLVED);
-                            assertThat(row.guard()).isEqualTo(TransitionGuard.DOCKET_FILED);
+                            assertThat(row.guard()).isEqualTo(TransitionGuard.NONE);
                         });
     }
 

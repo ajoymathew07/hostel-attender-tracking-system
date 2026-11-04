@@ -16,7 +16,6 @@ import static duty.workflow.domain.ComplaintTransitions.TransitionActor.MANAGER;
 import static duty.workflow.domain.ComplaintTransitions.TransitionActor.SYSTEM;
 import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.DIFFERENT_ATTENDER;
 import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.DISPATCH_CANDIDATE;
-import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.DOCKET_FILED;
 import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.DOCKET_FORMAT;
 import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.NONE;
 import static duty.workflow.domain.ComplaintTransitions.TransitionGuard.NO_DISPATCH_CANDIDATE;
@@ -55,7 +54,7 @@ public final class ComplaintTransitions {
                     row(IN_PROGRESS, WorkflowEvent.DOCKET_RECORDED, IN_PROGRESS, ASSIGNED_ATTENDER, DOCKET_FORMAT),
                     row(IN_PROGRESS, WorkflowEvent.BLOCK, ON_HOLD, ATTENDER_OR_MANAGER, REASON), // T12
                     row(ON_HOLD, WorkflowEvent.UNBLOCK, IN_PROGRESS, ATTENDER_OR_MANAGER, NONE), // T13
-                    row(IN_PROGRESS, WorkflowEvent.MARK_RESOLVED, RESOLVED, ASSIGNED_ATTENDER, DOCKET_FILED), // T14
+                    row(IN_PROGRESS, WorkflowEvent.MARK_RESOLVED, RESOLVED, ASSIGNED_ATTENDER, NONE), // T14
                     row(RESOLVED, WorkflowEvent.MANAGER_CLOSE, CLOSED, MANAGER, NONE), // T15
                     row(RESOLVED, WorkflowEvent.AUTO_CLOSE, CLOSED, SYSTEM, SEVEN_DAYS_SINCE_RESOLUTION), // T16
                     row(RESOLVED, WorkflowEvent.MANAGER_REOPEN, IN_PROGRESS, MANAGER, REASON)); // T17
@@ -137,11 +136,8 @@ public final class ComplaintTransitions {
         /** A reason is required. */
         REASON("a reason is required"),
 
-        /** T11: the docket number matches the format. */
-        DOCKET_FORMAT("the docket number does not match the configured pattern"),
-
-        /** T14: a docket is filed. No docket, no points. */
-        DOCKET_FILED("this complaint was never filed with the Engineering Unit"),
+        /** T11: no docket, or one in the CMS format (TT and six digits). */
+        DOCKET_FORMAT("a CMS docket number is TT followed by six digits"),
 
         /** T16: seven days have passed since resolution. */
         SEVEN_DAYS_SINCE_RESOLUTION("seven days have not passed since this was resolved");

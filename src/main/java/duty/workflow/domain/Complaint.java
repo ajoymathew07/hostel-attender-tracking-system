@@ -199,15 +199,18 @@ public class Complaint {
         this.updatedAt = Objects.requireNonNull(at, "at");
     }
 
-    /** Records the docket number (T11), which resolving requires. */
+    /**
+     * Records the docket number (T11), or {@code null} for a repair that needs no Engineering Unit docket,
+     * which also clears a number entered by mistake.
+     */
     public void recordDocket(String newDocketNo, Long filedBy, Instant at) {
-        this.docketNo = Objects.requireNonNull(newDocketNo, "docketNo");
-        this.docketFiledBy = Objects.requireNonNull(filedBy, "filedBy");
-        this.docketFiledAt = Objects.requireNonNull(at, "at");
-        this.updatedAt = at;
+        this.docketNo = newDocketNo;
+        this.docketFiledBy = newDocketNo == null ? null : Objects.requireNonNull(filedBy, "filedBy");
+        this.docketFiledAt = newDocketNo == null ? null : Objects.requireNonNull(at, "at");
+        this.updatedAt = Objects.requireNonNull(at, "at");
     }
 
-    /** Whether a docket is filed; needed to resolve. */
+    /** Whether a docket is filed. */
     public boolean hasDocket() {
         return docketNo != null && !docketNo.isBlank();
     }
