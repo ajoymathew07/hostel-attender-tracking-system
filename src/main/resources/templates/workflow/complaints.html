@@ -24,42 +24,18 @@
     <main id="main" class="mx-auto max-w-7xl px-6 py-8">
       <div th:replace="~{layout/shell :: flashes}"></div>
 
-      <!--
-        The counter tiles of section 10.3. There is no NEW tile because there is no NEW state to
-        count any more: auto-dispatch runs at ingest, so a complaint is assigned or in triage
-        before anybody could see it. Triage leads, because it is the only one of the four that
-        asks the manager for something.
+      <section th:replace="~{layout/shell :: banner('shikra.jpg', 'Complaints', 'Cauvery Hostel at a glance')}"></section>
 
-        Each tile is a count taken now, not a stored total — there is nothing here to go stale
-        and no counter to reconcile (section 7.8).
+      <!--
+        The counter tiles of section 10.3, drawn by React (islands.js) from the four counts below.
+        There is no NEW tile because auto-dispatch leaves no complaint in NEW to count, and Triage
+        leads because it is the only one that asks the manager for something. Each is a count taken
+        now, not a stored total (section 7.8).
       -->
       <section class="mt-6" aria-labelledby="counters-heading">
         <h2 id="counters-heading" class="sr-only">Today at a glance</h2>
-        <div class="flex gap-4 flex-wrap">
-          <a class="card p-4" th:href="@{/complaints(show='TRIAGE')}">
-            <p class="text-xs uppercase tracking-wide text-slate-500">Triage</p>
-            <p class="text-2xl font-semibold" th:text="${counters.triage}">0</p>
-            <p class="text-xs text-slate-500">waiting for you</p>
-          </a>
-          <a class="card p-4" th:href="@{/complaints(show='ACTIVE')}">
-            <p class="text-xs uppercase tracking-wide text-slate-500">Active</p>
-            <p class="text-2xl font-semibold" th:text="${counters.active}">0</p>
-            <p class="text-xs text-slate-500">somebody is on it</p>
-          </a>
-          <div class="card p-4">
-            <p class="text-xs uppercase tracking-wide text-slate-500">Resolved today</p>
-            <p class="text-2xl font-semibold" th:text="${counters.resolvedToday}">0</p>
-            <p class="text-xs text-slate-500">since midnight</p>
-          </div>
-          <a
-            class="card p-4"
-            th:href="@{/complaints(show='PAST_DUE')}"
-            th:classappend="${counters.overdue > 0} ? 'bg-red-50' : ''">
-            <p class="text-xs uppercase tracking-wide text-slate-500">Past due</p>
-            <p class="text-2xl font-semibold" th:text="${counters.overdue}">0</p>
-            <p class="text-xs text-slate-500">open and late</p>
-          </a>
-        </div>
+        <div id="tiles"></div>
+        <script id="tiles-data" type="application/json" th:inline="javascript">[[${counters}]]</script>
         <p class="mt-2 text-xs text-slate-500">
           This screen updates itself when anything changes, and waits while you are typing.
         </p>
@@ -94,7 +70,7 @@
         matters because the Content-Security-Policy of section 11.6 forbids inline script.
       -->
       <section class="mt-6 bg-white border rounded-lg shadow-sm p-6" aria-labelledby="upload-heading">
-        <h1 id="upload-heading" class="text-xl font-semibold text-slate-900">Upload responses</h1>
+        <h2 id="upload-heading" class="text-xl font-semibold text-slate-900">Upload responses</h2>
         <p class="mt-1 text-sm text-slate-600">
           Use this if complaints have stopped arriving on their own. Open the response sheet,
           download it as a CSV, and upload it here — the complaints in it will appear in the list
@@ -168,13 +144,23 @@
                 <th scope="col">#</th>
                 <th scope="col">Attender</th>
                 <th scope="col">Points</th>
+                <th scope="col" class="w-full"><span class="sr-only">Share of the leader's points</span></th>
               </tr>
             </thead>
             <tbody>
-              <tr th:each="row, iteration : ${leaderboard.rows()}">
-                <td class="whitespace-nowrap" th:text="${iteration.count}">1</td>
-                <td th:text="${row.displayName()}">Kumar</td>
+              <!-- The bar is each total against the leader's, who is the first row. -->
+              <tr th:each="row, iteration : ${leaderboard.rows()}"
+                  th:with="top=${leaderboard.rows()[0].total()}">
+                <td class="whitespace-nowrap">
+                  <span class="medal" th:text="${iteration.count <= 3} ? ${ {'🥇','🥈','🥉'}[iteration.index] } : ${iteration.count}">1</span>
+                </td>
+                <td class="whitespace-nowrap" th:text="${row.displayName()}">Kumar</td>
                 <td class="font-medium whitespace-nowrap" th:text="${row.total()}">41</td>
+                <td>
+                  <div class="bar-track" aria-hidden="true">
+                    <div class="bar-fill" th:style="|width: ${top > 0 and row.total() > 0 ? row.total() * 100 / top : 0}%|"></div>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -368,7 +354,9 @@
                     <button class="btn btn-secondary" type="submit">Downgrade to P3</button>
                   </form>
                 </td>
-                <td class="whitespace-nowrap" th:text="${complaint.status()}">NEW</td>
+                <td class="whitespace-nowrap">
+                  <span class="badge" th:classappend="'status-' + ${#strings.toLowerCase(complaint.status())}" th:text="${complaint.status()}">NEW</span>
+                </td>
                 <td class="text-sm">
                   <span th:text="${complaint.reporterName()} ?: '—'">name</span>
                   <span
@@ -468,6 +456,7 @@
 
       <footer th:replace="~{layout/shell :: pageFooter}"></footer>
     </main>
-      <script th:src="@{/js/auto-refresh.js}" defer></script>
+    <script th:src="@{/js/auto-refresh.js}" defer></script>
+    <th:block th:replace="~{layout/shell :: react}"></th:block>
   </body>
 </html>

@@ -68,10 +68,12 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
                 // Live through the manager's SSE feed (section 9.5).
                 .andExpect(content().string(containsString("data-stream=\"/api/manager/stream\"")))
                 .andExpect(content().string(containsString("/js/auto-refresh.js")))
-                // There is no NEW tile, because auto-dispatch leaves no complaint in NEW to count.
-                .andExpect(content().string(containsString("Triage")))
-                .andExpect(content().string(containsString("Resolved today")))
-                .andExpect(content().string(containsString("Past due")));
+                // The tiles are drawn by React from the counts in the page, so the counts are what
+                // the server is responsible for; there is no NEW count to draw a tile from.
+                .andExpect(content().string(containsString("id=\"tiles\"")))
+                .andExpect(content().string(containsString("/js/islands.js")))
+                .andExpect(content().string(containsString("\"resolvedToday\":")))
+                .andExpect(content().string(not(containsString("\"new\":"))));
     }
 
     @Test

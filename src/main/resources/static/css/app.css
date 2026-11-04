@@ -556,3 +556,352 @@ a.card:hover {
     align-items: stretch;
   }
 }
+
+/* ---- the visual layer ---------------------------------------------------- */
+/*
+ * Everything below is the look added on top of the utilities above: a green brand bar, photo
+ * banners, coloured status badges, the counter tiles and the bars on the leaderboard and analytics
+ * charts. The photos are of the campus; they are decoration and carry no information, so every one
+ * is a CSS background or an `alt=""` image.
+ */
+:root {
+  --brand-900: #14532d;
+  --brand-700: #15803d;
+  --brand-600: #16a34a;
+  --brand-50: #f0fdf4;
+  --blue-300: #93c5fd;
+  --violet-50: #f5f3ff;
+  --violet-300: #c4b5fd;
+  --violet-800: #5b21b6;
+}
+
+body {
+  background-color: #f4f6f3;
+}
+
+.btn {
+  background-color: var(--brand-700);
+}
+.btn:hover {
+  background-color: var(--brand-900);
+}
+/* Repeated here so the secondary style still wins over the green above, and so a link styled as a
+   button does not keep the link underline. */
+.btn.btn-secondary {
+  background-color: var(--white);
+  color: var(--slate-700);
+}
+.btn.btn-secondary:hover {
+  background-color: var(--slate-100);
+}
+a.btn {
+  text-decoration: none;
+}
+
+/* The bar across the top of every manager page. */
+.masthead {
+  background: linear-gradient(90deg, var(--brand-900), var(--brand-700));
+  color: var(--white);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.brand-mark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background-color: rgb(255 255 255 / 0.15);
+  font-size: 1.25rem;
+}
+.brand-name {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.brand-sub {
+  margin: 0;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--white);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+.nav-link:hover {
+  background-color: rgb(255 255 255 / 0.15);
+}
+.nav-link[aria-current="page"] {
+  background-color: var(--white);
+  color: var(--brand-900);
+}
+.masthead :focus-visible {
+  outline-color: var(--white);
+}
+
+/* A photo strip with the page title over it. The gradient keeps white text readable on any photo. */
+.banner {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 11rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center 35%;
+  color: var(--white);
+}
+/* The cat photo is tall and the cat sits low in it, so its banner aims lower. */
+.banner[style*="cat.jpg"] {
+  background-position: center 58%;
+}
+.banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgb(15 23 42 / 0.75), rgb(15 23 42 / 0.05));
+}
+.banner > * {
+  position: relative;
+}
+.banner h1 {
+  margin: 0;
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 700;
+}
+.banner p {
+  margin: 0.25rem 0 0;
+  opacity: 0.9;
+}
+.banner-sm {
+  min-height: 8rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+}
+.banner-sm h1 {
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+}
+
+/* The sign-in page: one photo, full screen, with the card over it. */
+/* The card sits to the left so it does not cover the blackbuck. */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 1.5rem 1.5rem 1.5rem 8vw;
+  background-size: cover;
+  background-position: center 70%;
+}
+.login-card {
+  width: 100%;
+  max-width: 26rem;
+  padding: 2rem;
+  border-radius: 1rem;
+  background-color: rgb(255 255 255 / 0.94);
+  box-shadow: 0 20px 40px rgb(15 23 42 / 0.35);
+}
+.btn-google {
+  width: 100%;
+  justify-content: center;
+  min-height: 3rem;
+  font-size: 1rem;
+}
+
+/* Status badges. The text is always there, so the colour is a second signal and never the only one. */
+.status-triage,
+.status-new {
+  background-color: var(--amber-50);
+  border-color: var(--amber-300);
+  color: var(--amber-800);
+}
+.status-assigned,
+.status-inspecting,
+.status-awaiting_cms,
+.status-in_progress {
+  background-color: var(--blue-50);
+  border-color: var(--blue-300);
+  color: var(--blue-700);
+}
+.status-on_hold {
+  background-color: var(--violet-50);
+  border-color: var(--violet-300);
+  color: var(--violet-800);
+}
+.status-resolved,
+.status-closed {
+  background-color: var(--green-50);
+  border-color: var(--green-300);
+  color: var(--green-800);
+}
+.status-rejected {
+  background-color: var(--slate-100);
+  border-color: var(--slate-300);
+  color: var(--slate-600);
+}
+
+/* The counter tiles, drawn by islands.js. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem;
+}
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--slate-200);
+  border-left-width: 6px;
+  border-radius: 0.75rem;
+  background-color: var(--white);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.08);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+a.tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgb(15 23 42 / 0.12);
+}
+.tile-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  flex: none;
+  border-radius: 9999px;
+  font-size: 1.5rem;
+}
+.tile-count {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 2.25rem;
+  font-weight: 700;
+}
+.tile-label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--slate-600);
+}
+.tile-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--slate-500);
+}
+.tone-amber { border-left-color: #f59e0b; }
+.tone-amber .tile-icon { background-color: var(--amber-50); }
+.tone-blue { border-left-color: var(--blue-600); }
+.tone-blue .tile-icon { background-color: var(--blue-50); }
+.tone-green { border-left-color: var(--brand-600); }
+.tone-green .tile-icon { background-color: var(--green-50); }
+.tone-red { border-left-color: #dc2626; }
+.tone-red .tile-icon { background-color: var(--red-50); }
+.tile-alarm {
+  background-color: var(--red-50);
+}
+
+/* Horizontal bars: the leaderboard, the open-work strip and the resolution chart. */
+.bar-track {
+  display: flex;
+  height: 0.75rem;
+  border-radius: 9999px;
+  background-color: var(--slate-100);
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background-color: var(--brand-600);
+}
+.bar-amber { background-color: #f59e0b; }
+.bar-blue { background-color: var(--blue-600); }
+.bar-light { background-color: #86efac; }
+.bar-red { background-color: #dc2626; }
+
+.chart-row {
+  display: grid;
+  grid-template-columns: 9rem 1fr 14rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--slate-100);
+}
+.chart-row .bar-track {
+  height: 1.25rem;
+}
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--slate-600);
+}
+.legend::before {
+  content: "";
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 0.25rem;
+  background-color: var(--swatch);
+}
+.toggle {
+  display: inline-flex;
+  border: 1px solid var(--slate-300);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.toggle button {
+  padding: 0.25rem 0.75rem;
+  border: 0;
+  background: var(--white);
+  color: var(--slate-700);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.toggle button[aria-pressed="true"] {
+  background-color: var(--brand-700);
+  color: var(--white);
+}
+
+.medal {
+  display: inline-block;
+  width: 1.5rem;
+  text-align: center;
+}
+
+.card {
+  border-radius: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .login-page {
+    justify-content: center;
+    padding: 1.5rem;
+  }
+  .chart-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}

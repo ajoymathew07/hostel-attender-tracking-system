@@ -3,9 +3,9 @@
   Analytics, `/analytics` (manager; sections 8.2 to 8.4). Resolution time and the bottleneck stage
   per domain over the last 90 days, the open anomaly alerts, and the Excel export.
 
-  Tables rather than Chart.js: the same numbers, with no charting library to vendor under the
-  `default-src 'self'` policy. Every figure shows its n, so six data points do not look as sure as
-  six hundred (section 8.4).
+  The chart is drawn by React (islands.js) from the same rows the table shows; the table stays
+  under it as the exact figures and for screen readers. Every figure shows its n, so six data
+  points do not look as sure as six hundred (section 8.4).
 -->
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
   <head th:replace="~{layout/shell :: head('Analytics')}">
@@ -17,8 +17,9 @@
     <main id="main" class="mx-auto max-w-7xl px-6 py-8">
       <div th:replace="~{layout/shell :: flashes}"></div>
 
-      <div class="mt-6 flex items-center justify-between gap-4 flex-wrap">
-        <h1 class="text-2xl font-semibold text-slate-900">Analytics</h1>
+      <section th:replace="~{layout/shell :: banner('blackbuck.jpg', 'Analytics', 'How long repairs take, and what needs a look')}"></section>
+
+      <div class="mt-6 flex items-center justify-end gap-4 flex-wrap">
         <nav class="flex items-center gap-3 flex-wrap" aria-label="Export">
           <span class="text-sm text-slate-600">Export to Excel:</span>
           <a class="btn btn-secondary" th:href="@{/api/manager/reports/daily.xlsx}">Today</a>
@@ -34,6 +35,9 @@
           90 days. The median is the headline; one complaint stuck over a weekend moves the mean.
         </p>
         <p th:if="${#lists.isEmpty(domains)}" class="notice bg-white">No complaints in the last 90 days.</p>
+        <div th:unless="${#lists.isEmpty(domains)}" id="resolution-chart" class="mb-4"></div>
+        <script th:unless="${#lists.isEmpty(domains)}" id="resolution-chart-data" type="application/json"
+                th:inline="javascript">[[${domains}]]</script>
         <div th:unless="${#lists.isEmpty(domains)}" class="bg-white border rounded-lg shadow-sm overflow-x-auto">
           <table class="table">
             <thead>
@@ -55,6 +59,9 @@
                 <td th:text="${row.n() > 0} ? ${#numbers.formatDecimal(row.p90(), 1, 1)} : '—'">0.0</td>
                 <!-- Section 8.2: named only with n of at least 10 and a share of at least 35%. -->
                 <td>
+                  <div th:if="${row.bottleneckStage()}" class="bar-track mb-2" aria-hidden="true" style="max-width: 12rem">
+                    <div class="bar-fill bar-red" th:style="|width: ${row.bottleneckShare() * 100}%|"></div>
+                  </div>
                   <span
                     th:if="${row.bottleneckStage()}"
                     th:text="${row.bottleneckStage()} + ' — ' + ${#numbers.formatDecimal(row.bottleneckShare() * 100, 1, 0)} + '% of the time'"
@@ -82,7 +89,8 @@
         <ul class="list-plain">
           <li th:each="alert : ${alerts}" class="card mt-4">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="badge" th:text="${alert.severity()}">WARN</span>
+              <span class="badge" th:classappend="${alert.severity() == 'HIGH'} ? 'badge-p1' : (${alert.severity() == 'WARN'} ? 'badge-p2' : '')"
+                    th:text="${alert.severity()}">WARN</span>
               <span class="badge" th:text="${alert.detector()}">A2</span>
               <span class="text-sm text-slate-600" th:text="${alert.subject()}">ROOM 214</span>
               <span class="text-xs text-slate-500" th:text="${@ist.format(alert.detectedAt())}">when</span>
@@ -98,5 +106,6 @@
     </main>
 
     <footer th:replace="~{layout/shell :: pageFooter}"></footer>
+    <th:block th:replace="~{layout/shell :: react}"></th:block>
   </body>
 </html>

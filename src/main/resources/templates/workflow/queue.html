@@ -27,9 +27,12 @@
     <main id="main" class="mx-auto max-w-lg px-4 py-4">
       <div th:replace="~{layout/shell :: flashes}"></div>
 
-      <p class="text-sm text-slate-600 mt-4">
-        <span th:text="${#lists.size(tasks)}">0</span> task(s) assigned to you
-      </p>
+      <section class="banner banner-sm mt-4" th:style="|background-image: url('@{/images/cat.jpg}')|">
+        <div>
+          <h1 th:text="${#lists.size(tasks)} + ' task(s) for you'">0 task(s) for you</h1>
+          <p>Cauvery Hostel</p>
+        </div>
+      </section>
 
       <!-- Their own standing and nobody else's: the leaderboard is the manager's screen (11.3).
            The number is a SUM over the ledger at render time, never a stored counter (7.3). -->
@@ -73,7 +76,7 @@
               <span aria-hidden="true" th:text="${domainGlyphs.get(task.domain().name())} ?: '❓'">❓</span>
               <span th:text="${task.domain()}">UNCLASSIFIED</span>
             </span>
-            <span class="badge" th:text="${task.status()}">NEW</span>
+            <span class="badge" th:classappend="'status-' + ${#strings.toLowerCase(task.status())}" th:text="${task.status()}">NEW</span>
           </div>
 
           <p class="mt-2 text-sm text-slate-600">

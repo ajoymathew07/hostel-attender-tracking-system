@@ -25,52 +25,61 @@
       The masthead of section 10.3. The Excel export lives on the Analytics page, next to the
       figures it carries.
     -->
-    <header th:fragment="masthead(active)" class="bg-white border-b">
+    <header th:fragment="masthead(active)" class="masthead">
       <a class="sr-only" href="#main">Skip to content</a>
-      <div class="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between gap-4 sm-stack">
-        <div>
-          <p class="text-lg font-semibold text-slate-900">Cauvery Hostel · Duty Tracker</p>
-          <p class="text-xs text-slate-500">IIT Madras</p>
+      <div class="mx-auto max-w-7xl px-6 py-3 flex items-center justify-between gap-4 sm-stack">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">🏠</span>
+          <div>
+            <p class="brand-name">Cauvery Hostel · Duty Tracker</p>
+            <p class="brand-sub">IIT Madras</p>
+          </div>
         </div>
-        <nav class="flex items-center gap-3" aria-label="Main">
+        <nav class="flex items-center gap-2 flex-wrap" aria-label="Main">
           <!-- `th:attr` with null omits the attribute entirely, which is what marking only the
-               current page requires — `aria-current="false"` is not a thing. -->
-          <a
-            class="btn btn-secondary"
-            th:href="@{/complaints}"
-            th:attr="aria-current=${active == 'complaints'} ? 'page' : null"
-            >Complaints</a
-          >
-          <a
-            class="btn btn-secondary"
-            th:href="@{/points}"
-            th:attr="aria-current=${active == 'points'} ? 'page' : null"
-            >Points &amp; duties</a
-          >
-          <a
-            class="btn btn-secondary"
-            th:href="@{/analytics}"
-            th:attr="aria-current=${active == 'analytics'} ? 'page' : null"
-            >Analytics</a
-          >
-          <a
-            class="btn btn-secondary"
-            th:href="@{/admin/attenders}"
-            th:attr="aria-current=${active == 'attenders'} ? 'page' : null"
-            >Users</a
-          >
-          <a
-            class="btn btn-secondary"
-            th:href="@{/settings}"
-            th:attr="aria-current=${active == 'settings'} ? 'page' : null"
-            >Settings</a
-          >
+               current page requires — `aria-current="false"` is not a thing. The icons are
+               decoration; the word beside each is what a screen reader reads. -->
+          <a class="nav-link" th:href="@{/complaints}"
+             th:attr="aria-current=${active == 'complaints'} ? 'page' : null"
+            ><span aria-hidden="true">📋</span> Complaints</a>
+          <a class="nav-link" th:href="@{/points}"
+             th:attr="aria-current=${active == 'points'} ? 'page' : null"
+            ><span aria-hidden="true">🏆</span> Points &amp; duties</a>
+          <a class="nav-link" th:href="@{/analytics}"
+             th:attr="aria-current=${active == 'analytics'} ? 'page' : null"
+            ><span aria-hidden="true">📊</span> Analytics</a>
+          <a class="nav-link" th:href="@{/admin/attenders}"
+             th:attr="aria-current=${active == 'attenders'} ? 'page' : null"
+            ><span aria-hidden="true">👥</span> Users</a>
+          <a class="nav-link" th:href="@{/settings}"
+             th:attr="aria-current=${active == 'settings'} ? 'page' : null"
+            ><span aria-hidden="true">⚙️</span> Settings</a>
           <form th:action="@{/logout}" method="post">
-            <button class="btn btn-secondary" type="submit">Sign out</button>
+            <button class="nav-link" type="submit"><span aria-hidden="true">↩</span> Sign out</button>
           </form>
         </nav>
       </div>
     </header>
+
+    <!--
+      A photo banner carrying the page's title. The photo is a CSS background, so it is decoration
+      to a screen reader and the h1 inside is what the page is called.
+    -->
+    <section th:fragment="banner(image, title, subtitle)" class="banner"
+             th:style="|background-image: url('@{/images/{file}(file=${image})}')|">
+      <div>
+        <h1 th:text="${title}">Title</h1>
+        <p th:text="${subtitle}">Subtitle</p>
+      </div>
+    </section>
+
+    <!-- React and the two parts it draws (islands.js). Loaded only by the pages that use them. -->
+    <th:block th:fragment="react">
+      <script th:src="@{/js/vendor/react.production.min.js}" defer></script>
+      <script th:src="@{/js/vendor/react-dom.production.min.js}" defer></script>
+      <script th:src="@{/js/vendor/htm.umd.js}" defer></script>
+      <script th:src="@{/js/islands.js}" defer></script>
+    </th:block>
 
     <!--
       The attender's top bar (section 10.2). Deliberately not the masthead above: section 10.1
@@ -80,12 +89,15 @@
       The bottom navigation of section 10.2 (Queue / Duties / Me) is absent because two of its
       three routes are, and a tab that goes nowhere is worse than a tab that is not there.
     -->
-    <header th:fragment="mobileBar(title)" class="bg-white border-b">
+    <header th:fragment="mobileBar(title)" class="masthead">
       <a class="sr-only" href="#main">Skip to content</a>
       <div class="mx-auto max-w-lg px-4 py-3 flex items-center justify-between gap-4">
-        <p class="text-lg font-semibold text-slate-900" th:text="${title}">My queue</p>
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">🏠</span>
+          <p class="brand-name" th:text="${title}">My queue</p>
+        </div>
         <form th:action="@{/logout}" method="post">
-          <button class="btn btn-secondary" type="submit">Sign out</button>
+          <button class="nav-link" type="submit">Sign out</button>
         </form>
       </div>
     </header>
