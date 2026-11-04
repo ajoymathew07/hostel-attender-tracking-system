@@ -5,7 +5,6 @@ import duty.workflow.application.AttenderQueueService.QueuedTask;
 import duty.workflow.application.AttenderQueueService;
 import duty.workflow.application.TaskResolutionService.ResolvedTask;
 import duty.workflow.application.TaskResolutionService;
-import duty.workflow.application.WorkflowService.DocketRequiredException;
 import duty.workflow.application.WorkflowService.GuardFailedException;
 import duty.workflow.application.WorkflowService.IllegalTransitionException;
 import duty.workflow.application.WorkflowService.InvalidDocketException;
@@ -109,17 +108,10 @@ class AttenderQueueController {
         return "redirect:/m";
     }
 
-    /** A docket refusal becomes a message on the queue. */
-    @ExceptionHandler(DocketRequiredException.class)
-    String docketRequired(RedirectAttributes flash) {
-        flash.addFlashAttribute("error", "File the CMS docket number first — no docket, no points.");
-        return "redirect:/m";
-    }
-
     @ExceptionHandler(InvalidDocketException.class)
     String invalidDocket(InvalidDocketException failure, RedirectAttributes flash) {
         flash.addFlashAttribute(
-                "error", "\"" + failure.getDocketNo() + "\" is not a usable CMS docket number.");
+                "error", "\"" + failure.getDocketNo() + "\" is not a CMS docket number: it is TT and six digits, e.g. TT123456.");
         return "redirect:/m";
     }
 

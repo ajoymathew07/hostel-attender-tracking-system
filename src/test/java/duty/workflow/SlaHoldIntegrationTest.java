@@ -33,7 +33,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @SpringBootTest
 class SlaHoldIntegrationTest extends AbstractIntegrationTest {
 
-    private static final String DOCKET = "EU/2026/00417";
+    private static final String DOCKET = "TT000417";
     private static final Instant DUE_AT = Instant.parse("2026-05-02T06:00:00Z");
     private static final Duration ONE_DAY = Duration.ofDays(1);
 

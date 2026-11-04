@@ -2,6 +2,7 @@ package duty.workflow.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -18,6 +19,7 @@ import duty.identity.infrastructure.AppUserRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;
 import duty.workflow.domain.Complaint.ComplaintDomain;
+import duty.workflow.domain.Complaint;
 import duty.workflow.infrastructure.ComplaintRepository;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -49,6 +52,7 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
     @Autowired private MockMvc mockMvc;
     @Autowired private ComplaintRepository complaints;
     @Autowired private AppUserRepository users;
+    @Autowired private JdbcTemplate jdbc;
 
     private static MockMultipartFile file(String name, String contentType, String body) {
         return new MockMultipartFile("file", name, contentType, body.getBytes(StandardCharsets.UTF_8));
@@ -87,7 +91,7 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
         mockMvc.perform(get("/complaints"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("/css/app.css")))
-                .andExpect(content().string(containsString("All complaints")));
+                .andExpect(content().string(containsString(">Complaints<")));
     }
 
     @Test
@@ -118,6 +122,41 @@ class ManagerDashboardControllerIntegrationTest extends AbstractIntegrationTest 
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Water leaking from the ceiling fan")))
                 .andExpect(content().string(containsString("1204")));
+    }
+
+    @Test
+    @WithMockUser(roles = "MANAGER")
+    @DisplayName("the list searches reference, student name, roll number, text and docket, and filters by state")
+    void theListSearchesAndFilters() throws Exception {
+        String tag = Fixtures.unique("zq");
+        Complaint active = complaints.saveAndFlush(Fixtures.complaint());
+        Complaint closed = complaints.saveAndFlush(Fixtures.complaint());
+        jdbc.update(
+                "UPDATE complaint SET reporter_name = ?, reporter_roll_no = ?, status = 'ASSIGNED' WHERE id = ?",
+                "Asha " + tag,
+                "RN" + tag,
+                active.getId());
+        jdbc.update(
+                "UPDATE complaint SET raw_text = ?, docket_no = ?, status = 'CLOSED' WHERE id = ?",
+                "Geyser sparks " + tag,
+                "EU" + tag,
+                closed.getId());
+
+        assertListed("ALL", closed.getPublicRef(), closed, active);
+        assertListed("ALL", "ASHA " + tag, active, closed);
+        assertListed("ALL", "rn" + tag, active, closed);
+        assertListed("ALL", "geyser sparks " + tag, closed, active);
+        assertListed("ALL", "eu" + tag, closed, active);
+        assertListed("ACTIVE", tag, active, closed);
+        assertListed("CLOSED", tag, closed, active);
+    }
+
+    /** Searching for {@code q} under {@code show} lists {@code shown} and not {@code hidden}. */
+    private void assertListed(String show, String q, Complaint shown, Complaint hidden) throws Exception {
+        mockMvc.perform(get("/complaints").param("show", show).param("q", q))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(shown.getPublicRef() + "<")))
+                .andExpect(content().string(not(containsString(hidden.getPublicRef() + "<"))));
     }
 
     @Test

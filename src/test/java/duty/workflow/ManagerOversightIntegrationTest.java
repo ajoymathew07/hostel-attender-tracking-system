@@ -42,7 +42,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @SpringBootTest
 class ManagerOversightIntegrationTest extends AbstractIntegrationTest {
 
-    private static final String DOCKET = "EU/2026/00517";
+    private static final String DOCKET = "TT000517";
 
     @Autowired private WorkflowService workflow;
     @Autowired private TaskResolutionService resolution;

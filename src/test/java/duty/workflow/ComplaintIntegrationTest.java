@@ -62,15 +62,15 @@ class ComplaintIntegrationTest extends AbstractIntegrationTest {
                 .describedAs("you cannot collect +2 for work never filed with the Engineering Unit")
                 .isFalse();
 
-        complaint.recordDocket("EU/2026/00471", filedBy, Instant.parse("2026-02-02T11:00:00Z"));
+        complaint.recordDocket("TT000471", filedBy, Instant.parse("2026-02-02T11:00:00Z"));
         complaints.saveAndFlush(complaint);
 
         Complaint reloaded = complaints.findById(complaint.getId()).orElseThrow();
         assertThat(reloaded.hasDocket()).isTrue();
-        assertThat(reloaded.getDocketNo()).isEqualTo("EU/2026/00471");
+        assertThat(reloaded.getDocketNo()).isEqualTo("TT000471");
         assertThat(reloaded.getDocketFiledBy()).isEqualTo(filedBy);
         assertThat(reloaded.getDocketFiledAt()).isEqualTo(Instant.parse("2026-02-02T11:00:00Z"));
-        assertThat(complaints.findByDocketNo("EU/2026/00471")).isPresent();
+        assertThat(complaints.findByDocketNo("TT000471")).isPresent();
     }
 
     @Test
@@ -79,13 +79,13 @@ class ComplaintIntegrationTest extends AbstractIntegrationTest {
         Complaint complaint = complaints.saveAndFlush(Fixtures.complaint());
         Long filedBy = users.saveAndFlush(Fixtures.attender()).getId();
 
-        complaint.recordDocket("EU/2026/00471", filedBy, Instant.parse("2026-02-02T11:00:00Z"));
-        complaint.recordDocket("EU/2026/00417", filedBy, Instant.parse("2026-02-02T11:02:00Z"));
+        complaint.recordDocket("TT000471", filedBy, Instant.parse("2026-02-02T11:00:00Z"));
+        complaint.recordDocket("TT000417", filedBy, Instant.parse("2026-02-02T11:02:00Z"));
         complaints.saveAndFlush(complaint);
 
         assertThat(complaints.findById(complaint.getId()).orElseThrow().getDocketNo())
                 .describedAs("three columns, not a history table — the audit log holds the old value")
-                .isEqualTo("EU/2026/00417");
+                .isEqualTo("TT000417");
     }
 
     @Test

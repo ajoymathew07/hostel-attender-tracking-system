@@ -10,7 +10,6 @@ import duty.ledger.infrastructure.PointLedgerRepository;
 import duty.support.AbstractIntegrationTest;
 import duty.support.Fixtures;
 import duty.workflow.application.ManualAssignmentService;
-import duty.workflow.application.WorkflowService.DocketRequiredException;
 import duty.workflow.application.WorkflowService.GuardFailedException;
 import duty.workflow.application.WorkflowService.IllegalTransitionException;
 import duty.workflow.application.WorkflowService.TransitionPayload;
@@ -52,7 +51,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @SpringBootTest
 class ComplaintStateMachineIntegrationTest extends AbstractIntegrationTest {
 
-    private static final String DOCKET = "EU/2026/00417";
+    private static final String DOCKET = "TT000417";
     private static final String ENTITY_TYPE = "complaint";
 
     @Autowired private WorkflowService workflow;
@@ -125,29 +124,6 @@ class ComplaintStateMachineIntegrationTest extends AbstractIntegrationTest {
                 .describedAs("the table is consulted before any side effect runs")
                 .isEqualTo(auditRowsBefore);
         assertThat(ledger.findByAttenderIdOrderByCreatedAtDesc(ravi.getId())).isEmpty();
-    }
-
-    @Test
-    @DisplayName("the docket gate refuses mark_resolved, and no ledger row appears — T14, E15")
-    void theDocketGateRefusesAndCreditsNobody() {
-        // Forced into IN_PROGRESS with no docket, which the machine itself cannot produce — T11
-        // is the only edge in. That is the point: the guard is belt to the table's braces.
-        long complaintId = complaintIn(ComplaintStatus.IN_PROGRESS);
-        long auditRowsBefore = auditEvents.count();
-        Fixtures.signIn(ravi);
-
-        assertThatThrownBy(
-                        () ->
-                                workflow.transition(
-                                        complaintId, WorkflowEvent.MARK_RESOLVED, TransitionPayload.none()))
-                .isInstanceOf(DocketRequiredException.class);
-
-        assertThat(ledger.findByAttenderIdOrderByCreatedAtDesc(ravi.getId()))
-                .describedAs("you cannot collect +2 for a complaint you never filed")
-                .isEmpty();
-        assertThat(complaints.findById(complaintId).orElseThrow().getStatus())
-                .isEqualTo(ComplaintStatus.IN_PROGRESS);
-        assertThat(auditEvents.count()).isEqualTo(auditRowsBefore);
     }
 
     @Test
@@ -336,11 +312,6 @@ class ComplaintStateMachineIntegrationTest extends AbstractIntegrationTest {
 
     /** Supplies whatever the row's condition needs beyond the state. */
     private void satisfy(ComplaintTransition row, long complaintId) {
-        if (row.guard() == TransitionGuard.DOCKET_FILED) {
-            Complaint complaint = complaints.findById(complaintId).orElseThrow();
-            complaint.recordDocket(DOCKET, ravi.getId(), Instant.now());
-            complaints.saveAndFlush(complaint);
-        }
         if (row.guard() == TransitionGuard.SEVEN_DAYS_SINCE_RESOLUTION) {
             resolvedDaysAgo(complaintId, 8);
         }

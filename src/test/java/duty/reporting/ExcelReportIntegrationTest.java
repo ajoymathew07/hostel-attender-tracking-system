@@ -81,7 +81,10 @@ class ExcelReportIntegrationTest extends AbstractIntegrationTest {
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(file))) {
             assertThat(List.of(0, 1, 2, 3)).extracting(i -> workbook.getSheetName(i))
                     .containsExactly("Summary", "Leaderboard", "Points", "Complaints");
-            assertThat(text(workbook.getSheet("Complaints"))).contains(ref, "214").doesNotContain("Asha Student", "9876543210");
+            assertThat(text(workbook.getSheet("Complaints")))
+                    .contains(ref, "214", "No water in the bathroom since morning", "RO_PLANT")
+                    .doesNotContain("Asha Student", "9876543210");
+            assertThat(text(workbook.getSheet("Summary"))).contains("RO_PLANT", "1.0");
             assertThat(text(workbook.getSheet("Points"))).contains(ravi.getDisplayName(), "Hostel night", "5.0");
             assertThat(text(workbook.getSheet("Leaderboard"))).contains(ravi.getDisplayName());
         }

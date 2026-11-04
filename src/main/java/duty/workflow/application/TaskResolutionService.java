@@ -3,7 +3,6 @@ package duty.workflow.application;
 import duty.identity.application.CurrentUser.SignedInUser;
 import duty.identity.application.CurrentUser;
 import duty.ledger.application.PointsLedger;
-import duty.workflow.application.WorkflowService.DocketRequiredException;
 import duty.workflow.application.WorkflowService.GuardFailedException;
 import duty.workflow.application.WorkflowService.TransitionPayload;
 import duty.workflow.domain.Complaint;
@@ -139,12 +138,6 @@ public class TaskResolutionService {
         TaskAssignment mine = myAssignment(taskId);
         Task task = mine.getTask();
         Complaint complaint = task.getComplaint();
-        if (!complaint.hasDocket()) {
-            // The table refuses this too — IN_PROGRESS is only reachable through T11, so a
-            // complaint that can be resolved always has a docket. Saying so here is what turns a
-            // stale screen's "you cannot resolve from ASSIGNED" into "file the docket first".
-            throw new DocketRequiredException(taskId);
-        }
 
         boolean replay =
                 ledger.alreadyCreditedForResolve(

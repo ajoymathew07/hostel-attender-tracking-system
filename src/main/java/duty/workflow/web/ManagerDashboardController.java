@@ -4,6 +4,7 @@ import duty.identity.application.UserProvisioningService.UserSummary;
 import duty.identity.application.UserProvisioningService;
 import duty.ingestion.application.SheetsIngestionService.IngestionHealth;
 import duty.ledger.application.LeaderboardService;
+import duty.workflow.application.ComplaintQueryService.Show;
 import duty.workflow.application.ComplaintQueryService;
 import duty.workflow.application.ManualAssignmentService;
 import duty.workflow.application.PriorityService;
@@ -79,11 +80,21 @@ class ManagerDashboardController {
         this.resolution = resolution;
     }
 
+    /**
+     * The dashboard. {@code q} searches the list and {@code show} narrows it; both are in the URL, so a
+     * search can be bookmarked and survives the live refresh.
+     */
     @GetMapping({"/", "/complaints"})
-    String list(Model model) {
+    String list(
+            @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "ALL") Show show,
+            Model model) {
         // Above everything, and counted now rather than read from a stored total (section 10.3).
         model.addAttribute("counters", complaints.counters());
-        model.addAttribute("complaints", complaints.listAll());
+        model.addAttribute("complaints", complaints.search(q, show));
+        model.addAttribute("q", q);
+        model.addAttribute("show", show);
+        model.addAttribute("shows", Show.values());
         // Above the list in the template, not in a tab: it is the only part of this screen that
         // requires the manager's action, and anything requiring action goes where the eye lands
         // first (section 10.3).

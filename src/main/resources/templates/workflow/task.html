@@ -100,13 +100,16 @@
       </section>
 
       <!--
-        Transition T11. A correction overwrites the number in place — the audit log keeps the old
-        one, which is why there is no docket history here to draw (section 4.3, ADR-012).
+        Transition T11: the CMS docket, if this repair needs one, and the start of the repair. Left
+        empty, the repair starts without a docket. A correction overwrites the number in place — the
+        audit log keeps the old one, which is why there is no docket history here to draw (section
+        4.3, ADR-012).
       -->
       <section class="card mt-4" th:if="${task.canFileDocket()}" aria-labelledby="docket-heading">
         <h2 id="docket-heading" class="text-lg font-semibold">CMS docket</h2>
         <p class="mt-2 text-sm text-slate-600" th:if="${task.canResolve()}">
-          Filed as <span class="font-mono" th:text="${task.docketNo()}">EU/2026/00417</span>.
+          <span th:if="${task.docketNo()}">Filed as <span class="font-mono" th:text="${task.docketNo()}">TT123456</span>.</span>
+          <span th:unless="${task.docketNo()}">No docket for this repair.</span>
         </p>
 
         <form class="mt-4" th:action="@{/m/tasks/{id}/docket(id=${task.taskId()})}" method="post">
@@ -114,32 +117,37 @@
             class="label"
             for="docketNo"
             th:text="${task.canResolve()}
-                     ? 'Correct the number'
-                     : 'Enter the CMS docket number'"
+                     ? 'Add or correct the docket number'
+                     : 'CMS docket number, if this repair needs one'"
             >Docket number</label
           >
           <input
-            class="input"
+            class="input font-mono"
             type="text"
             id="docketNo"
             name="docketNo"
             th:value="${task.docketNo()}"
+            placeholder="TT123456"
             autocomplete="off"
-            required />
-          <button class="btn btn-secondary btn-lg mt-4" type="submit">Save docket</button>
+            aria-describedby="docket-help" />
+          <p id="docket-help" class="mt-1 text-xs text-slate-500">TT and six digits. Leave it empty if there is none.</p>
+          <button
+            class="btn btn-secondary btn-lg mt-4"
+            type="submit"
+            th:text="${task.canResolve()} ? 'Save docket' : 'Start the repair'">
+            Start the repair
+          </button>
         </form>
       </section>
 
       <!--
-        Transition T14, and the reason the docket gate exists: you cannot collect +2 points for a
-        complaint you never filed. The button is simply absent until the docket is there, so
-        section 10.2's one-primary-action-per-task holds — the refusal in the service is what
-        actually enforces it (section 4.3).
+        Transition T14. The button appears once the repair has started, with or without a docket,
+        so section 10.2's one-primary-action-per-task holds.
       -->
       <section class="card mt-4" th:if="${task.canFileDocket()}" aria-labelledby="resolve-heading">
         <h2 id="resolve-heading" class="text-lg font-semibold">Resolve</h2>
         <p class="mt-2 text-sm text-slate-600" th:unless="${task.canResolve()}">
-          Record the CMS docket number above first. No docket, no points.
+          Start the repair above first.
         </p>
         <form
           th:if="${task.canResolve()}"

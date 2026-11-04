@@ -128,12 +128,13 @@ ingestion:
     # controller may not depend on an infrastructure class (architecture section 2.4, rule 2).
     wake-secret: ${INGESTION_WAKE_SECRET:}
 
-# The docket gate, transition T11 (OQ-1). There is no CMS API (section 1.8), so only the format can
-# be validated, and the exact format of an IITM EU CMS docket number is still an open question —
-# hence a property rather than a constant: a wrong guess costs a config edit, not a redeploy. The
-# permissive default is the working answer recorded against OQ-1.
+# The docket format, transition T11 (OQ-1, now answered). There is no CMS API (section 1.8), so only
+# the format can be checked: an IITM EU CMS docket is TT followed by six digits. What the attender
+# types is tidied first (spaces and hyphens dropped, upper-cased, TT added to six bare digits), so
+# "tt 123456" and "123456" are both TT123456. The docket itself is optional: not every repair goes
+# through the Engineering Unit.
 workflow:
-  docket-pattern: "^[A-Za-z0-9/-]{4,32}$"
+  docket-pattern: "^TT\\d{6}$"
 
   # Priority, the SLA clock and aging (section 4.5). Configuration rather than constants because
   # both sections that state these numbers say so outright — section 4.5 of the working calendar
