@@ -46,7 +46,9 @@ public final class Lifecycle {
         Map<String, Double> hours = new LinkedHashMap<>();
         Instant enteredAt = reportedAt;
         for (Transition move : transitions) {
-            if (!STATUSES.contains(move.to())) {
+            // The ingestion row has no from-state: it records that the complaint exists, not a move,
+            // so the wait from the report to dispatch stays in Dispatch.
+            if (move.from() == null || !STATUSES.contains(move.to())) {
                 continue;
             }
             String stage = STAGE_OF.get(move.from());
