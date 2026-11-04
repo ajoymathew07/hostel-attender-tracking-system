@@ -36,7 +36,7 @@
             <span aria-hidden="true" th:text="${domainGlyphs.get(task.domain().name())} ?: '❓'">❓</span>
             <span th:text="${task.domain()}">UNCLASSIFIED</span>
           </span>
-          <span class="badge" th:text="${task.status()}">NEW</span>
+          <span class="badge" th:classappend="'status-' + ${#strings.toLowerCase(task.status())}" th:text="${task.status()}">NEW</span>
         </div>
 
         <h1 class="mt-2 text-xl font-semibold">
