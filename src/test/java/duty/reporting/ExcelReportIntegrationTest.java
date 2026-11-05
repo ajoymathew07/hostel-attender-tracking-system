@@ -19,6 +19,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.StreamSupport;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -129,9 +130,11 @@ class ExcelReportIntegrationTest extends AbstractIntegrationTest {
             assertThat(text(workbook.getSheet("Attendance & Discipline")))
                     .contains(ravi.getDisplayName(), "Came in late", "-1.0")
                     .doesNotContain("Late Coming");
-            // Earned 5 + 1, penalty -1, so a final score of 5 at rank 1.
-            Sheet leaderboard = workbook.getSheet("Leaderboard");
-            Row raviRow = leaderboard.getRow(1);
+            // Earned 5 + 1, penalty -1, so a final score of 5 at rank 1. Other test classes share the
+            // database and may leave an attender tied with Ravi, so his row is found by name.
+            Row raviRow = StreamSupport.stream(workbook.getSheet("Leaderboard").spliterator(), false)
+                    .filter(r -> ravi.getDisplayName().equals(r.getCell(0).toString()))
+                    .findFirst().orElseThrow();
             assertThat(List.of(0, 1, 2, 3, 4)).extracting(i -> raviRow.getCell(i).toString())
                     .containsExactly(ravi.getDisplayName(), "6.0", "-1.0", "5.0", "1.0");
         }
