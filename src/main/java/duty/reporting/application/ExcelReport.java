@@ -155,13 +155,11 @@ public class ExcelReport {
                             ORDER BY t.created_at, t.id, u.display_name
                             """.formatted(istDate("t.created_at")), fromUtc, toUtc));
 
-            // Penalties carry a free-text note, not a category, so "late" in the note is what marks one
-            // as late coming.
+            // Penalties, with the manager's note saying what was missed.
             table(workbook, styles, "Attendance & Discipline",
-                    List.of("Date", "Staff", "Late Coming", "Missed Update", "Deduction"),
+                    List.of("Date", "Staff", "Missed Update", "Deduction"),
                     rows("""
                             SELECT l.effective_date AS day, u.display_name AS staff,
-                                   CASE WHEN l.note ILIKE '%late%' THEN 'Yes' ELSE '' END AS late,
                                    coalesce(l.note, '') AS missed, l.points AS deduction
                             FROM point_ledger l JOIN app_user u ON u.id = l.attender_id
                             WHERE l.reason_code = 'PENALTY' AND l.effective_date BETWEEN ? AND ?

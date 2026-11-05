@@ -127,7 +127,8 @@ class ExcelReportIntegrationTest extends AbstractIntegrationTest {
             assertThat(text(workbook.getSheet("Manager Special Duty")))
                     .contains("RO plant log morning", ravi.getDisplayName(), "yes");
             assertThat(text(workbook.getSheet("Attendance & Discipline")))
-                    .contains(ravi.getDisplayName(), "Came in late", "Yes", "-1.0");
+                    .contains(ravi.getDisplayName(), "Came in late", "-1.0")
+                    .doesNotContain("Late Coming");
             // Earned 5 + 1, penalty -1, so a final score of 5 at rank 1.
             Sheet leaderboard = workbook.getSheet("Leaderboard");
             Row raviRow = leaderboard.getRow(1);
