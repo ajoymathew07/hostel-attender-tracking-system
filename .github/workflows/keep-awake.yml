@@ -1,0 +1,25 @@
+name: Keep awake
+
+# A free Render instance sleeps after 15 minutes with no visitors and takes about a minute to wake.
+# Opening the health page every 10 minutes during hostel hours keeps it awake, so nobody waits.
+# At night it is left to sleep, which saves free instance hours; the first visit after 23:30 is slow.
+#
+# The URL is the repository variable APP_URL (Settings → Secrets and variables → Actions →
+# Variables), so a new deployment changes a setting, not this file. Unset, the job does nothing.
+#
+# GitHub may start a scheduled run a few minutes late, so on a busy day the app can still nap once.
+
+on:
+  schedule:
+    # Every 10 minutes from 00:00 to 17:59 UTC, which is 05:30 to 23:29 India time.
+    - cron: "*/10 0-17 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    if: vars.APP_URL != ''
+    timeout-minutes: 5
+    steps:
+      # Up to three minutes, since a ping that lands on a sleeping instance waits for it to start.
+      - run: curl --fail --silent --show-error --max-time 180 "${{ vars.APP_URL }}/actuator/health"
