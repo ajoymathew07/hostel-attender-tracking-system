@@ -141,6 +141,54 @@ class ExcelReportIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("a custom range takes rows from those days only, and a start after the end is refused")
+    void aCustomRange() throws Exception {
+        AppUser manager = users.saveAndFlush(Fixtures.manager());
+        AppUser ravi = users.saveAndFlush(Fixtures.attender());
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        LocalDate tenDaysAgo = today.minusDays(10);
+        String note = Fixtures.unique("Missed the RO log");
+        jdbc.update(
+                "INSERT INTO point_ledger (attender_id, reason_code, points, effective_date, period_key,"
+                        + " idempotency_key, created_by, created_at, note)"
+                        + " VALUES (?, 'PENALTY', -1, ?, ?, ?, ?, now(), ?)",
+                ravi.getId(),
+                tenDaysAgo,
+                tenDaysAgo.toString().substring(0, 7),
+                Fixtures.unique("PEN"),
+                manager.getId(),
+                note);
+        var asManager = authentication(Fixtures.signIn(manager));
+
+        // Ten days ago is inside this range ...
+        byte[] file = mockMvc.perform(get("/api/manager/reports/range.xlsx").with(asManager)
+                        .param("from", today.minusDays(12).toString())
+                        .param("to", today.minusDays(8).toString()))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        containsString("duty-report-" + today.minusDays(12) + "-to-" + today.minusDays(8))))
+                .andReturn().getResponse().getContentAsByteArray();
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(file))) {
+            assertThat(text(workbook.getSheet("Attendance & Discipline"))).contains(note);
+        }
+
+        // ... and outside this one, which is only the last week.
+        file = mockMvc.perform(get("/api/manager/reports/range.xlsx").with(asManager)
+                        .param("from", today.minusDays(6).toString())
+                        .param("to", today.toString()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(file))) {
+            assertThat(text(workbook.getSheet("Attendance & Discipline"))).doesNotContain(note);
+        }
+
+        mockMvc.perform(get("/api/manager/reports/range.xlsx").with(asManager)
+                        .param("from", today.toString())
+                        .param("to", today.minusDays(1).toString()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("an attender cannot download the export")
     void anAttenderIsRefused() throws Exception {
         var asAttender = Fixtures.signIn(users.saveAndFlush(Fixtures.attender()));

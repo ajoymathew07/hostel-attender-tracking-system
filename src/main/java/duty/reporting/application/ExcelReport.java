@@ -72,19 +72,28 @@ public class ExcelReport {
         }
     }
 
-    /** The workbook for the period, as the bytes of an {@code .xlsx} file. */
+    /** The workbook for one of the preset periods, ending today. */
     public byte[] build(Period period) {
         LocalDate today = LocalDate.now(IST);
-        LocalDate first = period.firstDay(today);
+        return build(period.firstDay(today), today);
+    }
+
+    /**
+     * The workbook for the days {@code first} to {@code last}, both included (India time), as the bytes
+     * of an {@code .xlsx} file. Days Pending is still counted up to today, since that is how long the
+     * complaint has really been waiting.
+     */
+    public byte[] build(LocalDate first, LocalDate last) {
+        LocalDate today = LocalDate.now(IST);
         Instant from = first.atStartOfDay(IST).toInstant();
-        Instant to = today.plusDays(1).atStartOfDay(IST).toInstant();
+        Instant to = last.plusDays(1).atStartOfDay(IST).toInstant();
         // Timestamps are stored as UTC wall-clock time, so the bounds are passed the same way.
         LocalDateTime fromUtc = LocalDateTime.ofInstant(from, ZoneOffset.UTC);
         LocalDateTime toUtc = LocalDateTime.ofInstant(to, ZoneOffset.UTC);
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Styles styles = new Styles(workbook);
-            dashboard(workbook, styles, first, today, from, to, fromUtc, toUtc);
+            dashboard(workbook, styles, first, last, from, to, fromUtc, toUtc);
 
             // Everything that earned or took back points, apart from penalties, which have their own tab.
             table(workbook, styles, "Daily Duty Updates",
@@ -100,7 +109,7 @@ public class ExcelReport {
                             LEFT JOIN task t ON t.id = l.task_id LEFT JOIN complaint c ON c.id = t.complaint_id
                             WHERE l.reason_code <> 'PENALTY' AND l.effective_date BETWEEN ? AND ?
                             ORDER BY l.effective_date, l.id
-                            """.formatted(FLOOR), first, today));
+                            """.formatted(FLOOR), first, last));
 
             for (String domain : List.of("ELECTRICAL", "CIVIL")) {
                 table(workbook, styles, label(domain) + " Complaints",
@@ -135,7 +144,7 @@ public class ExcelReport {
                               AND l.effective_date BETWEEN ? AND ?
                             GROUP BY l.effective_date, u.display_name
                             ORDER BY l.effective_date, u.display_name
-                            """, first, today));
+                            """, first, last));
 
             // One row per person on a duty, so a shared duty lists everyone who took it.
             table(workbook, styles, "Manager Special Duty",
@@ -164,7 +173,7 @@ public class ExcelReport {
                             FROM point_ledger l JOIN app_user u ON u.id = l.attender_id
                             WHERE l.reason_code = 'PENALTY' AND l.effective_date BETWEEN ? AND ?
                             ORDER BY l.effective_date, l.id
-                            """, first, today));
+                            """, first, last));
 
             // Every active attender, on zero if they did nothing; ties share a rank.
             table(workbook, styles, "Leaderboard",
@@ -180,7 +189,7 @@ public class ExcelReport {
                             WHERE u.role = 'ATTENDER' AND u.active
                             GROUP BY u.id, u.display_name
                             ORDER BY final_rank, staff
-                            """, first, today));
+                            """, first, last));
 
             table(workbook, styles, "Complaints",
                     List.of("Reference", "Reported", "Domain", "Room", "Complaint", "Priority", "Status", "Attender",
@@ -210,13 +219,13 @@ public class ExcelReport {
      * pending and how many are done, with the median repair time where enough were resolved to say.
      */
     private void dashboard(
-            XSSFWorkbook workbook, Styles styles, LocalDate first, LocalDate today,
+            XSSFWorkbook workbook, Styles styles, LocalDate first, LocalDate last,
             Instant from, Instant to, LocalDateTime fromUtc, LocalDateTime toUtc) {
-        XSSFSheet sheet = workbook.createSheet("Cauvery Hostel Operations " + today.getYear());
+        XSSFSheet sheet = workbook.createSheet("Cauvery Hostel Operations " + last.getYear());
         sheet.setColumnWidth(0, 40 * 256);
         sheet.setColumnWidth(1, 12 * 256);
-        cell(sheet, 0, 0, "Cauvery Hostel Operations Dashboard " + today.getYear(), styles.title);
-        cell(sheet, 1, 0, "From " + first.format(DAY) + " to " + today.format(DAY), null);
+        cell(sheet, 0, 0, "Cauvery Hostel Operations Dashboard " + last.getYear(), styles.title);
+        cell(sheet, 1, 0, "From " + first.format(DAY) + " to " + last.format(DAY), null);
 
         Map<String, DomainSummary> stats =
                 analytics.byDomain(from, to).stream().collect(Collectors.toMap(DomainSummary::domain, Function.identity()));
