@@ -27,6 +27,17 @@
           <a class="btn btn-secondary" th:href="@{/api/manager/reports/monthly.xlsx}">This month</a>
         </nav>
       </div>
+      <!-- Any other stretch of days: a plain GET form, so the browser downloads the file directly. -->
+      <form class="mt-3 flex items-end justify-end gap-3 flex-wrap" method="get"
+            th:action="@{/api/manager/reports/range.xlsx}" aria-label="Export a custom date range">
+        <label class="text-sm text-slate-600">From
+          <input class="input" type="date" name="from" required>
+        </label>
+        <label class="text-sm text-slate-600">To
+          <input class="input" type="date" name="to" required>
+        </label>
+        <button class="btn" type="submit">Download range</button>
+      </form>
 
       <section class="mt-8" aria-labelledby="mttr-heading">
         <h2 id="mttr-heading" class="text-lg font-semibold text-slate-900 mb-2">Resolution time by domain</h2>

@@ -19,6 +19,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.StreamSupport;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -33,7 +34,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** The .xlsx export: four tabs, this period's rows, and no student details in the file. */
+/** The .xlsx export: the hostel register's nine tabs, this period's rows, and no student details in the file. */
 @SpringBootTest
 @AutoConfigureMockMvc
 class ExcelReportIntegrationTest extends AbstractIntegrationTest {
@@ -49,7 +50,7 @@ class ExcelReportIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("the weekly workbook has its four tabs, this week's complaint and points, and no student details")
+    @DisplayName("the weekly workbook has the register's tabs, this week's complaint, duties and penalty, and no student details")
     void theWeeklyWorkbook() throws Exception {
         AppUser manager = users.saveAndFlush(Fixtures.manager());
         AppUser ravi = users.saveAndFlush(Fixtures.attender());
@@ -68,6 +69,35 @@ class ExcelReportIntegrationTest extends AbstractIntegrationTest {
                 LocalDate.now(ZoneId.of("Asia/Kolkata")).toString().substring(0, 7),
                 Fixtures.unique("ADJ"),
                 manager.getId());
+        jdbc.update(
+                "INSERT INTO point_ledger (attender_id, reason_code, points, effective_date, period_key,"
+                        + " idempotency_key, created_by, created_at, note)"
+                        + " VALUES (?, 'PENALTY', -1, ?, ?, ?, ?, now(), 'Came in late')",
+                ravi.getId(),
+                LocalDate.now(ZoneId.of("Asia/Kolkata")),
+                LocalDate.now(ZoneId.of("Asia/Kolkata")).toString().substring(0, 7),
+                Fixtures.unique("PEN"),
+                manager.getId());
+        long dutyId = jdbc.queryForObject(
+                "INSERT INTO task (task_type, title, point_value, status, created_by, created_at)"
+                        + " VALUES ('SPECIAL_DUTY', 'RO plant log morning', 1, 'COMPLETED', ?, now()) RETURNING id",
+                Long.class,
+                manager.getId());
+        jdbc.update(
+                "INSERT INTO task_assignment (task_id, attender_id, assign_method, assigned_at, status)"
+                        + " VALUES (?, ?, 'CLAIMED', now(), 'COMPLETED')",
+                dutyId,
+                ravi.getId());
+        jdbc.update(
+                "INSERT INTO point_ledger (attender_id, task_id, reason_code, points, effective_date, period_key,"
+                        + " idempotency_key, created_by, created_at)"
+                        + " VALUES (?, ?, 'SPECIAL_DUTY', 1, ?, ?, ?, ?, now())",
+                ravi.getId(),
+                dutyId,
+                LocalDate.now(ZoneId.of("Asia/Kolkata")),
+                LocalDate.now(ZoneId.of("Asia/Kolkata")).toString().substring(0, 7),
+                Fixtures.unique("DUTY"),
+                manager.getId());
         String ref = complaints.findById(complaintId).orElseThrow().getPublicRef();
 
         byte[] file =
@@ -79,15 +109,83 @@ class ExcelReportIntegrationTest extends AbstractIntegrationTest {
                         .getContentAsByteArray();
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(file))) {
-            assertThat(List.of(0, 1, 2, 3)).extracting(i -> workbook.getSheetName(i))
-                    .containsExactly("Summary", "Leaderboard", "Points", "Complaints");
+            String year = String.valueOf(LocalDate.now(ZoneId.of("Asia/Kolkata")).getYear());
+            List<String> names = new ArrayList<>();
+            workbook.forEach(sheet -> names.add(sheet.getSheetName()));
+            assertThat(names).containsExactly(
+                    "Cauvery Hostel Operations " + year, "Daily Duty Updates", "Electrical Complaints",
+                    "Civil Complaints", "RO Plant Log", "Manager Special Duty", "Attendance & Discipline",
+                    "Leaderboard", "Complaints");
             assertThat(text(workbook.getSheet("Complaints")))
-                    .contains(ref, "214", "No water in the bathroom since morning", "RO_PLANT")
+                    .contains(ref, "214", "No water in the bathroom since morning", "RO_PLANT", "IVRS")
                     .doesNotContain("Asha Student", "9876543210");
-            assertThat(text(workbook.getSheet("Summary"))).contains("RO_PLANT", "1.0");
-            assertThat(text(workbook.getSheet("Points"))).contains(ravi.getDisplayName(), "Hostel night", "5.0");
-            assertThat(text(workbook.getSheet("Leaderboard"))).contains(ravi.getDisplayName());
+            assertThat(text(workbook.getSheetAt(0)))
+                    .contains("RO_PLANT", "Total RO Plant Complaints", "Pending RO Plant Complaints", "1.0");
+            assertThat(text(workbook.getSheet("Daily Duty Updates")))
+                    .contains(ravi.getDisplayName(), "Hostel night", "RO plant log morning", "5.0")
+                    .doesNotContain("Came in late");
+            assertThat(text(workbook.getSheet("RO Plant Log"))).contains("DONE", ravi.getDisplayName());
+            assertThat(text(workbook.getSheet("Manager Special Duty")))
+                    .contains("RO plant log morning", ravi.getDisplayName(), "yes");
+            assertThat(text(workbook.getSheet("Attendance & Discipline")))
+                    .contains(ravi.getDisplayName(), "Came in late", "-1.0")
+                    .doesNotContain("Late Coming");
+            // Earned 5 + 1, penalty -1, so a final score of 5 at rank 1. Other test classes share the
+            // database and may leave an attender tied with Ravi, so his row is found by name.
+            Row raviRow = StreamSupport.stream(workbook.getSheet("Leaderboard").spliterator(), false)
+                    .filter(r -> ravi.getDisplayName().equals(r.getCell(0).toString()))
+                    .findFirst().orElseThrow();
+            assertThat(List.of(0, 1, 2, 3, 4)).extracting(i -> raviRow.getCell(i).toString())
+                    .containsExactly(ravi.getDisplayName(), "6.0", "-1.0", "5.0", "1.0");
         }
+    }
+
+    @Test
+    @DisplayName("a custom range takes rows from those days only, and a start after the end is refused")
+    void aCustomRange() throws Exception {
+        AppUser manager = users.saveAndFlush(Fixtures.manager());
+        AppUser ravi = users.saveAndFlush(Fixtures.attender());
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        LocalDate tenDaysAgo = today.minusDays(10);
+        String note = Fixtures.unique("Missed the RO log");
+        jdbc.update(
+                "INSERT INTO point_ledger (attender_id, reason_code, points, effective_date, period_key,"
+                        + " idempotency_key, created_by, created_at, note)"
+                        + " VALUES (?, 'PENALTY', -1, ?, ?, ?, ?, now(), ?)",
+                ravi.getId(),
+                tenDaysAgo,
+                tenDaysAgo.toString().substring(0, 7),
+                Fixtures.unique("PEN"),
+                manager.getId(),
+                note);
+        var asManager = authentication(Fixtures.signIn(manager));
+
+        // Ten days ago is inside this range ...
+        byte[] file = mockMvc.perform(get("/api/manager/reports/range.xlsx").with(asManager)
+                        .param("from", today.minusDays(12).toString())
+                        .param("to", today.minusDays(8).toString()))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        containsString("duty-report-" + today.minusDays(12) + "-to-" + today.minusDays(8))))
+                .andReturn().getResponse().getContentAsByteArray();
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(file))) {
+            assertThat(text(workbook.getSheet("Attendance & Discipline"))).contains(note);
+        }
+
+        // ... and outside this one, which is only the last week.
+        file = mockMvc.perform(get("/api/manager/reports/range.xlsx").with(asManager)
+                        .param("from", today.minusDays(6).toString())
+                        .param("to", today.toString()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(file))) {
+            assertThat(text(workbook.getSheet("Attendance & Discipline"))).doesNotContain(note);
+        }
+
+        mockMvc.perform(get("/api/manager/reports/range.xlsx").with(asManager)
+                        .param("from", today.toString())
+                        .param("to", today.minusDays(1).toString()))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

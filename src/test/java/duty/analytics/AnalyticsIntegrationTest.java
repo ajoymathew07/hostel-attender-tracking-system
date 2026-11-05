@@ -158,7 +158,8 @@ class AnalyticsIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(get("/analytics").with(authentication(asManager)))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Resolution time by domain")))
-                .andExpect(content().string(containsString("/api/manager/reports/weekly.xlsx")));
+                .andExpect(content().string(containsString("/api/manager/reports/weekly.xlsx")))
+                .andExpect(content().string(containsString("/api/manager/reports/range.xlsx")));
 
         var asAttender = Fixtures.signIn(users.saveAndFlush(Fixtures.attender()));
         mockMvc.perform(get("/analytics").with(authentication(asAttender))).andExpect(status().isForbidden());
